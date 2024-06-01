@@ -64,5 +64,10 @@
     "bugs": {
         "url": "https://github.com/felis2803/exchange-hub/issues"
     },
-    "homepage": "https://github.com/felis2803/exchange-hub#readme"
+    "homepage": "https://github.com/felis2803/exchange-hub#readme",
+    "files": [
+        "lib",
+        "README.md",
+        "package.json"
+    ]
 }
