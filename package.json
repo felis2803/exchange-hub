@@ -10,8 +10,7 @@
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write 'src/**/*.{js,ts,json,css,scss,md,html}'",
-    "prepare": "husky install",
-    "update": "node upd.js"
+    "prepare": "husky install"
   },
   "keywords": [],
   "author": "",
