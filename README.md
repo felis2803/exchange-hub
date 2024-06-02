@@ -1,6 +1,6 @@
 # ExchangeHub
 
-`ExchangeHub` is a TypeScript module that provides a unified API for accessing various cryptocurrency exchanges. It allows connecting to Binance, Bitmex, and other exchanges, abstracting the intricacies of their APIs.
+`ExchangeHub` is a TypeScript module that provides a unified API for accessing various cryptocurrency exchanges. It allows connecting to Binance, Bitmex, and other exchanges, abstracting the intricacies of their APIs. `ExchangeHub` also resembles a standard `EventEmitter`, allowing users to subscribe to specific events.
 
 ## Installation
 
@@ -65,6 +65,28 @@ privateHub.cancelOrder('order_id').then((response) => {
 });
 ```
 
+### Event Subscription
+
+`ExchangeHub` allows users to subscribe to various events such as `connect`, `disconnect`, `error`, and `exit`.
+
+```typescript
+publicHub.on('connect', () => {
+    console.log('Connected to the exchange');
+});
+
+publicHub.on('disconnect', () => {
+    console.log('Disconnected from the exchange');
+});
+
+publicHub.on('error', (err) => {
+    console.error('An error occurred:', err);
+});
+
+publicHub.on('exit', () => {
+    console.log('Exiting...');
+});
+```
+
 ## API
 
 ### Constructor
@@ -89,6 +111,13 @@ new ExchangeHub(exchange: string, credentials?: { apiKey: string; apiSecret: str
 -   `getBalance(): Promise<Balance>`
 -   `placeOrder(pair: string, side: 'buy' | 'sell', amount: number, price: number): Promise<Order>`
 -   `cancelOrder(orderId: string): Promise<CancelResponse>`
+
+### Events
+
+-   `connect`
+-   `disconnect`
+-   `error`
+-   `exit`
 
 ## License
 
