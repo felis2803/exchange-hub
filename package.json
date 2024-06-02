@@ -1,63 +1,54 @@
 {
-  "name": "exchange-hub",
-  "version": "1.0.0",
-  "description": "A unified interface for accessing various cryptocurrency exchanges",
-  "main": "lib/index.js",
-  "scripts": {
-    "build": "tsc",
-    "prepublishOnly": "npm run build",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "ts-node src/index.ts",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
-    "lint": "eslint . --ext .ts",
-    "lint:fix": "eslint . --ext .ts --fix",
-    "format": "prettier --write 'src/**/*.{js,ts,json,css,scss,md,html}'",
-    "prepare": "husky install"
-  },
-  "keywords": [
-    "cryptocurrency",
-    "exchange",
-    "trading",
-    "api"
-  ],
-  "author": "Афанасенко Илья <fg1@mail.ru>",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^20.13.0",
-    "@typescript-eslint/eslint-plugin": "^7.11.0",
-    "@typescript-eslint/parser": "^7.11.0",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.1.3",
-    "husky": "^8.0.0",
-    "lint-staged": "^15.2.5",
-    "nodemon": "^3.1.2",
-    "prettier": "^3.2.5",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
-  },
-  "husky": {
-    "hooks": {
-      "pre-commit": "lint-staged"
-    }
-  },
-  "lint-staged": {
-    "src/**/*.{js,jsx,ts,tsx,json,css,scss,md,html}": [
-      "prettier --write",
-      "eslint --fix"
-    ]
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/felis2803/exchange-hub.git"
-  },
-  "bugs": {
-    "url": "https://github.com/felis2803/exchange-hub/issues"
-  },
-  "homepage": "https://github.com/felis2803/exchange-hub#readme",
-  "files": [
-    "lib",
-    "README.md",
-    "package.json"
-  ]
+    "name": "exchange-hub",
+    "version": "1.0.0",
+    "description": "A unified interface for accessing various cryptocurrency exchanges",
+    "main": "lib/index.js",
+    "scripts": {
+        "build": "tsc",
+        "prepublishOnly": "npm run build",
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "ts-node src/index.ts",
+        "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+        "lint": "eslint . --ext .ts",
+        "lint:fix": "eslint . --ext .ts --fix",
+        "format": "prettier --write .",
+        "prepare": "husky install"
+    },
+    "keywords": ["cryptocurrency", "exchange", "trading", "api"],
+    "author": "Афанасенко Илья <fg1@mail.ru>",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/node": "^20.13.0",
+        "@typescript-eslint/eslint-plugin": "^7.11.0",
+        "@typescript-eslint/parser": "^7.11.0",
+        "eslint": "^8.57.0",
+        "eslint-config-prettier": "^9.1.0",
+        "eslint-plugin-prettier": "^5.1.3",
+        "husky": "^8.0.0",
+        "lint-staged": "^15.2.5",
+        "nodemon": "^3.1.2",
+        "prettier": "^3.2.5",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.4.5"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "lint-staged"
+        }
+    },
+    "lint-staged": {
+        "src/**/*.{js,jsx,ts,tsx,json,css,scss,md,html}": [
+            "prettier --write",
+            "eslint --fix"
+        ]
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/felis2803/exchange-hub.git"
+    },
+    "bugs": {
+        "url": "https://github.com/felis2803/exchange-hub/issues"
+    },
+    "homepage": "https://github.com/felis2803/exchange-hub#readme",
+    "files": ["lib", "README.md", "package.json"]
 }
