@@ -33,6 +33,12 @@
       "options": {
         "parser": "scss"
       }
+    },
+    {
+      "files": "*.yml",
+      "options": {
+        "tabWidth": 2
+      }
     }
   ]
 }
