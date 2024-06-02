@@ -10,30 +10,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '14'
-        registry-url: 'https://registry.npmjs.org'
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+          registry-url: 'https://registry.npmjs.org'
 
-    - name: Install dependencies
-      run: npm install
+      - name: Install dependencies
+        run: npm install
 
-    - name: Run build
-      run: npm run build
+      - name: Run build
+        run: npm run build
 
-    - name: Check for version change
-      id: version_check
-      run: |
-        git fetch origin main
-        git diff --exit-code origin/main -- package.json || echo "Version changed"
-      continue-on-error: true
+      - name: Check for version change
+        id: version_check
+        run: |
+          git fetch origin main
+          git diff --exit-code origin/main -- package.json || echo "Version changed"
+        continue-on-error: true
 
-    - name: Publish to npm
-      if: steps.version_check.outputs.version == 'changed'
-      run: npm publish
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm
+        if: steps.version_check.outputs.version == 'changed'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
