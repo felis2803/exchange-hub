@@ -14,12 +14,7 @@
         "format": "prettier --write 'src/**/*.{js,ts,json,css,scss,md,html}'",
         "prepare": "husky install"
     },
-    "keywords": [
-        "cryptocurrency",
-        "exchange",
-        "trading",
-        "api"
-    ],
+    "keywords": ["cryptocurrency", "exchange", "trading", "api"],
     "author": "Афанасенко Илья <fg1@mail.ru>",
     "license": "MIT",
     "devDependencies": {
@@ -45,17 +40,7 @@
         "src/**/*.{js,jsx,ts,tsx,json,css,scss,md,html}": [
             "prettier --write",
             "eslint --fix"
-        ],
-        "upd.js": [
-            "prettier --write",
-            "eslint --fix"
         ]
-    },
-    "prettier": {
-        "semi": true,
-        "singleQuote": true,
-        "printWidth": 80,
-        "tabWidth": 4
     },
     "repository": {
         "type": "git",
@@ -65,9 +50,5 @@
         "url": "https://github.com/felis2803/exchange-hub/issues"
     },
     "homepage": "https://github.com/felis2803/exchange-hub#readme",
-    "files": [
-        "lib",
-        "README.md",
-        "package.json"
-    ]
+    "files": ["lib", "README.md", "package.json"]
 }
