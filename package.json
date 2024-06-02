@@ -1,6 +1,6 @@
 {
     "name": "exchange-hub",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "A unified interface for accessing various cryptocurrency exchanges",
     "main": "lib/index.js",
     "scripts": {
@@ -14,7 +14,12 @@
         "format": "prettier --write .",
         "prepare": "husky install"
     },
-    "keywords": ["cryptocurrency", "exchange", "trading", "api"],
+    "keywords": [
+        "cryptocurrency",
+        "exchange",
+        "trading",
+        "api"
+    ],
     "author": "Афанасенко Илья <fg1@mail.ru>",
     "license": "MIT",
     "devDependencies": {
@@ -50,5 +55,9 @@
         "url": "https://github.com/felis2803/exchange-hub/issues"
     },
     "homepage": "https://github.com/felis2803/exchange-hub#readme",
-    "files": ["lib", "README.md", "package.json"]
+    "files": [
+        "lib",
+        "README.md",
+        "package.json"
+    ]
 }
