@@ -4,3 +4,4 @@ export { Wallet } from './entities/Wallet';
 export { Instrument } from './entities/Instrument';
 export { Order } from './entities/Order';
 export { Position } from './entities/Position';
+export { BaseCore as Core } from './cores/BaseCore';
