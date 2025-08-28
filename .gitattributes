@@ -1,13 +1,1 @@
-
-# Handle line endings automatically for files detected as text
-# and leave all binary files untouched.
-* text=auto
-
-# Explicitly set LF endings for certain file types
-*.js text eol=lf
-*.ts text eol=lf
-*.json text eol=lf
-*.md text eol=lf
-*.css text eol=lf
-*.scss text eol=lf
-*.html text eol=lf
+* text=auto eol=lf
