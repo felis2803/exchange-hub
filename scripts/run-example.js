@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 
-const { spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+
+// register ts-node so we can execute TypeScript examples directly
+require('ts-node/register');
 
 const exampleName = process.argv[2];
 
@@ -19,6 +21,9 @@ if (!fs.existsSync(examplePath)) {
     process.exit(1);
 }
 
-const result = spawnSync('npx', ['ts-node', examplePath], { stdio: 'inherit' });
+process.on('unhandledRejection', reason => {
+    console.error('Unhandled promise rejection:', reason);
+    process.exit(1);
+});
 
-process.exit(result.status);
+require(examplePath);
