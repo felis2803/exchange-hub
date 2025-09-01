@@ -15,4 +15,8 @@ export class Instrument {
     get orders(): Order[] {
         return this.#orders;
     }
+
+    set orders(value: Order[]) {
+        this.#orders = value;
+    }
 }

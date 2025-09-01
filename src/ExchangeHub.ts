@@ -29,10 +29,17 @@ export class ExchangeHub<ExName extends ExchangeName> {
     }
 
     async connect() {
-        //
+        await this.#core.connect();
+
+        this.#instruments = await this.#core.getInstruments();
+
+        for (const instrument of this.#instruments) {
+            instrument.orders = await this.#core.getOrders(instrument);
+        }
     }
 
     async disconnect() {
-        //
+        this.#instruments = [];
+        await this.#core.disconnect();
     }
 }
