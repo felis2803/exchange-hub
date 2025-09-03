@@ -1,3 +1,5 @@
+import { createHmac } from 'crypto';
+
 import { BaseCore } from '../BaseCore';
 import { Instrument, Order } from '../../entities';
 
@@ -21,6 +23,18 @@ export class BitMex extends BaseCore {
             this.#ws?.addEventListener('open', () => resolve());
             this.#ws?.addEventListener('error', err => reject(err));
         });
+
+        if (!this.isPublicOnly && this.apiKey && this.apiSec) {
+            const expires = Math.round(Date.now() / 1000) + 60;
+            const signature = createHmac('sha256', this.apiSec).update(`GET/realtime${expires}`).digest('hex');
+
+            this.#ws.send(
+                JSON.stringify({
+                    op: 'authKeyExpires',
+                    args: [this.apiKey, expires, signature],
+                }),
+            );
+        }
     }
 
     async disconnect(): Promise<void> {

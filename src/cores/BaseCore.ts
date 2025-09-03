@@ -30,6 +30,14 @@ export class BaseCore {
         return !(this.#apiKey && this.#apiSec);
     }
 
+    get apiKey(): ApiKey | undefined {
+        return this.#apiKey;
+    }
+
+    get apiSec(): ApiSec | undefined {
+        return this.#apiSec;
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
     async connect(): Promise<void> {}
 
