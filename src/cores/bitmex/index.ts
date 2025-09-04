@@ -1,15 +1,17 @@
 import { createHmac } from 'crypto';
 
 import { BitMexInstrument } from './BitMexInstrument';
+import { BitMexTrade } from './BitMexTrade';
 
-import type { InstrumentMessage } from './types';
+import type { InstrumentMessage, TradeMessage } from './types';
 import { BaseCore } from '../BaseCore';
-import { Instrument, Order } from '../../entities';
+import { Instrument, Order, Trade } from '../../entities';
 
 export class BitMex extends BaseCore {
     #wsEndpoint: string;
     #ws?: WebSocket;
     #instruments: Map<string, BitMexInstrument> = new Map();
+    #instrumentEntities: Map<string, Instrument> = new Map();
     #instrumentReady!: Promise<void>;
     #resolveInstrumentReady!: () => void;
 
@@ -43,7 +45,8 @@ export class BitMex extends BaseCore {
         });
 
         this.#ws.addEventListener('message', this.#handleInstrumentMessage);
-        this.#ws.send(JSON.stringify({ op: 'subscribe', args: ['instrument'] }));
+        this.#ws.addEventListener('message', this.#handleTradeMessage);
+        this.#ws.send(JSON.stringify({ op: 'subscribe', args: ['instrument', 'trade'] }));
     }
 
     async disconnect(): Promise<void> {
@@ -55,14 +58,24 @@ export class BitMex extends BaseCore {
         });
 
         this.#ws.removeEventListener('message', this.#handleInstrumentMessage);
+        this.#ws.removeEventListener('message', this.#handleTradeMessage);
         this.#ws = undefined;
         this.#instruments.clear();
+        this.#instrumentEntities.clear();
     }
 
     async getInstruments(): Promise<Instrument[]> {
         await this.#instrumentReady;
 
-        return Array.from(this.#instruments.values()).map(i => new Instrument(i.symbol));
+        const instruments = Array.from(this.#instruments.values()).map(i => new Instrument(i.symbol));
+
+        this.#instrumentEntities.clear();
+
+        for (const inst of instruments) {
+            this.#instrumentEntities.set(inst.symbol, inst);
+        }
+
+        return instruments;
     }
 
     async getOrders(instrument: Instrument): Promise<Order[]> {
@@ -122,6 +135,37 @@ export class BitMex extends BaseCore {
             this.#ws?.addEventListener('error', reject);
         });
     }
+
+    #handleTradeMessage = (event: MessageEvent) => {
+        try {
+            const text = typeof event.data === 'string' ? event.data : '';
+
+            if (!text) return;
+
+            const message = JSON.parse(text) as TradeMessage;
+
+            if (message.table !== 'trade') return;
+
+            for (const data of message.data) {
+                const item = new BitMexTrade(data);
+                const instrument = this.#instrumentEntities.get(item.symbol);
+
+                if (!instrument) continue;
+
+                const trade = new Trade(instrument, {
+                    id: item.trdMatchID,
+                    side: item.side,
+                    price: item.price,
+                    size: item.size,
+                    timestamp: item.timestamp,
+                });
+
+                instrument.trades = [...instrument.trades, trade];
+            }
+        } catch {
+            // ignore
+        }
+    };
 
     #handleInstrumentMessage = (event: MessageEvent) => {
         try {

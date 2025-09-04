@@ -1,4 +1,5 @@
 import type { BitMexInstrument } from './BitMexInstrument';
+import type { BitMexTrade } from './BitMexTrade';
 
 export type InstrumentPartialMessage = {
     table: 'instrument';
@@ -33,3 +34,9 @@ export type InstrumentMessage =
     | InstrumentInsertMessage
     | InstrumentUpdateMessage
     | InstrumentDeleteMessage;
+
+export type TradeMessage = {
+    table: 'trade';
+    action: 'partial' | 'insert';
+    data: BitMexTrade[];
+};
