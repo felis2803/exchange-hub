@@ -3,7 +3,7 @@ import { createHmac } from 'crypto';
 import { BitMexInstrument } from './BitMexInstrument';
 import { BitMexTrade } from './BitMexTrade';
 
-import type { InstrumentMessage, TradeMessage } from './types';
+import type { InstrumentMessage, TradeMessage, SubscribeMessage, WelcomeMessage } from './types';
 import { BaseCore } from '../BaseCore';
 import { Instrument, Order, Trade } from '../../entities';
 
@@ -14,10 +14,15 @@ export class BitMex extends BaseCore {
     #instrumentEntities: Map<string, Instrument> = new Map();
     #instrumentReady!: Promise<void>;
     #resolveInstrumentReady!: () => void;
+    #channelHandlers: Record<string, (message: any) => void>;
 
     constructor(shell: any, settings: any) {
         super(shell, settings);
         this.#wsEndpoint = this.isTest ? 'wss://testnet.bitmex.com/realtime' : 'wss://www.bitmex.com/realtime';
+        this.#channelHandlers = {
+            instrument: this.#handleInstrumentMessage,
+            trade: this.#handleTradeMessage,
+        };
     }
 
     async connect(): Promise<void> {
@@ -44,8 +49,7 @@ export class BitMex extends BaseCore {
             this.#resolveInstrumentReady = resolve;
         });
 
-        this.#ws.addEventListener('message', this.#handleInstrumentMessage);
-        this.#ws.addEventListener('message', this.#handleTradeMessage);
+        this.#ws.addEventListener('message', this.#handleMessage);
         this.#ws.send(JSON.stringify({ op: 'subscribe', args: ['instrument', 'trade'] }));
     }
 
@@ -57,8 +61,7 @@ export class BitMex extends BaseCore {
             this.#ws?.close();
         });
 
-        this.#ws.removeEventListener('message', this.#handleInstrumentMessage);
-        this.#ws.removeEventListener('message', this.#handleTradeMessage);
+        this.#ws.removeEventListener('message', this.#handleMessage);
         this.#ws = undefined;
         this.#instruments.clear();
         this.#instrumentEntities.clear();
@@ -136,86 +139,92 @@ export class BitMex extends BaseCore {
         });
     }
 
-    #handleTradeMessage = (event: MessageEvent) => {
+    #handleMessage = (event: MessageEvent) => {
         try {
             const text = typeof event.data === 'string' ? event.data : '';
 
             if (!text) return;
 
-            const message = JSON.parse(text) as TradeMessage;
+            const message = JSON.parse(text);
 
-            if (message.table !== 'trade') return;
+            if (this.#isWelcomeMessage(message) || this.#isSubscribeMessage(message)) return;
 
-            for (const data of message.data) {
-                const item = new BitMexTrade(data);
-                const instrument = this.#instrumentEntities.get(item.symbol);
+            const table = (message as { table?: string }).table;
 
-                if (!instrument) continue;
+            if (!table) return;
 
-                const trade = new Trade(instrument, {
-                    id: item.trdMatchID,
-                    side: item.side,
-                    price: item.price,
-                    size: item.size,
-                    timestamp: item.timestamp,
-                });
+            const handler = this.#channelHandlers[table];
 
-                instrument.trades = [...instrument.trades, trade];
-            }
+            handler?.(message);
         } catch {
             // ignore
         }
     };
 
-    #handleInstrumentMessage = (event: MessageEvent) => {
-        try {
-            const text = typeof event.data === 'string' ? event.data : '';
+    #handleTradeMessage = (message: TradeMessage) => {
+        for (const data of message.data) {
+            const item = new BitMexTrade(data);
+            const instrument = this.#instrumentEntities.get(item.symbol);
 
-            if (!text) return;
+            if (!instrument) continue;
 
-            const message = JSON.parse(text) as InstrumentMessage;
+            const trade = new Trade(instrument, {
+                id: item.trdMatchID,
+                side: item.side,
+                price: item.price,
+                size: item.size,
+                timestamp: item.timestamp,
+            });
 
-            if (message.table !== 'instrument') return;
+            instrument.trades = [...instrument.trades, trade];
+        }
+    };
 
-            switch (message.action) {
-                case 'partial':
-                    this.#instruments.clear();
+    #handleInstrumentMessage = (message: InstrumentMessage) => {
+        switch (message.action) {
+            case 'partial':
+                this.#instruments.clear();
 
-                    for (const d of message.data as BitMexInstrument[]) {
-                        this.#instruments.set(d.symbol, new BitMexInstrument(d));
-                    }
+                for (const d of message.data as BitMexInstrument[]) {
+                    this.#instruments.set(d.symbol, new BitMexInstrument(d));
+                }
 
-                    this.#resolveInstrumentReady?.();
-                    break;
-                case 'insert':
-                    for (const item of message.data as BitMexInstrument[]) {
+                this.#resolveInstrumentReady?.();
+                break;
+            case 'insert':
+                for (const item of message.data as BitMexInstrument[]) {
+                    this.#instruments.set(item.symbol, new BitMexInstrument(item));
+                }
+
+                break;
+            case 'delete':
+                for (const item of message.data as BitMexInstrument[]) {
+                    this.#instruments.delete(item.symbol);
+                }
+
+                break;
+            case 'update':
+                for (const item of message.data as BitMexInstrument[]) {
+                    const existing = this.#instruments.get(item.symbol);
+
+                    if (existing) {
+                        Object.assign(existing, item);
+                    } else {
                         this.#instruments.set(item.symbol, new BitMexInstrument(item));
                     }
+                }
 
-                    break;
-                case 'delete':
-                    for (const item of message.data as BitMexInstrument[]) {
-                        this.#instruments.delete(item.symbol);
-                    }
-
-                    break;
-                case 'update':
-                    for (const item of message.data as BitMexInstrument[]) {
-                        const existing = this.#instruments.get(item.symbol);
-
-                        if (existing) {
-                            Object.assign(existing, item);
-                        } else {
-                            this.#instruments.set(item.symbol, new BitMexInstrument(item));
-                        }
-                    }
-
-                    break;
-                default:
-                    break;
-            }
-        } catch {
-            // ignore
+                break;
+            default:
+                break;
         }
     };
+
+    #isWelcomeMessage(message: any): message is WelcomeMessage {
+        return typeof message?.info === 'string' && 'version' in message;
+    }
+
+    #isSubscribeMessage(message: any): message is SubscribeMessage {
+        return typeof message?.success === 'boolean' && 'subscribe' in message;
+    }
 }

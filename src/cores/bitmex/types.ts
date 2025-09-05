@@ -40,3 +40,19 @@ export type TradeMessage = {
     action: 'partial' | 'insert';
     data: BitMexTrade[];
 };
+
+export type WelcomeMessage = {
+    info: string;
+    version: string | number;
+    timestamp?: string;
+    docs?: string;
+};
+
+export type SubscribeMessage = {
+    success: boolean;
+    subscribe: string;
+    request: {
+        op: string;
+        args: string[];
+    };
+};
