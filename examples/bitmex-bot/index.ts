@@ -5,10 +5,7 @@ async function main() {
 
     await eh.connect();
 
-    const symbols = eh.instruments.map(instrument => instrument.symbol);
-    const ordersMap = eh.instruments.map(instrument => ({ symbol: instrument.symbol, orders: instrument.orders }));
-
-    console.log({ symbols, ordersMap });
+    console.log(eh.instruments);
 }
 
 main();
