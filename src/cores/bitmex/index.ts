@@ -1,9 +1,13 @@
 import { createHmac } from 'crypto';
 
-import { BitMexInstrument } from './BitMexInstrument';
-import { BitMexTrade } from './BitMexTrade';
-
-import type { InstrumentMessage, TradeMessage, SubscribeMessage, WelcomeMessage } from './types';
+import type {
+    BitMexInstrument,
+    BitMexTrade,
+    InstrumentMessage,
+    TradeMessage,
+    SubscribeMessage,
+    WelcomeMessage,
+} from './types';
 import { BaseCore } from '../BaseCore';
 import { Instrument, Order, Trade } from '../../entities';
 
@@ -163,7 +167,7 @@ export class BitMex extends BaseCore {
 
     #handleTradeMessage = (message: TradeMessage) => {
         for (const data of message.data) {
-            const item = new BitMexTrade(data);
+            const item: BitMexTrade = { ...data };
             const instrument = this.#instrumentEntities.get(item.symbol);
 
             if (!instrument) continue;
@@ -186,14 +190,14 @@ export class BitMex extends BaseCore {
                 this.#instruments.clear();
 
                 for (const d of message.data as BitMexInstrument[]) {
-                    this.#instruments.set(d.symbol, new BitMexInstrument(d));
+                    this.#instruments.set(d.symbol, { ...d });
                 }
 
                 this.#resolveInstrumentReady?.();
                 break;
             case 'insert':
                 for (const item of message.data as BitMexInstrument[]) {
-                    this.#instruments.set(item.symbol, new BitMexInstrument(item));
+                    this.#instruments.set(item.symbol, { ...item });
                 }
 
                 break;
@@ -210,7 +214,7 @@ export class BitMex extends BaseCore {
                     if (existing) {
                         Object.assign(existing, item);
                     } else {
-                        this.#instruments.set(item.symbol, new BitMexInstrument(item));
+                        this.#instruments.set(item.symbol, { ...item });
                     }
                 }
 
