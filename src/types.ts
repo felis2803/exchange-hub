@@ -11,3 +11,5 @@ export type Settings = {
     apiSec?: ApiSec;
     isTest?: boolean;
 };
+
+export type Side = 'buy' | 'sell';

@@ -1,32 +1,21 @@
-import type { Order } from './Order';
+import { Book } from './Book';
+
 import type { Trade } from './Trade';
+import type { Order } from './Order';
+import type { Asset } from './Asset';
 
 export class Instrument {
-    #symbol: string;
-    #orders: Order[] = [];
-    #trades: Trade[] = [];
+    symbol: string;
+    baseAsset: Asset;
+    quoteAsset: Asset;
+    trades: Trade[] = [];
+    book: Book = new Book(this);
+    orders: Order[] = [];
 
-    constructor(symbol: string) {
-        this.#symbol = symbol;
-    }
+    constructor(symbol: string, { baseAsset, quoteAsset }: Omit<Instrument, 'symbol'>) {
+        this.symbol = symbol;
 
-    get symbol() {
-        return this.#symbol;
-    }
-
-    get orders(): Order[] {
-        return this.#orders;
-    }
-
-    set orders(value: Order[]) {
-        this.#orders = value;
-    }
-
-    get trades(): Trade[] {
-        return this.#trades;
-    }
-
-    set trades(value: Trade[]) {
-        this.#trades = value;
+        this.baseAsset = baseAsset;
+        this.quoteAsset = quoteAsset;
     }
 }
