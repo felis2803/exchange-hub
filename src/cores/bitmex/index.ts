@@ -9,13 +9,14 @@ import type {
     WelcomeMessage,
 } from './types';
 import { BaseCore } from '../BaseCore';
-import { Instrument, Order, Trade } from '../../entities';
+import { Asset, Instrument, Order, Trade } from '../../entities';
 
 export class BitMex extends BaseCore {
     #wsEndpoint: string;
     #ws?: WebSocket;
     #instruments: Map<string, BitMexInstrument> = new Map();
     #instrumentEntities: Map<string, Instrument> = new Map();
+    #assetEntities: Map<string, Asset> = new Map();
     #instrumentReady!: Promise<void>;
     #resolveInstrumentReady!: () => void;
     #channelHandlers: Record<string, (message: any) => void>;
@@ -69,16 +70,25 @@ export class BitMex extends BaseCore {
         this.#ws = undefined;
         this.#instruments.clear();
         this.#instrumentEntities.clear();
+        this.#assetEntities.clear();
     }
 
     async getInstruments(): Promise<Instrument[]> {
         await this.#instrumentReady;
 
-        const instruments = Array.from(this.#instruments.values()).map(i => new Instrument(i.symbol));
+        const instruments: Instrument[] = [];
 
         this.#instrumentEntities.clear();
 
-        for (const inst of instruments) {
+        for (const item of this.#instruments.values()) {
+            const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
+            const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
+            const inst = new Instrument(
+                item.symbol,
+                { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>,
+            );
+            
+            instruments.push(inst);
             this.#instrumentEntities.set(inst.symbol, inst);
         }
 
@@ -110,9 +120,8 @@ export class BitMex extends BaseCore {
 
                         if (row.bids?.length) {
                             orders.push(
-                                new Order(instrument, {
-                                    id: 0,
-                                    side: 'Buy',
+                                new Order('bid', {
+                                    instrument,
                                     price: row.bids[0][0],
                                     size: row.bids[0][1],
                                 }),
@@ -121,11 +130,10 @@ export class BitMex extends BaseCore {
 
                         if (row.asks?.length) {
                             orders.push(
-                                new Order(instrument, {
-                                    id: 0,
-                                    side: 'Sell',
+                                new Order('ask', {
+                                    instrument,
                                     price: row.asks[0][0],
-                                    size: row.asks[0][1],
+                                    size: -row.asks[0][1],
                                 }),
                             );
                         }
@@ -141,6 +149,17 @@ export class BitMex extends BaseCore {
             this.#ws?.addEventListener('message', handleMessage);
             this.#ws?.addEventListener('error', reject);
         });
+    }
+
+    #getOrCreateAsset(symbol: string): Asset {
+        let asset = this.#assetEntities.get(symbol);
+
+        if (!asset) {
+            asset = new Asset(symbol);
+            this.#assetEntities.set(symbol, asset);
+        }
+
+        return asset;
     }
 
     #handleMessage = (event: MessageEvent) => {
@@ -172,13 +191,16 @@ export class BitMex extends BaseCore {
 
             if (!instrument) continue;
 
-            const trade = new Trade(instrument, {
-                id: item.trdMatchID,
-                side: item.side,
-                price: item.price,
-                size: item.size,
-                timestamp: item.timestamp,
-            });
+            const size = item.side === 'Buy' ? item.size : -item.size;
+            const trade = new Trade(
+                item.trdMatchID,
+                {
+                    instrument,
+                    price: item.price,
+                    size,
+                    timestamp: new Date(item.timestamp),
+                } as Omit<Trade, 'id'>,
+            );
 
             instrument.trades = [...instrument.trades, trade];
         }
