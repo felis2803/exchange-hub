@@ -35,6 +35,7 @@ export class BitMex extends BaseCore {
     #channelHandlers: {
         [K in BitMexChannel]: (message: BitMexChannelMessageMap[K]) => void;
     };
+    #partials: Set<BitMexChannel> = new Set();
 
     constructor(shell: any, settings: any) {
         super(shell, settings);
@@ -63,6 +64,7 @@ export class BitMex extends BaseCore {
             this.#resolveInstrumentReady = resolve;
         });
 
+        this.#partials.clear();
         this.#transport.addEventListener('message', this.#handleMessage);
 
         const channels = (
@@ -81,6 +83,7 @@ export class BitMex extends BaseCore {
         this.#instruments.clear();
         this.#instrumentEntities.clear();
         this.#assetEntities.clear();
+        this.#partials.clear();
     }
 
     async getInstruments(): Promise<Instrument[]> {
@@ -179,9 +182,15 @@ export class BitMex extends BaseCore {
 
             if (this.#isWelcomeMessage(message) || this.#isSubscribeMessage(message)) return;
 
-            const table = (message as { table?: BitMexChannel }).table;
+            const { table, action } = message as { table?: BitMexChannel; action?: string };
 
             if (!table) return;
+
+            if (action === 'partial') {
+                this.#partials.add(table);
+            } else if (!this.#partials.has(table)) {
+                return;
+            }
 
             const handler = this.#channelHandlers[table] as (msg: BitMexChannelMessageMap[BitMexChannel]) => void;
 
