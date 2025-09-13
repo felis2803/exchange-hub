@@ -4,6 +4,14 @@ const prettierPlugin = require('eslint-plugin-prettier');
 const importPlugin = require('eslint-plugin-import');
 const unusedImportsPlugin = require('eslint-plugin-unused-imports');
 
+const newlineAfterSuperRule = require('./eslint/rules/newline-after-super');
+
+const newlineAfterSuperPlugin = {
+    rules: {
+        'newline-after-super': newlineAfterSuperRule,
+    },
+};
+
 module.exports = [
     {
         ignores: ['dist/**', 'node_modules/**'],
@@ -23,6 +31,7 @@ module.exports = [
             prettier: prettierPlugin,
             import: importPlugin,
             'unused-imports': unusedImportsPlugin,
+            'newline-after-super': newlineAfterSuperPlugin,
         },
         rules: {
             ...js.configs.recommended.rules,
@@ -66,6 +75,7 @@ module.exports = [
                 'error',
                 { enforce: [{ blankLine: 'always', prev: 'method', next: 'method' }] },
             ],
+            'newline-after-super/newline-after-super': 'error',
             'prettier/prettier': 'error',
             'padding-line-between-statements': [
                 'error',
@@ -105,6 +115,7 @@ module.exports = [
             prettier: prettierPlugin,
             import: importPlugin,
             'unused-imports': unusedImportsPlugin,
+            'newline-after-super': newlineAfterSuperPlugin,
         },
         rules: {
             ...js.configs.recommended.rules,
@@ -157,6 +168,7 @@ module.exports = [
                 'error',
                 { enforce: [{ blankLine: 'always', prev: 'method', next: 'method' }] },
             ],
+            'newline-after-super/newline-after-super': 'error',
             '@typescript-eslint/consistent-type-imports': 'error',
             'prettier/prettier': 'error',
             'padding-line-between-statements': [
