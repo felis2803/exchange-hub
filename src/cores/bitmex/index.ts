@@ -1,4 +1,5 @@
-import { createHmac } from 'crypto';
+import { BITMEX_PRIVATE_CHANNELS, BITMEX_PUBLIC_CHANNELS } from './constants';
+import { BitMexTransport } from './transport';
 
 import type {
     BitMexInstrument,
@@ -17,6 +18,7 @@ import type {
     PositionMessage,
     TransactMessage,
     WalletMessage,
+    BitMexChannel,
     BitMexChannelMessageMap,
 } from './types';
 import { BaseCore } from '../BaseCore';
@@ -24,19 +26,20 @@ import { Asset, Instrument, Order, Trade } from '../../entities';
 
 export class BitMex extends BaseCore {
     #wsEndpoint: string;
-    #ws?: WebSocket;
+    #transport: BitMexTransport;
     #instruments: Map<string, BitMexInstrument> = new Map();
     #instrumentEntities: Map<string, Instrument> = new Map();
     #assetEntities: Map<string, Asset> = new Map();
     #instrumentReady!: Promise<void>;
     #resolveInstrumentReady!: () => void;
     #channelHandlers: {
-        [K in keyof BitMexChannelMessageMap]: (message: BitMexChannelMessageMap[K]) => void;
+        [K in BitMexChannel]: (message: BitMexChannelMessageMap[K]) => void;
     };
 
     constructor(shell: any, settings: any) {
         super(shell, settings);
         this.#wsEndpoint = this.isTest ? 'wss://testnet.bitmex.com/realtime' : 'wss://www.bitmex.com/realtime';
+        this.#transport = new BitMexTransport(this.#wsEndpoint);
         this.#channelHandlers = {
             instrument: this.#handleInstrumentMessage,
             trade: this.#handleTradeMessage,
@@ -54,48 +57,27 @@ export class BitMex extends BaseCore {
     }
 
     async connect(): Promise<void> {
-        this.#ws = new WebSocket(this.#wsEndpoint);
-
-        await new Promise<void>((resolve, reject) => {
-            this.#ws?.addEventListener('open', () => resolve());
-            this.#ws?.addEventListener('error', err => reject(err));
-        });
-
-        if (!this.isPublicOnly && this.apiKey && this.apiSec) {
-            const expires = Math.round(Date.now() / 1000) + 60;
-            const signature = createHmac('sha256', this.apiSec).update(`GET/realtime${expires}`).digest('hex');
-
-            this.#ws.send(
-                JSON.stringify({
-                    op: 'authKeyExpires',
-                    args: [this.apiKey, expires, signature],
-                }),
-            );
-        }
+        await this.#transport.connect(this.isPublicOnly, this.apiKey, this.apiSec);
 
         this.#instrumentReady = new Promise(resolve => {
             this.#resolveInstrumentReady = resolve;
         });
 
-        this.#ws.addEventListener('message', this.#handleMessage);
+        this.#transport.addEventListener('message', this.#handleMessage);
 
-        const publicChannels = ['instrument', 'trade', 'funding', 'liquidation', 'orderBookL2', 'settlement'];
-        const privateChannels = ['execution', 'order', 'margin', 'position', 'transact', 'wallet'];
-        const channels = this.isPublicOnly ? publicChannels : [...publicChannels, ...privateChannels];
+        const channels = (
+            this.isPublicOnly ? BITMEX_PUBLIC_CHANNELS : [...BITMEX_PUBLIC_CHANNELS, ...BITMEX_PRIVATE_CHANNELS]
+        ) as BitMexChannel[];
 
-        this.#ws.send(JSON.stringify({ op: 'subscribe', args: channels }));
+        this.#transport.subscribe(channels);
     }
 
     async disconnect(): Promise<void> {
-        if (!this.#ws) return;
+        if (!this.#transport.isConnected()) return;
 
-        await new Promise<void>(resolve => {
-            this.#ws?.addEventListener('close', () => resolve());
-            this.#ws?.close();
-        });
+        this.#transport.removeEventListener('message', this.#handleMessage);
+        await this.#transport.disconnect();
 
-        this.#ws.removeEventListener('message', this.#handleMessage);
-        this.#ws = undefined;
         this.#instruments.clear();
         this.#instrumentEntities.clear();
         this.#assetEntities.clear();
@@ -121,11 +103,11 @@ export class BitMex extends BaseCore {
     }
 
     async getOrders(instrument: Instrument): Promise<Order[]> {
-        if (!this.#ws) throw new Error('WebSocket not connected');
+        if (!this.#transport.isConnected()) throw new Error('WebSocket not connected');
 
         const channel = `orderBook10:${instrument.symbol}`;
 
-        this.#ws.send(JSON.stringify({ op: 'subscribe', args: [channel] }));
+        this.#transport.send({ op: 'subscribe', args: [channel] });
 
         return new Promise<Order[]>((resolve, reject) => {
             const handleMessage = (event: MessageEvent) => {
@@ -138,8 +120,8 @@ export class BitMex extends BaseCore {
 
                         if (!row) return;
 
-                        this.#ws?.removeEventListener('message', handleMessage);
-                        this.#ws?.send(JSON.stringify({ op: 'unsubscribe', args: [channel] }));
+                        this.#transport.removeEventListener('message', handleMessage);
+                        this.#transport.send({ op: 'unsubscribe', args: [channel] });
 
                         const orders: Order[] = [];
 
@@ -166,13 +148,13 @@ export class BitMex extends BaseCore {
                         resolve(orders);
                     }
                 } catch (err) {
-                    this.#ws?.removeEventListener('message', handleMessage);
+                    this.#transport.removeEventListener('message', handleMessage);
                     reject(err);
                 }
             };
 
-            this.#ws?.addEventListener('message', handleMessage);
-            this.#ws?.addEventListener('error', reject);
+            this.#transport.addEventListener('message', handleMessage);
+            this.#transport.addEventListener('error', reject as any);
         });
     }
 
@@ -193,19 +175,17 @@ export class BitMex extends BaseCore {
 
             if (!text) return;
 
-            const message = JSON.parse(text) as BitMexChannelMessageMap[keyof BitMexChannelMessageMap];
+            const message = JSON.parse(text) as BitMexChannelMessageMap[BitMexChannel];
 
             if (this.#isWelcomeMessage(message) || this.#isSubscribeMessage(message)) return;
 
-            const table = (message as { table?: keyof BitMexChannelMessageMap }).table;
+            const table = (message as { table?: BitMexChannel }).table;
 
             if (!table) return;
 
-            const handler = this.#channelHandlers[table] as (
-                msg: BitMexChannelMessageMap[keyof BitMexChannelMessageMap],
-            ) => void;
+            const handler = this.#channelHandlers[table] as (msg: BitMexChannelMessageMap[BitMexChannel]) => void;
 
-            handler?.(message as BitMexChannelMessageMap[keyof BitMexChannelMessageMap]);
+            handler?.(message as BitMexChannelMessageMap[BitMexChannel]);
         } catch {
             // ignore
         }

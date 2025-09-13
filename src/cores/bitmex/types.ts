@@ -1,3 +1,7 @@
+import type { BitMexChannel } from './constants';
+
+export type { BitMexChannel } from './constants';
+
 export type BitMexInstrument = {
     symbol: string;
     rootSymbol?: string;
@@ -159,14 +163,14 @@ export type WelcomeMessage = {
 
 export type SubscribeMessage = {
     success: boolean;
-    subscribe: string;
+    subscribe: BitMexChannel;
     request: {
         op: string;
-        args: string[];
+        args: BitMexChannel[];
     };
 };
 
-type TableMessage<Table extends string, Data> = {
+type TableMessage<Table extends BitMexChannel, Data> = {
     table: Table;
     action: 'partial' | 'insert' | 'update' | 'delete';
     data: Data[];
