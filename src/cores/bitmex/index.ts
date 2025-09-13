@@ -22,7 +22,7 @@ import type {
     BitMexChannelMessageMap,
 } from './types';
 import { BaseCore } from '../BaseCore';
-import { Asset, Instrument, Order, Trade } from '../../entities';
+import type { Asset, Instrument, Order, Trade } from '../../entities';
 
 export class BitMex extends BaseCore {
     #wsEndpoint: string;
@@ -93,7 +93,10 @@ export class BitMex extends BaseCore {
         for (const item of this.#instruments.values()) {
             const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
             const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
-            const inst = new Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>);
+            const inst = new this.shell.entities.Instrument(item.symbol, {
+                baseAsset,
+                quoteAsset,
+            } as Omit<Instrument, 'symbol'>);
 
             instruments.push(inst);
             this.#instrumentEntities.set(inst.symbol, inst);
@@ -127,7 +130,7 @@ export class BitMex extends BaseCore {
 
                         if (row.bids?.length) {
                             orders.push(
-                                new Order('bid', {
+                                new this.shell.entities.Order('bid', {
                                     instrument,
                                     price: row.bids[0][0],
                                     size: row.bids[0][1],
@@ -137,7 +140,7 @@ export class BitMex extends BaseCore {
 
                         if (row.asks?.length) {
                             orders.push(
-                                new Order('ask', {
+                                new this.shell.entities.Order('ask', {
                                     instrument,
                                     price: row.asks[0][0],
                                     size: -row.asks[0][1],
@@ -162,7 +165,7 @@ export class BitMex extends BaseCore {
         let asset = this.#assetEntities.get(symbol);
 
         if (!asset) {
-            asset = new Asset(symbol);
+            asset = new this.shell.entities.Asset(symbol);
             this.#assetEntities.set(symbol, asset);
         }
 
@@ -199,7 +202,7 @@ export class BitMex extends BaseCore {
             if (!instrument) continue;
 
             const size = item.side === 'Buy' ? item.size : -item.size;
-            const trade = new Trade(item.trdMatchID, {
+            const trade = new this.shell.entities.Trade(item.trdMatchID, {
                 instrument,
                 price: item.price,
                 size,
