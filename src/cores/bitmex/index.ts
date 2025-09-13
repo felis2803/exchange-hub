@@ -22,7 +22,7 @@ import type {
     BitMexChannelMessageMap,
 } from './types';
 import { BaseCore } from '../BaseCore';
-import { Asset, Instrument, Order, Trade } from '../../entities';
+import type { Asset, Instrument, Order, Trade } from '../../entities';
 
 export class BitMex extends BaseCore {
     #wsEndpoint: string;
@@ -94,7 +94,7 @@ export class BitMex extends BaseCore {
         this.#orderBookLevels.clear();
         this.#partials.clear();
     }
-
+    
     get instruments(): Instrument[] {
         return [...this.#instrumentEntities.values()];
     }
@@ -103,7 +103,7 @@ export class BitMex extends BaseCore {
         let asset = this.#assetEntities.get(symbol);
 
         if (!asset) {
-            asset = new Asset(symbol);
+            asset = new this.shell.entities.Asset(symbol);
             this.#assetEntities.set(symbol, asset);
         }
 
@@ -146,7 +146,7 @@ export class BitMex extends BaseCore {
             if (!instrument) continue;
 
             const size = item.side === 'Buy' ? item.size : -item.size;
-            const trade = new Trade(item.trdMatchID, {
+            const trade = new this.shell.entities.Trade(item.trdMatchID, {
                 instrument,
                 price: item.price,
                 size,

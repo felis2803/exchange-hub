@@ -1,6 +1,6 @@
 import { Cores } from './cores';
+import { createEntities, type Entities, type Instrument } from './entities';
 
-import type { Instrument } from './entities/Instrument';
 import type { BaseCore } from './cores/BaseCore';
 import type { ExchangeName, Settings } from './types';
 
@@ -8,10 +8,12 @@ export class ExchangeHub<ExName extends ExchangeName> {
     #core: BaseCore;
     #isTest: boolean;
     #instruments: Instrument[] = [];
+    readonly entities: Entities;
 
     constructor(exchangeName: ExName, settings: Settings = {}) {
         const { isTest } = settings;
 
+        this.entities = createEntities(this);
         this.#core = new Cores[exchangeName](this, settings);
         this.#isTest = isTest || false;
     }
@@ -24,7 +26,7 @@ export class ExchangeHub<ExName extends ExchangeName> {
         return this.#isTest;
     }
 
-    get instruments() {
+    get instruments(): Instrument[] {
         return this.#instruments;
     }
 
