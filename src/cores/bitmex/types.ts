@@ -1,3 +1,9 @@
+import type { BITMEX_PUBLIC_CHANNELS, BITMEX_PRIVATE_CHANNELS } from './constants';
+
+export type BitMexPublicChannel = (typeof BITMEX_PUBLIC_CHANNELS)[number];
+export type BitMexPrivateChannel = (typeof BITMEX_PRIVATE_CHANNELS)[number];
+export type BitMexChannel = BitMexPublicChannel | BitMexPrivateChannel;
+
 export type BitMexInstrument = {
     symbol: string;
     rootSymbol?: string;
@@ -159,14 +165,14 @@ export type WelcomeMessage = {
 
 export type SubscribeMessage = {
     success: boolean;
-    subscribe: string;
+    subscribe: BitMexChannel;
     request: {
         op: string;
-        args: string[];
+        args: BitMexChannel[];
     };
 };
 
-type TableMessage<Table extends string, Data> = {
+type TableMessage<Table extends BitMexChannel, Data> = {
     table: Table;
     action: 'partial' | 'insert' | 'update' | 'delete';
     data: Data[];
