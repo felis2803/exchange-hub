@@ -1,14 +1,14 @@
 import type { Instrument } from './Instrument';
 
-type BookLevel = {
+type OrderBookLevel = {
     price: number;
     size: number;
 };
 
-export class Book {
+export class OrderBook {
     instrument: Instrument;
-    bids: BookLevel[] = [];
-    asks: BookLevel[] = [];
+    bids: OrderBookLevel[] = [];
+    asks: OrderBookLevel[] = [];
 
     constructor(instrument: Instrument) {
         this.instrument = instrument;

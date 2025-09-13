@@ -1,4 +1,4 @@
-import { Book } from './Book';
+import { OrderBook } from './OrderBook';
 
 import type { Trade } from './Trade';
 import type { Order } from './Order';
@@ -9,7 +9,9 @@ export class Instrument {
     baseAsset: Asset;
     quoteAsset: Asset;
     trades: Trade[] = [];
-    book: Book = new Book(this);
+    bid = NaN;
+    ask = NaN;
+    orderBook: OrderBook = new OrderBook(this);
     orders: Order[] = [];
 
     constructor(symbol: string, { baseAsset, quoteAsset }: Omit<Instrument, 'symbol'>) {
