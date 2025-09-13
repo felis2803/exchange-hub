@@ -28,6 +28,7 @@ export function createTrade<ExName extends ExchangeName>(eh: ExchangeHub<ExName>
             },
         ) {
             super();
+
             this.id = id;
             this.instrument = instrument;
             this.price = price;
