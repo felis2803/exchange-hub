@@ -1,6 +1,8 @@
-import type { BitMexChannel } from './constants';
+import type { BITMEX_PUBLIC_CHANNELS, BITMEX_PRIVATE_CHANNELS } from './constants';
 
-export type { BitMexChannel } from './constants';
+export type BitMexPublicChannel = (typeof BITMEX_PUBLIC_CHANNELS)[number];
+export type BitMexPrivateChannel = (typeof BITMEX_PRIVATE_CHANNELS)[number];
+export type BitMexChannel = BitMexPublicChannel | BitMexPrivateChannel;
 
 export type BitMexInstrument = {
     symbol: string;
