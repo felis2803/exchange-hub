@@ -27,6 +27,16 @@ export class BitMex extends BaseCore {
         this.#channelHandlers = {
             instrument: this.#handleInstrumentMessage,
             trade: this.#handleTradeMessage,
+            funding: this.#handleFundingMessage,
+            liquidation: this.#handleLiquidationMessage,
+            orderBookL2: this.#handleOrderBookL2Message,
+            settlement: this.#handleSettlementMessage,
+            execution: this.#handleExecutionMessage,
+            order: this.#handleOrderMessage,
+            margin: this.#handleMarginMessage,
+            position: this.#handlePositionMessage,
+            transact: this.#handleTransactMessage,
+            wallet: this.#handleWalletMessage,
         };
     }
 
@@ -55,7 +65,12 @@ export class BitMex extends BaseCore {
         });
 
         this.#ws.addEventListener('message', this.#handleMessage);
-        this.#ws.send(JSON.stringify({ op: 'subscribe', args: ['instrument', 'trade'] }));
+
+        const publicChannels = ['instrument', 'trade', 'funding', 'liquidation', 'orderBookL2', 'settlement'];
+        const privateChannels = ['execution', 'order', 'margin', 'position', 'transact', 'wallet'];
+        const channels = this.isPublicOnly ? publicChannels : [...publicChannels, ...privateChannels];
+
+        this.#ws.send(JSON.stringify({ op: 'subscribe', args: channels }));
     }
 
     async disconnect(): Promise<void> {
@@ -83,11 +98,8 @@ export class BitMex extends BaseCore {
         for (const item of this.#instruments.values()) {
             const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
             const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
-            const inst = new Instrument(
-                item.symbol,
-                { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>,
-            );
-            
+            const inst = new Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>);
+
             instruments.push(inst);
             this.#instrumentEntities.set(inst.symbol, inst);
         }
@@ -192,18 +204,55 @@ export class BitMex extends BaseCore {
             if (!instrument) continue;
 
             const size = item.side === 'Buy' ? item.size : -item.size;
-            const trade = new Trade(
-                item.trdMatchID,
-                {
-                    instrument,
-                    price: item.price,
-                    size,
-                    timestamp: new Date(item.timestamp),
-                } as Omit<Trade, 'id'>,
-            );
+            const trade = new Trade(item.trdMatchID, {
+                instrument,
+                price: item.price,
+                size,
+                timestamp: new Date(item.timestamp),
+            } as Omit<Trade, 'id'>);
 
             instrument.trades = [...instrument.trades, trade];
         }
+    };
+
+    #handleFundingMessage = (_message: any) => {
+        // noop
+    };
+
+    #handleLiquidationMessage = (_message: any) => {
+        // noop
+    };
+
+    #handleOrderBookL2Message = (_message: any) => {
+        // noop
+    };
+
+    #handleSettlementMessage = (_message: any) => {
+        // noop
+    };
+
+    #handleExecutionMessage = (_message: any) => {
+        // noop
+    };
+
+    #handleOrderMessage = (_message: any) => {
+        // noop
+    };
+
+    #handleMarginMessage = (_message: any) => {
+        // noop
+    };
+
+    #handlePositionMessage = (_message: any) => {
+        // noop
+    };
+
+    #handleTransactMessage = (_message: any) => {
+        // noop
+    };
+
+    #handleWalletMessage = (_message: any) => {
+        // noop
     };
 
     #handleInstrumentMessage = (message: InstrumentMessage) => {
