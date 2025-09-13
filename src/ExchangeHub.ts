@@ -32,8 +32,7 @@ export class ExchangeHub<ExName extends ExchangeName> {
 
     async connect() {
         await this.#core.connect();
-
-        this.#instruments = await this.#core.getInstruments();
+        this.#instruments = this.#core.instruments;
     }
 
     async disconnect() {

@@ -32,9 +32,13 @@ export class BitMex extends BaseCore {
     #assetEntities: Map<string, Asset> = new Map();
     #instrumentReady!: Promise<void>;
     #resolveInstrumentReady!: () => void;
+    #orderBookLevels: Map<string, Map<number, { side: 'Buy' | 'Sell'; price: number; size: number }>> = new Map();
+    #orderBookReady!: Promise<void>;
+    #resolveOrderBookReady!: () => void;
     #channelHandlers: {
         [K in BitMexChannel]: (message: BitMexChannelMessageMap[K]) => void;
     };
+    #partials: Set<BitMexChannel> = new Set();
 
     constructor(shell: any, settings: any) {
         super(shell, settings);
@@ -62,7 +66,11 @@ export class BitMex extends BaseCore {
         this.#instrumentReady = new Promise(resolve => {
             this.#resolveInstrumentReady = resolve;
         });
+        this.#orderBookReady = new Promise(resolve => {
+            this.#resolveOrderBookReady = resolve;
+        });
 
+        this.#partials.clear();
         this.#transport.addEventListener('message', this.#handleMessage);
 
         const channels = (
@@ -70,6 +78,8 @@ export class BitMex extends BaseCore {
         ) as BitMexChannel[];
 
         this.#transport.subscribe(channels);
+
+        await Promise.all([this.#instrumentReady, this.#orderBookReady]);
     }
 
     async disconnect(): Promise<void> {
@@ -81,84 +91,12 @@ export class BitMex extends BaseCore {
         this.#instruments.clear();
         this.#instrumentEntities.clear();
         this.#assetEntities.clear();
+        this.#orderBookLevels.clear();
+        this.#partials.clear();
     }
-
-    async getInstruments(): Promise<Instrument[]> {
-        await this.#instrumentReady;
-
-        const instruments: Instrument[] = [];
-
-        this.#instrumentEntities.clear();
-
-        for (const item of this.#instruments.values()) {
-            const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
-            const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
-            const inst = new this.shell.entities.Instrument(item.symbol, {
-                baseAsset,
-                quoteAsset,
-            } as Omit<Instrument, 'symbol'>);
-
-            instruments.push(inst);
-            this.#instrumentEntities.set(inst.symbol, inst);
-        }
-
-        return instruments;
-    }
-
-    async getOrders(instrument: Instrument): Promise<Order[]> {
-        if (!this.#transport.isConnected()) throw new Error('WebSocket not connected');
-
-        const channel = `orderBook10:${instrument.symbol}`;
-
-        this.#transport.send({ op: 'subscribe', args: [channel] });
-
-        return new Promise<Order[]>((resolve, reject) => {
-            const handleMessage = (event: MessageEvent) => {
-                try {
-                    const text = typeof event.data === 'string' ? event.data : '';
-                    const message = JSON.parse(text);
-
-                    if (message.table === 'orderBook10' && Array.isArray(message.data)) {
-                        const row = message.data.find((d: any) => d.symbol === instrument.symbol);
-
-                        if (!row) return;
-
-                        this.#transport.removeEventListener('message', handleMessage);
-                        this.#transport.send({ op: 'unsubscribe', args: [channel] });
-
-                        const orders: Order[] = [];
-
-                        if (row.bids?.length) {
-                            orders.push(
-                                new this.shell.entities.Order('bid', {
-                                    instrument,
-                                    price: row.bids[0][0],
-                                    size: row.bids[0][1],
-                                }),
-                            );
-                        }
-
-                        if (row.asks?.length) {
-                            orders.push(
-                                new this.shell.entities.Order('ask', {
-                                    instrument,
-                                    price: row.asks[0][0],
-                                    size: -row.asks[0][1],
-                                }),
-                            );
-                        }
-
-                        resolve(orders);
-                    }
-                } catch (err) {
-                    this.#transport.removeEventListener('message', handleMessage);
-                    reject(err);
-                }
-            };
-
-            this.#transport.addEventListener('message', handleMessage);
-            this.#transport.addEventListener('error', reject as any);
-        });
+    
+    get instruments(): Instrument[] {
+        return [...this.#instrumentEntities.values()];
     }
 
     #getOrCreateAsset(symbol: string): Asset {
@@ -182,9 +120,15 @@ export class BitMex extends BaseCore {
 
             if (this.#isWelcomeMessage(message) || this.#isSubscribeMessage(message)) return;
 
-            const table = (message as { table?: BitMexChannel }).table;
+            const { table, action } = message as { table?: BitMexChannel; action?: string };
 
             if (!table) return;
+
+            if (action === 'partial') {
+                this.#partials.add(table);
+            } else if (!this.#partials.has(table)) {
+                return;
+            }
 
             const handler = this.#channelHandlers[table] as (msg: BitMexChannelMessageMap[BitMexChannel]) => void;
 
@@ -221,8 +165,60 @@ export class BitMex extends BaseCore {
         // noop
     };
 
-    #handleOrderBookL2Message = (_message: OrderBookL2Message) => {
-        // noop
+    #handleOrderBookL2Message = (message: OrderBookL2Message) => {
+        const grouped: Record<string, typeof message.data> = {};
+
+        for (const row of message.data) {
+            (grouped[row.symbol] ??= []).push(row);
+        }
+
+        for (const [symbol, rows] of Object.entries(grouped)) {
+            let book = this.#orderBookLevels.get(symbol);
+
+            if (message.action === 'partial') {
+                book = new Map();
+                this.#orderBookLevels.set(symbol, book);
+            } else {
+                if (!book) {
+                    book = new Map();
+                    this.#orderBookLevels.set(symbol, book);
+                }
+            }
+
+            switch (message.action) {
+                case 'partial':
+                case 'insert':
+                    for (const r of rows) {
+                        book!.set(r.id, { side: r.side, price: r.price, size: r.size });
+                    }
+                    break;
+                case 'update':
+                    for (const r of rows) {
+                        const level = book!.get(r.id);
+                        if (level) {
+                            level.size = r.size ?? level.size;
+                            level.price = r.price ?? level.price;
+                            level.side = r.side ?? level.side;
+                        } else {
+                            book!.set(r.id, { side: r.side, price: r.price, size: r.size });
+                        }
+                    }
+                    break;
+                case 'delete':
+                    for (const r of rows) {
+                        book!.delete(r.id);
+                    }
+                    break;
+                default:
+                    break;
+            }
+
+            this.#updateInstrumentOrderBook(symbol);
+        }
+
+        if (message.action === 'partial') {
+            this.#resolveOrderBookReady?.();
+        }
     };
 
     #handleSettlementMessage = (_message: SettlementMessage) => {
@@ -257,9 +253,17 @@ export class BitMex extends BaseCore {
         switch (message.action) {
             case 'partial':
                 this.#instruments.clear();
+                this.#instrumentEntities.clear();
 
                 for (const d of message.data as BitMexInstrument[]) {
                     this.#instruments.set(d.symbol, { ...d });
+
+                    const baseAsset = this.#getOrCreateAsset(d.underlying || d.rootSymbol || '');
+                    const quoteAsset = this.#getOrCreateAsset(d.quoteCurrency || d.settlCurrency || '');
+                    const inst = new Instrument(d.symbol, { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>);
+
+                    this.#instrumentEntities.set(inst.symbol, inst);
+                    this.#updateInstrumentOrderBook(d.symbol);
                 }
 
                 this.#resolveInstrumentReady?.();
@@ -267,12 +271,19 @@ export class BitMex extends BaseCore {
             case 'insert':
                 for (const item of message.data as BitMexInstrument[]) {
                     this.#instruments.set(item.symbol, { ...item });
+                    const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
+                    const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
+                    const inst = new Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>);
+                    this.#instrumentEntities.set(inst.symbol, inst);
+                    this.#updateInstrumentOrderBook(item.symbol);
                 }
 
                 break;
             case 'delete':
                 for (const item of message.data as BitMexInstrument[]) {
                     this.#instruments.delete(item.symbol);
+                    this.#instrumentEntities.delete(item.symbol);
+                    this.#orderBookLevels.delete(item.symbol);
                 }
 
                 break;
@@ -285,6 +296,22 @@ export class BitMex extends BaseCore {
                     } else {
                         this.#instruments.set(item.symbol, { ...item });
                     }
+
+                    const inst = this.#instrumentEntities.get(item.symbol);
+                    if (inst) {
+                        if (item.underlying || item.rootSymbol) {
+                            inst.baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
+                        }
+                        if (item.quoteCurrency || item.settlCurrency) {
+                            inst.quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
+                        }
+                    } else {
+                        const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
+                        const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
+                        const newInst = new Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>);
+                        this.#instrumentEntities.set(newInst.symbol, newInst);
+                        this.#updateInstrumentOrderBook(item.symbol);
+                    }
                 }
 
                 break;
@@ -292,6 +319,58 @@ export class BitMex extends BaseCore {
                 break;
         }
     };
+
+    #updateInstrumentOrderBook(symbol: string) {
+        const instrument = this.#instrumentEntities.get(symbol);
+        const levels = this.#orderBookLevels.get(symbol);
+
+        if (!instrument || !levels) return;
+
+        const bids: { price: number; size: number }[] = [];
+        const asks: { price: number; size: number }[] = [];
+
+        for (const level of levels.values()) {
+            if (level.side === 'Buy') {
+                bids.push({ price: level.price, size: level.size });
+            } else {
+                asks.push({ price: level.price, size: -level.size });
+            }
+        }
+
+        bids.sort((a, b) => b.price - a.price);
+        asks.sort((a, b) => a.price - b.price);
+
+        instrument.orderBook.bids = bids;
+        instrument.orderBook.asks = asks;
+
+        instrument.orders = [];
+
+        if (bids.length) {
+            instrument.bid = bids[0].price;
+            instrument.orders.push(
+                new Order('bid', {
+                    instrument,
+                    price: bids[0].price,
+                    size: bids[0].size,
+                }),
+            );
+        } else {
+            instrument.bid = NaN;
+        }
+
+        if (asks.length) {
+            instrument.ask = asks[0].price;
+            instrument.orders.push(
+                new Order('ask', {
+                    instrument,
+                    price: asks[0].price,
+                    size: asks[0].size,
+                }),
+            );
+        } else {
+            instrument.ask = NaN;
+        }
+    }
 
     #isWelcomeMessage(message: any): message is WelcomeMessage {
         return typeof message?.info === 'string' && 'version' in message;

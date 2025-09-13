@@ -1,5 +1,5 @@
 import type { ExchangeHub } from '../ExchangeHub';
-import type { Instrument, Order } from '../entities';
+import type { Instrument } from '../entities';
 import type { ApiKey, ApiSec, ExchangeName, Settings } from '../types';
 
 export class BaseCore {
@@ -44,13 +44,7 @@ export class BaseCore {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
     async disconnect(): Promise<void> {}
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async getInstruments(): Promise<Instrument[]> {
-        throw new Error('Method not implemented.');
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    async getOrders(_instrument: Instrument): Promise<Order[]> {
+    get instruments(): Instrument[] {
         return [];
     }
 }
