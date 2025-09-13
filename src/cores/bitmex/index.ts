@@ -22,7 +22,7 @@ import type {
     BitMexChannelMessageMap,
 } from './types';
 import { BaseCore } from '../BaseCore';
-import type { Asset, Instrument, Order, Trade } from '../../entities';
+import type { Asset, Instrument, Trade } from '../../entities';
 
 export class BitMex extends BaseCore {
     #wsEndpoint: string;
@@ -189,7 +189,9 @@ export class BitMex extends BaseCore {
                 case 'partial':
                 case 'insert':
                     for (const r of rows) {
-                        book!.set(r.id, { side: r.side, price: r.price, size: r.size });
+                        if (r.price !== undefined && r.size !== undefined) {
+                            book!.set(r.id, { side: r.side, price: r.price, size: r.size });
+                        }
                     }
 
                     break;
@@ -201,7 +203,7 @@ export class BitMex extends BaseCore {
                             level.size = r.size ?? level.size;
                             level.price = r.price ?? level.price;
                             level.side = r.side ?? level.side;
-                        } else {
+                        } else if (r.price !== undefined && r.size !== undefined) {
                             book!.set(r.id, { side: r.side, price: r.price, size: r.size });
                         }
                     }
@@ -264,7 +266,10 @@ export class BitMex extends BaseCore {
 
                     const baseAsset = this.#getOrCreateAsset(d.underlying || d.rootSymbol || '');
                     const quoteAsset = this.#getOrCreateAsset(d.quoteCurrency || d.settlCurrency || '');
-                    const inst = new Instrument(d.symbol, { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>);
+                    const inst = new this.shell.entities.Instrument(d.symbol, { baseAsset, quoteAsset } as Omit<
+                        Instrument,
+                        'symbol'
+                    >);
 
                     this.#instrumentEntities.set(inst.symbol, inst);
                     this.#updateInstrumentOrderBook(d.symbol);
@@ -278,7 +283,10 @@ export class BitMex extends BaseCore {
 
                     const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
                     const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
-                    const inst = new Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>);
+                    const inst = new this.shell.entities.Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<
+                        Instrument,
+                        'symbol'
+                    >);
 
                     this.#instrumentEntities.set(inst.symbol, inst);
                     this.#updateInstrumentOrderBook(item.symbol);
@@ -316,10 +324,10 @@ export class BitMex extends BaseCore {
                     } else {
                         const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
                         const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
-                        const newInst = new Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<
-                            Instrument,
-                            'symbol'
-                        >);
+                        const newInst = new this.shell.entities.Instrument(item.symbol, {
+                            baseAsset,
+                            quoteAsset,
+                        } as Omit<Instrument, 'symbol'>);
 
                         this.#instrumentEntities.set(newInst.symbol, newInst);
                         this.#updateInstrumentOrderBook(item.symbol);
@@ -360,7 +368,7 @@ export class BitMex extends BaseCore {
         if (bids.length) {
             instrument.bid = bids[0].price;
             instrument.orders.push(
-                new Order('bid', {
+                new this.shell.entities.Order('bid', {
                     instrument,
                     price: bids[0].price,
                     size: bids[0].size,
@@ -373,7 +381,7 @@ export class BitMex extends BaseCore {
         if (asks.length) {
             instrument.ask = asks[0].price;
             instrument.orders.push(
-                new Order('ask', {
+                new this.shell.entities.Order('ask', {
                     instrument,
                     price: asks[0].price,
                     size: asks[0].size,
