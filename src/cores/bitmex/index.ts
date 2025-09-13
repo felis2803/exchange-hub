@@ -94,7 +94,7 @@ export class BitMex extends BaseCore {
         this.#orderBookLevels.clear();
         this.#partials.clear();
     }
-    
+
     get instruments(): Instrument[] {
         return [...this.#instrumentEntities.values()];
     }
@@ -191,10 +191,12 @@ export class BitMex extends BaseCore {
                     for (const r of rows) {
                         book!.set(r.id, { side: r.side, price: r.price, size: r.size });
                     }
+
                     break;
                 case 'update':
                     for (const r of rows) {
                         const level = book!.get(r.id);
+
                         if (level) {
                             level.size = r.size ?? level.size;
                             level.price = r.price ?? level.price;
@@ -203,11 +205,13 @@ export class BitMex extends BaseCore {
                             book!.set(r.id, { side: r.side, price: r.price, size: r.size });
                         }
                     }
+
                     break;
                 case 'delete':
                     for (const r of rows) {
                         book!.delete(r.id);
                     }
+
                     break;
                 default:
                     break;
@@ -271,9 +275,11 @@ export class BitMex extends BaseCore {
             case 'insert':
                 for (const item of message.data as BitMexInstrument[]) {
                     this.#instruments.set(item.symbol, { ...item });
+
                     const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
                     const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
                     const inst = new Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>);
+
                     this.#instrumentEntities.set(inst.symbol, inst);
                     this.#updateInstrumentOrderBook(item.symbol);
                 }
@@ -298,17 +304,23 @@ export class BitMex extends BaseCore {
                     }
 
                     const inst = this.#instrumentEntities.get(item.symbol);
+
                     if (inst) {
                         if (item.underlying || item.rootSymbol) {
                             inst.baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
                         }
+
                         if (item.quoteCurrency || item.settlCurrency) {
                             inst.quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
                         }
                     } else {
                         const baseAsset = this.#getOrCreateAsset(item.underlying || item.rootSymbol || '');
                         const quoteAsset = this.#getOrCreateAsset(item.quoteCurrency || item.settlCurrency || '');
-                        const newInst = new Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<Instrument, 'symbol'>);
+                        const newInst = new Instrument(item.symbol, { baseAsset, quoteAsset } as Omit<
+                            Instrument,
+                            'symbol'
+                        >);
+
                         this.#instrumentEntities.set(newInst.symbol, newInst);
                         this.#updateInstrumentOrderBook(item.symbol);
                     }
