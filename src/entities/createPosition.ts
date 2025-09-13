@@ -1,18 +1,20 @@
 import type { ExchangeHub } from '../ExchangeHub';
-import type { Side } from '../types';
+import type { ExchangeName, Side } from '../types';
 import type { EntityClass } from './createEntity';
-import type { InstrumentClass } from './createInstrument';
+import type { Instrument } from './createInstrument';
 
-export const createPosition = (hub: ExchangeHub<any>, Entity: EntityClass) => {
+export function createPosition<ExName extends ExchangeName>(hub: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
     class Position extends Entity {
         static hub = hub;
-        instrument: InstanceType<InstrumentClass>;
+
+        instrument: Instrument<ExName>;
         price: number;
         size: number;
         liquidation = NaN;
 
-        constructor(instrument: InstanceType<InstrumentClass>, { price, size }: { price: number; size: number }) {
+        constructor(instrument: Instrument<ExName>, { price, size }: { price: number; size: number }) {
             super();
+
             this.instrument = instrument;
             this.price = price;
             this.size = size;
@@ -24,7 +26,7 @@ export const createPosition = (hub: ExchangeHub<any>, Entity: EntityClass) => {
     }
 
     return Position;
-};
+}
 
-export type PositionClass = ReturnType<typeof createPosition>;
-export type Position = InstanceType<PositionClass>;
+export type PositionClass<ExName extends ExchangeName> = ReturnType<typeof createPosition<ExName>>;
+export type Position<ExName extends ExchangeName> = InstanceType<PositionClass<ExName>>;

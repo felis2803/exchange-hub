@@ -1,13 +1,14 @@
 import type { ExchangeHub } from '../ExchangeHub';
-import type { Side } from '../types';
+import type { ExchangeName, Side } from '../types';
 import type { EntityClass } from './createEntity';
-import type { InstrumentClass } from './createInstrument';
+import type { Instrument } from './createInstrument';
 
-export const createTrade = (hub: ExchangeHub<any>, Entity: EntityClass) => {
+export function createTrade<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
     class Trade extends Entity {
-        static hub = hub;
+        static ex = eh;
+
         id: string;
-        instrument: InstanceType<InstrumentClass>;
+        instrument: Instrument<ExName>;
         price: number;
         size: number;
         timestamp: Date;
@@ -20,7 +21,7 @@ export const createTrade = (hub: ExchangeHub<any>, Entity: EntityClass) => {
                 size,
                 timestamp,
             }: {
-                instrument: InstanceType<InstrumentClass>;
+                instrument: Instrument<ExName>;
                 price: number;
                 size: number;
                 timestamp: Date;
@@ -40,7 +41,7 @@ export const createTrade = (hub: ExchangeHub<any>, Entity: EntityClass) => {
     }
 
     return Trade;
-};
+}
 
-export type TradeClass = ReturnType<typeof createTrade>;
-export type Trade = InstanceType<TradeClass>;
+export type TradeClass<ExName extends ExchangeName> = ReturnType<typeof createTrade<ExName>>;
+export type Trade<ExName extends ExchangeName> = InstanceType<TradeClass<ExName>>;

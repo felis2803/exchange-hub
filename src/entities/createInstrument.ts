@@ -1,34 +1,36 @@
+import { createOrderBook } from './createOrderBook';
+
+import type { Order } from './createOrder';
+import type { Trade } from './createTrade';
 import type { ExchangeHub } from '../ExchangeHub';
 import type { EntityClass } from './createEntity';
-import type { AssetClass } from './createAsset';
-import type { OrderBookClass } from './createOrderBook';
+import type { Asset } from './createAsset';
+import type { ExchangeName } from '../types';
 
-export const createInstrument = (hub: ExchangeHub<any>, Entity: EntityClass, OrderBook: OrderBookClass) => {
+export function createInstrument<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
     class Instrument extends Entity {
-        static hub = hub;
+        static eh = eh;
+
         symbol: string;
-        baseAsset: InstanceType<AssetClass>;
-        quoteAsset: InstanceType<AssetClass>;
-        trades: any[] = [];
+        baseAsset: Asset<ExName>;
+        quoteAsset: Asset<ExName>;
+        trades: Trade<ExName>[] = [];
         bid = NaN;
         ask = NaN;
-        orderBook: InstanceType<OrderBookClass>;
-        orders: any[] = [];
+        orderBook = new (createOrderBook(eh, Entity))(this);
+        orders: Order<ExName>[] = [];
 
-        constructor(
-            symbol: string,
-            { baseAsset, quoteAsset }: { baseAsset: InstanceType<AssetClass>; quoteAsset: InstanceType<AssetClass> },
-        ) {
+        constructor(symbol: string, { baseAsset, quoteAsset }: Omit<Instrument, 'symbol'>) {
             super();
+
             this.symbol = symbol;
             this.baseAsset = baseAsset;
             this.quoteAsset = quoteAsset;
-            this.orderBook = new OrderBook(this);
         }
     }
 
     return Instrument;
-};
+}
 
-export type InstrumentClass = ReturnType<typeof createInstrument>;
-export type Instrument = InstanceType<InstrumentClass>;
+export type InstrumentClass<ExName extends ExchangeName> = ReturnType<typeof createInstrument<ExName>>;
+export type Instrument<ExName extends ExchangeName> = InstanceType<InstrumentClass<ExName>>;
