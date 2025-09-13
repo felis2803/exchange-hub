@@ -1,24 +1,64 @@
 import { createHmac } from 'crypto';
 
-import type { BitMexChannel } from './types';
+import { isSubscribeMessage, isTableMessage, isWelcomeMessage } from './utils';
+import { tableMessageHandlers } from './tableMessageHandlers';
+
+import type { BitMex } from '.';
+import type { BitMexChannel, BitMexSubscribeMessage } from './types';
 
 export class BitMexTransport {
-    #endpoint: string;
-    #ws?: WebSocket;
+    #core: BitMex;
+    #wsEndpoint: string;
+    #ws: WebSocket;
 
-    constructor(endpoint: string) {
-        this.#endpoint = endpoint;
+    constructor(core: BitMex, isTest: boolean) {
+        this.#core = core;
+
+        this.#wsEndpoint = isTest ? 'wss://testnet.bitmex.com/realtime' : 'wss://www.bitmex.com/realtime';
+        this.#ws = new WebSocket(this.#wsEndpoint);
+
+        this.#ws.onmessage = (event: MessageEvent) => this.#handleMessage(event);
     }
 
-    async connect(isPublicOnly: boolean, apiKey?: string, apiSec?: string): Promise<void> {
-        this.#ws = new WebSocket(this.#endpoint);
+    #handleMessage(event: MessageEvent) {
+        const text = typeof event.data === 'string' ? event.data : '';
 
+        if (!text) {
+            return;
+        }
+
+        const message = JSON.parse(text);
+
+        if (isWelcomeMessage(message)) {
+            return;
+        }
+
+        if (isSubscribeMessage(message)) {
+            return this.#handleSubscribeMessage(message);
+        }
+
+        if (!isTableMessage(message)) {
+            console.log(message);
+
+            throw new Error('Unknown message');
+        }
+
+        const { table, action, data } = message;
+
+        tableMessageHandlers[table][action](this.#core, data);
+    }
+
+    #handleSubscribeMessage(message: BitMexSubscribeMessage) {
+        throw 'not implemented';
+    }
+
+    async connect(apiKey?: string, apiSec?: string): Promise<void> {
         await new Promise<void>((resolve, reject) => {
             this.#ws?.addEventListener('open', () => resolve());
             this.#ws?.addEventListener('error', err => reject(err));
         });
 
-        if (!isPublicOnly && apiKey && apiSec) {
+        if (apiKey && apiSec) {
             const expires = Math.round(Date.now() / 1000) + 60;
             const signature = createHmac('sha256', apiSec).update(`GET/realtime${expires}`).digest('hex');
 
@@ -33,8 +73,6 @@ export class BitMexTransport {
             this.#ws?.addEventListener('close', () => resolve());
             this.#ws?.close();
         });
-
-        this.#ws = undefined;
     }
 
     isConnected(): boolean {

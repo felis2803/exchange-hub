@@ -1,8 +1,47 @@
-import type { BITMEX_PUBLIC_CHANNELS, BITMEX_PRIVATE_CHANNELS } from './constants';
+import type { BITMEX_PRIVATE_CHANNELS, BITMEX_PUBLIC_CHANNELS, BITMEX_CHANNELS } from './constants';
+
+export type BitMexWelcomeMessage = {
+    info: string;
+    version: string | number;
+    timestamp?: string;
+    docs?: string;
+};
+
+export type BitMexSubscribeMessage = {
+    success: boolean;
+    subscribe: BitMexChannel;
+    request: {
+        op: string;
+        args: BitMexChannel[];
+    };
+};
 
 export type BitMexPublicChannel = (typeof BITMEX_PUBLIC_CHANNELS)[number];
 export type BitMexPrivateChannel = (typeof BITMEX_PRIVATE_CHANNELS)[number];
-export type BitMexChannel = BitMexPublicChannel | BitMexPrivateChannel;
+export type BitMexChannel = (typeof BITMEX_CHANNELS)[number];
+
+export type BitMexChannelMessageAction = 'partial' | 'insert' | 'update' | 'delete';
+
+export type BitMexChannelMessage<Channel extends BitMexChannel> = {
+    table: Channel;
+    action: BitMexChannelMessageAction;
+    data: BitMexChannelMessageMap[Channel][];
+};
+
+export type BitMexChannelMessageMap = {
+    instrument: BitMexInstrument;
+    trade: BitMexTrade;
+    funding: BitMexFunding;
+    liquidation: BitMexLiquidation;
+    orderBookL2: BitMexOrderBookL2;
+    settlement: BitMexSettlement;
+    execution: BitMexExecution;
+    order: BitMexOrder;
+    margin: BitMexMargin;
+    position: BitMexPosition;
+    transact: BitMexTransact;
+    wallet: BitMexWallet;
+};
 
 export type BitMexInstrument = {
     symbol: string;
@@ -116,63 +155,7 @@ export type BitMexTrade = {
     timestamp: string;
 };
 
-export type InstrumentPartialMessage = {
-    table: 'instrument';
-    action: 'partial';
-    data: BitMexInstrument[];
-    keys: string[];
-    types: Record<string, string>;
-    foreignKeys: Record<string, string>;
-    attributes: Record<string, string>;
-};
-
-export type InstrumentInsertMessage = {
-    table: 'instrument';
-    action: 'insert';
-    data: BitMexInstrument[];
-};
-
-export type InstrumentUpdateMessage = {
-    table: 'instrument';
-    action: 'update';
-    data: BitMexInstrument[];
-};
-
-export type InstrumentDeleteMessage = {
-    table: 'instrument';
-    action: 'delete';
-    data: BitMexInstrument[];
-};
-
-export type InstrumentMessage =
-    | InstrumentPartialMessage
-    | InstrumentInsertMessage
-    | InstrumentUpdateMessage
-    | InstrumentDeleteMessage;
-
-export type TradeMessage = {
-    table: 'trade';
-    action: 'partial' | 'insert';
-    data: BitMexTrade[];
-};
-
-export type WelcomeMessage = {
-    info: string;
-    version: string | number;
-    timestamp?: string;
-    docs?: string;
-};
-
-export type SubscribeMessage = {
-    success: boolean;
-    subscribe: BitMexChannel;
-    request: {
-        op: string;
-        args: BitMexChannel[];
-    };
-};
-
-type TableMessage<Table extends BitMexChannel, Data> = {
+export type TableMessage<Table extends BitMexChannel, Data> = {
     table: Table;
     action: 'partial' | 'insert' | 'update' | 'delete';
     data: Data[];
@@ -262,30 +245,4 @@ export type BitMexWallet = {
     balance: number;
     availableMargin?: number;
     walletBalance?: number;
-};
-
-export type FundingMessage = TableMessage<'funding', BitMexFunding>;
-export type LiquidationMessage = TableMessage<'liquidation', BitMexLiquidation>;
-export type OrderBookL2Message = TableMessage<'orderBookL2', BitMexOrderBookL2>;
-export type SettlementMessage = TableMessage<'settlement', BitMexSettlement>;
-export type ExecutionMessage = TableMessage<'execution', BitMexExecution>;
-export type OrderMessage = TableMessage<'order', BitMexOrder>;
-export type MarginMessage = TableMessage<'margin', BitMexMargin>;
-export type PositionMessage = TableMessage<'position', BitMexPosition>;
-export type TransactMessage = TableMessage<'transact', BitMexTransact>;
-export type WalletMessage = TableMessage<'wallet', BitMexWallet>;
-
-export type BitMexChannelMessageMap = {
-    instrument: InstrumentMessage;
-    trade: TradeMessage;
-    funding: FundingMessage;
-    liquidation: LiquidationMessage;
-    orderBookL2: OrderBookL2Message;
-    settlement: SettlementMessage;
-    execution: ExecutionMessage;
-    order: OrderMessage;
-    margin: MarginMessage;
-    position: PositionMessage;
-    transact: TransactMessage;
-    wallet: WalletMessage;
 };

@@ -1,14 +1,15 @@
+import type { Instrument } from '../entities/createInstrument';
 import type { ExchangeHub } from '../ExchangeHub';
-import type { Instrument } from '../entities';
 import type { ApiKey, ApiSec, ExchangeName, Settings } from '../types';
 
-export class BaseCore {
-    #shell: ExchangeHub<ExchangeName>;
+export class BaseCore<ExName extends ExchangeName> {
+    #shell: ExchangeHub<ExName>;
     #isTest = false;
     #apiKey?: ApiKey;
     #apiSec?: ApiSec;
+    #instruments: Instrument<ExName>;
 
-    constructor(shell: ExchangeHub<ExchangeName>, settings: Settings) {
+    constructor(shell: ExchangeHub<ExName>, settings: Settings) {
         const { isTest, apiKey, apiSec } = settings;
 
         this.#shell = shell;
@@ -38,13 +39,15 @@ export class BaseCore {
         return this.#apiSec;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
-    async connect(): Promise<void> {}
+    get instruments() {
+        return this.#instruments;
+    }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-empty-function
-    async disconnect(): Promise<void> {}
+    async connect(): Promise<void> {
+        throw new Error('Not implemented!');
+    }
 
-    get instruments(): Instrument[] {
-        return [];
+    async disconnect(): Promise<void> {
+        throw new Error('Not implemented!');
     }
 }

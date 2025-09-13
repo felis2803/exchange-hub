@@ -1,11 +1,12 @@
 import type { ExchangeHub } from '../ExchangeHub';
+import type { ExchangeName } from '../types';
 
-export const createEntity = (hub: ExchangeHub<any>) => {
+export function createEntity<ExName extends ExchangeName>(eh: ExchangeHub<ExName>) {
     class Entity {
-        static hub = hub;
+        static eh = eh;
     }
 
     return Entity;
-};
+}
 
-export type EntityClass = ReturnType<typeof createEntity>;
+export type EntityClass<ExName extends ExchangeName> = ReturnType<typeof createEntity<ExName>>;
