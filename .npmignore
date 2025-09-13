@@ -1,0 +1,11 @@
+# Exclude development and source files from the package
+src/
+scripts/
+examples/
+.github/
+.vscode/
+node_modules/
+jest.config.js
+tsconfig.json
+eslint.config.js
+.prettierrc
