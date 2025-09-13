@@ -165,3 +165,121 @@ export type SubscribeMessage = {
         args: string[];
     };
 };
+
+type TableMessage<Table extends string, Data> = {
+    table: Table;
+    action: 'partial' | 'insert' | 'update' | 'delete';
+    data: Data[];
+};
+
+export type BitMexFunding = {
+    timestamp: string;
+    symbol: string;
+    fundingRate: number;
+    fundingRateDaily: number;
+};
+
+export type BitMexLiquidation = {
+    orderID: string;
+    symbol: string;
+    side: 'Buy' | 'Sell';
+    price: number;
+    leavesQty: number;
+};
+
+export type BitMexOrderBookL2 = {
+    symbol: string;
+    id: number;
+    side: 'Buy' | 'Sell';
+    size?: number;
+    price?: number;
+};
+
+export type BitMexSettlement = {
+    timestamp: string;
+    symbol: string;
+    settlementType: string;
+    settlePrice?: number;
+};
+
+export type BitMexExecution = {
+    execID: string;
+    orderID: string;
+    clOrdID?: string;
+    symbol: string;
+    side?: 'Buy' | 'Sell';
+    price?: number;
+    size?: number;
+};
+
+export type BitMexOrder = {
+    orderID: string;
+    clOrdID?: string;
+    symbol: string;
+    side?: 'Buy' | 'Sell';
+    price?: number;
+    orderQty?: number;
+    ordStatus?: string;
+};
+
+export type BitMexMargin = {
+    account: number;
+    currency: string;
+    riskLimit: number;
+    marginBalance: number;
+    availableMargin: number;
+};
+
+export type BitMexPosition = {
+    account: number;
+    symbol: string;
+    currentQty?: number;
+    avgEntryPrice?: number;
+    liquidationPrice?: number;
+};
+
+export type BitMexTransact = {
+    transactID: string;
+    account: number;
+    currency: string;
+    transactType?: string;
+    amount: number;
+    fee?: number;
+    transactStatus?: string;
+    address?: string;
+    timestamp?: string;
+};
+
+export type BitMexWallet = {
+    account: number;
+    currency: string;
+    balance: number;
+    availableMargin?: number;
+    walletBalance?: number;
+};
+
+export type FundingMessage = TableMessage<'funding', BitMexFunding>;
+export type LiquidationMessage = TableMessage<'liquidation', BitMexLiquidation>;
+export type OrderBookL2Message = TableMessage<'orderBookL2', BitMexOrderBookL2>;
+export type SettlementMessage = TableMessage<'settlement', BitMexSettlement>;
+export type ExecutionMessage = TableMessage<'execution', BitMexExecution>;
+export type OrderMessage = TableMessage<'order', BitMexOrder>;
+export type MarginMessage = TableMessage<'margin', BitMexMargin>;
+export type PositionMessage = TableMessage<'position', BitMexPosition>;
+export type TransactMessage = TableMessage<'transact', BitMexTransact>;
+export type WalletMessage = TableMessage<'wallet', BitMexWallet>;
+
+export type BitMexChannelMessageMap = {
+    instrument: InstrumentMessage;
+    trade: TradeMessage;
+    funding: FundingMessage;
+    liquidation: LiquidationMessage;
+    orderBookL2: OrderBookL2Message;
+    settlement: SettlementMessage;
+    execution: ExecutionMessage;
+    order: OrderMessage;
+    margin: MarginMessage;
+    position: PositionMessage;
+    transact: TransactMessage;
+    wallet: WalletMessage;
+};

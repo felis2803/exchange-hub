@@ -7,6 +7,17 @@ import type {
     TradeMessage,
     SubscribeMessage,
     WelcomeMessage,
+    FundingMessage,
+    LiquidationMessage,
+    OrderBookL2Message,
+    SettlementMessage,
+    ExecutionMessage,
+    OrderMessage,
+    MarginMessage,
+    PositionMessage,
+    TransactMessage,
+    WalletMessage,
+    BitMexChannelMessageMap,
 } from './types';
 import { BaseCore } from '../BaseCore';
 import { Asset, Instrument, Order, Trade } from '../../entities';
@@ -19,7 +30,9 @@ export class BitMex extends BaseCore {
     #assetEntities: Map<string, Asset> = new Map();
     #instrumentReady!: Promise<void>;
     #resolveInstrumentReady!: () => void;
-    #channelHandlers: Record<string, (message: any) => void>;
+    #channelHandlers: {
+        [K in keyof BitMexChannelMessageMap]: (message: BitMexChannelMessageMap[K]) => void;
+    };
 
     constructor(shell: any, settings: any) {
         super(shell, settings);
@@ -180,17 +193,19 @@ export class BitMex extends BaseCore {
 
             if (!text) return;
 
-            const message = JSON.parse(text);
+            const message = JSON.parse(text) as BitMexChannelMessageMap[keyof BitMexChannelMessageMap];
 
             if (this.#isWelcomeMessage(message) || this.#isSubscribeMessage(message)) return;
 
-            const table = (message as { table?: string }).table;
+            const table = (message as { table?: keyof BitMexChannelMessageMap }).table;
 
             if (!table) return;
 
-            const handler = this.#channelHandlers[table];
+            const handler = this.#channelHandlers[table] as (
+                msg: BitMexChannelMessageMap[keyof BitMexChannelMessageMap],
+            ) => void;
 
-            handler?.(message);
+            handler?.(message as BitMexChannelMessageMap[keyof BitMexChannelMessageMap]);
         } catch {
             // ignore
         }
@@ -215,43 +230,43 @@ export class BitMex extends BaseCore {
         }
     };
 
-    #handleFundingMessage = (_message: any) => {
+    #handleFundingMessage = (_message: FundingMessage) => {
         // noop
     };
 
-    #handleLiquidationMessage = (_message: any) => {
+    #handleLiquidationMessage = (_message: LiquidationMessage) => {
         // noop
     };
 
-    #handleOrderBookL2Message = (_message: any) => {
+    #handleOrderBookL2Message = (_message: OrderBookL2Message) => {
         // noop
     };
 
-    #handleSettlementMessage = (_message: any) => {
+    #handleSettlementMessage = (_message: SettlementMessage) => {
         // noop
     };
 
-    #handleExecutionMessage = (_message: any) => {
+    #handleExecutionMessage = (_message: ExecutionMessage) => {
         // noop
     };
 
-    #handleOrderMessage = (_message: any) => {
+    #handleOrderMessage = (_message: OrderMessage) => {
         // noop
     };
 
-    #handleMarginMessage = (_message: any) => {
+    #handleMarginMessage = (_message: MarginMessage) => {
         // noop
     };
 
-    #handlePositionMessage = (_message: any) => {
+    #handlePositionMessage = (_message: PositionMessage) => {
         // noop
     };
 
-    #handleTransactMessage = (_message: any) => {
+    #handleTransactMessage = (_message: TransactMessage) => {
         // noop
     };
 
-    #handleWalletMessage = (_message: any) => {
+    #handleWalletMessage = (_message: WalletMessage) => {
         // noop
     };
 
