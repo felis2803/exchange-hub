@@ -1,7 +1,6 @@
 export const BITMEX_PUBLIC_CHANNELS = [
     'instrument',
     'trade',
-    'funding',
     'liquidation',
     'orderBookL2',
     'settlement',
