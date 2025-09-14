@@ -17,7 +17,7 @@ export function createInstrument<ExName extends ExchangeName>(eh: ExchangeHub<Ex
         trades: Trade<ExName>[] = [];
         bid = NaN;
         ask = NaN;
-        orderBook = new (createOrderBook(eh, Entity))(this);
+        orderBook: InstanceType<ReturnType<typeof createOrderBook<ExName>>> = new (createOrderBook(eh, Entity))(this);
         orders: Order<ExName>[] = [];
 
         constructor(symbol: string, { baseAsset, quoteAsset }: Omit<Instrument, 'symbol'>) {

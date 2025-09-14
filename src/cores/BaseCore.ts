@@ -7,7 +7,7 @@ export class BaseCore<ExName extends ExchangeName> {
     #isTest = false;
     #apiKey?: ApiKey;
     #apiSec?: ApiSec;
-    #instruments: Instrument<ExName>;
+    #instruments!: Instrument<ExName>;
 
     constructor(shell: ExchangeHub<ExName>, settings: Settings) {
         const { isTest, apiKey, apiSec } = settings;

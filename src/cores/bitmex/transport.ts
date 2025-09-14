@@ -45,10 +45,10 @@ export class BitMexTransport {
 
         const { table, action, data } = message;
 
-        tableMessageHandlers[table][action](this.#core, data);
+        tableMessageHandlers[table][action](this.#core, data as any);
     }
 
-    #handleSubscribeMessage(message: BitMexSubscribeMessage) {
+    #handleSubscribeMessage(_message: BitMexSubscribeMessage) {
         throw 'not implemented';
     }
 

@@ -2,19 +2,19 @@ import type { BitMex } from '..';
 import type { BitMexInstrument } from '../types';
 
 export const instrument = {
-    partial(core: BitMex, data: BitMexInstrument[]) {
+    partial(_core: BitMex, _data: BitMexInstrument[]) {
         throw 'not implemented';
     },
 
-    insert(core: BitMex, data: BitMexInstrument[]) {
+    insert(_core: BitMex, _data: BitMexInstrument[]) {
         throw 'not implemented';
     },
 
-    update(core: BitMex, data: BitMexInstrument[]) {
+    update(_core: BitMex, _data: BitMexInstrument[]) {
         throw 'not implemented';
     },
 
-    delete(core: BitMex, data: BitMexInstrument[]) {
+    delete(_core: BitMex, _data: BitMexInstrument[]) {
         throw 'not implemented';
     },
 };
