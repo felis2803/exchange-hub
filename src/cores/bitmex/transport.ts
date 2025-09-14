@@ -4,17 +4,28 @@ import { isSubscribeMessage, isChannelMessage, isWelcomeMessage } from './utils'
 import { channelMessageHandlers } from './channelMessageHandlers';
 
 import type { BitMex } from '.';
-import type { BitMexChannel, BitMexSubscribeMessage, BitMexWelcomeMessage, BitMexChannelMessage } from './types';
+import type {
+    BitMexChannel,
+    BitMexSubscribeMessage,
+    BitMexWelcomeMessage,
+    BitMexChannelMessage,
+    BitMexPlaceOrderRequest,
+    BitMexChangeOrderRequest,
+} from './types';
 
 export class BitMexTransport {
     #core: BitMex;
     #wsEndpoint: string;
     #ws: WebSocket;
+    #restEndpoint: string;
+    #apiKey?: string;
+    #apiSec?: string;
 
     constructor(core: BitMex, isTest: boolean) {
         this.#core = core;
 
         this.#wsEndpoint = isTest ? 'wss://testnet.bitmex.com/realtime' : 'wss://www.bitmex.com/realtime';
+        this.#restEndpoint = isTest ? 'https://testnet.bitmex.com/api/v1' : 'https://www.bitmex.com/api/v1';
         this.#ws = new WebSocket(this.#wsEndpoint);
 
         this.#ws.onmessage = (event: MessageEvent) => this.#handleMessage(event);
@@ -46,11 +57,11 @@ export class BitMexTransport {
         throw new Error('Unknown message');
     }
 
-    #handleWelcomeMessage(message: BitMexWelcomeMessage) {
+    #handleWelcomeMessage(_message: BitMexWelcomeMessage) {
         throw 'not implemented';
     }
 
-    #handleSubscribeMessage(message: BitMexSubscribeMessage) {
+    #handleSubscribeMessage(_message: BitMexSubscribeMessage) {
         throw 'not implemented';
     }
 
@@ -67,6 +78,9 @@ export class BitMexTransport {
         });
 
         if (apiKey && apiSec) {
+            this.#apiKey = apiKey;
+            this.#apiSec = apiSec;
+
             const expires = Math.round(Date.now() / 1000) + 60;
             const signature = createHmac('sha256', apiSec).update(`GET/realtime${expires}`).digest('hex');
 
@@ -93,6 +107,51 @@ export class BitMexTransport {
 
     unsubscribe(channels: BitMexChannel[]): void {
         this.send({ op: 'unsubscribe', args: channels });
+    }
+
+    async placeOrder(order: BitMexPlaceOrderRequest): Promise<any> {
+        return this.#request('POST', '/order', order);
+    }
+
+    async changeOrder(order: BitMexChangeOrderRequest): Promise<any> {
+        return this.#request('PUT', '/order', order);
+    }
+
+    async deleteOrder(orderID: string): Promise<any> {
+        const path = `/order?orderID=${orderID}`;
+
+        return this.#request('DELETE', path);
+    }
+
+    async #request<T>(verb: string, path: string, body?: any): Promise<T> {
+        if (!this.#apiKey || !this.#apiSec) {
+            throw new Error('API credentials required');
+        }
+
+        const expires = Math.round(Date.now() / 1000) + 60;
+        const bodyText = body ? JSON.stringify(body) : '';
+        const signature = createHmac('sha256', this.#apiSec)
+            .update(`${verb}${path}${expires}${bodyText}`)
+            .digest('hex');
+
+        const headers: Record<string, string> = {
+            'content-type': 'application/json',
+            'api-key': this.#apiKey,
+            'api-expires': expires.toString(),
+            'api-signature': signature,
+        };
+
+        const res = await fetch(`${this.#restEndpoint}${path}`, {
+            method: verb,
+            headers,
+            body: bodyText || undefined,
+        });
+
+        if (!res.ok) {
+            throw new Error(`BitMex request failed: ${res.status} ${res.statusText}`);
+        }
+
+        return res.json() as Promise<T>;
     }
 
     send(data: any): void {

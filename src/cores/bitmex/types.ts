@@ -232,3 +232,18 @@ export type BitMexWallet = {
     availableMargin?: number;
     walletBalance?: number;
 };
+
+export type BitMexPlaceOrderRequest = {
+    symbol: string;
+    side: 'Buy' | 'Sell';
+    orderQty: number;
+    price?: number;
+    clOrdID?: string;
+};
+
+export type BitMexChangeOrderRequest = {
+    orderID: string;
+    price?: number;
+    orderQty?: number;
+    clOrdID?: string;
+};
