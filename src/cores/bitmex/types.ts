@@ -20,6 +20,8 @@ export type BitMexPublicChannel = (typeof BITMEX_PUBLIC_CHANNELS)[number];
 export type BitMexPrivateChannel = (typeof BITMEX_PRIVATE_CHANNELS)[number];
 export type BitMexChannel = (typeof BITMEX_CHANNELS)[number];
 
+export type BitMexSide = 'Buy' | 'Sell';
+
 export type BitMexChannelMessageAction = 'partial' | 'insert' | 'update' | 'delete';
 
 export type BitMexChannelMessage<Channel extends BitMexChannel> = {
@@ -148,7 +150,7 @@ export type BitMexInstrument = {
 export type BitMexTrade = {
     trdMatchID: string;
     symbol: string;
-    side: 'Buy' | 'Sell';
+    side: BitMexSide;
     size: number;
     price: number;
     timestamp: string;
@@ -157,7 +159,7 @@ export type BitMexTrade = {
 export type BitMexLiquidation = {
     orderID: string;
     symbol: string;
-    side: 'Buy' | 'Sell';
+    side: BitMexSide;
     price: number;
     leavesQty: number;
 };
@@ -165,7 +167,7 @@ export type BitMexLiquidation = {
 export type BitMexOrderBookL2 = {
     symbol: string;
     id: number;
-    side: 'Buy' | 'Sell';
+    side: BitMexSide;
     size?: number;
     price?: number;
 };
@@ -182,7 +184,7 @@ export type BitMexExecution = {
     orderID: string;
     clOrdID?: string;
     symbol: string;
-    side?: 'Buy' | 'Sell';
+    side?: BitMexSide;
     price?: number;
     size?: number;
 };
@@ -191,7 +193,7 @@ export type BitMexOrder = {
     orderID: string;
     clOrdID?: string;
     symbol: string;
-    side?: 'Buy' | 'Sell';
+    side?: BitMexSide;
     price?: number;
     orderQty?: number;
     ordStatus?: string;
@@ -235,7 +237,7 @@ export type BitMexWallet = {
 
 export type BitMexPlaceOrderRequest = {
     symbol: string;
-    side: 'Buy' | 'Sell';
+    side: BitMexSide;
     orderQty: number;
     price?: number;
     clOrdID?: string;

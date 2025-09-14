@@ -13,6 +13,8 @@ import type {
     BitMexChangeOrderRequest,
 } from './types';
 
+type BitMexRequestVerb = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
 export class BitMexTransport {
     #core: BitMex;
     #wsEndpoint: string;
@@ -57,11 +59,11 @@ export class BitMexTransport {
         throw new Error('Unknown message');
     }
 
-    #handleWelcomeMessage(_message: BitMexWelcomeMessage) {
+    #handleWelcomeMessage(message: BitMexWelcomeMessage) {
         throw 'not implemented';
     }
 
-    #handleSubscribeMessage(_message: BitMexSubscribeMessage) {
+    #handleSubscribeMessage(message: BitMexSubscribeMessage) {
         throw 'not implemented';
     }
 
@@ -123,7 +125,7 @@ export class BitMexTransport {
         return this.#request('DELETE', path);
     }
 
-    async #request<T>(verb: string, path: string, body?: any): Promise<T> {
+    async #request<T>(verb: BitMexRequestVerb, path: string, body?: any): Promise<T> {
         if (!this.#apiKey || !this.#apiSec) {
             throw new Error('API credentials required');
         }
