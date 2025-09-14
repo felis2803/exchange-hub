@@ -1,6 +1,5 @@
 import { instrument } from './instrument';
 import { trade } from './trade';
-import { funding } from './funding';
 import { liquidation } from './liquidation';
 import { orderBookL2 } from './orderBookL2';
 import { settlement } from './settlement';
@@ -21,7 +20,6 @@ export const channelMessageHandlers: {
 } = {
     instrument,
     trade,
-    funding,
     liquidation,
     orderBookL2,
     settlement,
