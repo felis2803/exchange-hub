@@ -98,12 +98,4 @@ export class BitMexTransport {
     send(data: any): void {
         this.#ws?.send(JSON.stringify(data));
     }
-
-    addEventListener(type: string, listener: (...args: any[]) => void): void {
-        this.#ws?.addEventListener(type, listener as any);
-    }
-
-    removeEventListener(type: string, listener: (...args: any[]) => void): void {
-        this.#ws?.removeEventListener(type, listener as any);
-    }
 }
