@@ -478,51 +478,41 @@ export type BitMexWallet = {
     withdrawn?: number;
 };
 
-export type BitMexPlaceOrderRequest = Omit<
-    BitMexOrder,
-    | 'orderID'
-    | 'account'
-    | 'cumQty'
-    | 'leavesQty'
-    | 'simpleLeavesQty'
-    | 'simpleCumQty'
-    | 'avgPx'
-    | 'ordStatus'
-    | 'triggered'
-    | 'workingIndicator'
-    | 'ordRejReason'
-    | 'timestamp'
-    | 'transactTime'
-    | 'multiLegReportingType'
-    | 'currency'
-    | 'settlCurrency'
->;
+export type BitMexPlaceOrderRequest = {
+    symbol: string;
+    side?: BitMexSide;
+    simpleOrderQty?: number;
+    orderQty?: number;
+    price?: number;
+    displayQty?: number;
+    stopPx?: number;
+    clOrdID?: string;
+    clOrdLinkID?: string;
+    pegOffsetValue?: number;
+    pegPriceType?: BitMexPegPriceType;
+    ordType?: BitMexOrderType;
+    timeInForce?: BitMexTimeInForce;
+    execInst?: BitMexExecInst;
+    contingencyType?: BitMexContingencyType;
+    text?: string;
+};
 
-export type BitMexChangeOrderRequest = Omit<
-    BitMexOrder,
-    | 'symbol'
-    | 'side'
-    | 'ordType'
-    | 'timeInForce'
-    | 'execInst'
-    | 'contingencyType'
-    | 'ordStatus'
-    | 'account'
-    | 'currency'
-    | 'settlCurrency'
-    | 'timestamp'
-    | 'transactTime'
-    | 'triggered'
-    | 'workingIndicator'
-    | 'ordRejReason'
-    | 'cumQty'
-    | 'simpleCumQty'
-    | 'avgPx'
-    | 'multiLegReportingType'
-    | 'orderID'
-> & {
+export type BitMexChangeOrderRequest = {
     orderID?: string;
     origClOrdID?: string;
+    clOrdID?: string;
+    simpleOrderQty?: number;
+    orderQty?: number;
+    simpleLeavesQty?: number;
+    leavesQty?: number;
+    price?: number;
+    stopPx?: number;
+    pegOffsetValue?: number;
+    pegPriceType?: BitMexPegPriceType;
+    ordType?: BitMexOrderType;
+    timeInForce?: BitMexTimeInForce;
+    execInst?: BitMexExecInst;
+    text?: string;
 };
 
 export type BitMexRequestVerb = 'GET' | 'POST' | 'PUT' | 'DELETE';
