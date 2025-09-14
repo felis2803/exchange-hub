@@ -1,10 +1,10 @@
 import { createHmac } from 'crypto';
 
-import { isSubscribeMessage, isTableMessage, isWelcomeMessage } from './utils';
-import { tableMessageHandlers } from './tableMessageHandlers';
+import { isSubscribeMessage, isChannelMessage, isWelcomeMessage } from './utils';
+import { channelMessageHandlers } from './channelMessageHandlers';
 
 import type { BitMex } from '.';
-import type { BitMexChannel, BitMexSubscribeMessage } from './types';
+import type { BitMexChannel, BitMexSubscribeMessage, BitMexWelcomeMessage, BitMexChannelMessage } from './types';
 
 export class BitMexTransport {
     #core: BitMex;
@@ -29,27 +29,35 @@ export class BitMexTransport {
 
         const message = JSON.parse(text);
 
-        if (isWelcomeMessage(message)) {
-            return;
+        if (isChannelMessage(message)) {
+            this.#handleChannelMessage(message);
         }
 
         if (isSubscribeMessage(message)) {
             return this.#handleSubscribeMessage(message);
         }
 
-        if (!isTableMessage(message)) {
-            console.log(message);
-
-            throw new Error('Unknown message');
+        if (isWelcomeMessage(message)) {
+            return this.#handleWelcomeMessage(message);
         }
 
-        const { table, action, data } = message;
+        console.log(message);
 
-        tableMessageHandlers[table][action](this.#core, data);
+        throw new Error('Unknown message');
+    }
+
+    #handleWelcomeMessage(message: BitMexWelcomeMessage) {
+        throw 'not implemented';
     }
 
     #handleSubscribeMessage(message: BitMexSubscribeMessage) {
         throw 'not implemented';
+    }
+
+    #handleChannelMessage<Channel extends BitMexChannel>(message: BitMexChannelMessage<Channel>) {
+        const { table, action, data } = message;
+
+        channelMessageHandlers[table][action](this.#core, data);
     }
 
     async connect(apiKey?: string, apiSec?: string): Promise<void> {

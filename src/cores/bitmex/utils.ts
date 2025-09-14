@@ -8,6 +8,6 @@ export function isSubscribeMessage(message: any): message is BitMexSubscribeMess
     return typeof message?.success === 'boolean' && 'subscribe' in message;
 }
 
-export function isTableMessage(message: any): message is BitMexChannelMessage<BitMexChannel> {
+export function isChannelMessage(message: any): message is BitMexChannelMessage<BitMexChannel> {
     return typeof message?.table === 'string' && typeof message?.action === 'string';
 }

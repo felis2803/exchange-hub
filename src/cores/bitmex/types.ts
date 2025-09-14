@@ -155,12 +155,6 @@ export type BitMexTrade = {
     timestamp: string;
 };
 
-export type TableMessage<Table extends BitMexChannel, Data> = {
-    table: Table;
-    action: 'partial' | 'insert' | 'update' | 'delete';
-    data: Data[];
-};
-
 export type BitMexFunding = {
     timestamp: string;
     symbol: string;
