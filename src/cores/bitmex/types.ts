@@ -68,6 +68,18 @@ export type BitMexSettlementType = 'Settlement' | 'Delivery' | 'Termination' | '
 
 export type BitMexTickDirection = 'PlusTick' | 'ZeroPlusTick' | 'MinusTick' | 'ZeroMinusTick';
 
+export type BitMexTradeType = 'Regular' | 'BlockTrade';
+
+export type BitMexInstrumentType =
+    | 'FFWCSX'
+    | 'FFCCSX'
+    | 'FFICSX'
+    | 'IFXXXP'
+    | 'MRBXXX'
+    | 'MRCXXX'
+    | 'MRIXXX'
+    | 'MRRXXX';
+
 export type BitMexExecType =
     | 'New'
     | 'Trade'
@@ -110,7 +122,7 @@ export type BitMexInstrument = {
     symbol: string;
     rootSymbol?: string;
     state?: string;
-    typ?: string;
+    typ?: BitMexInstrumentType;
     listing?: string;
     front?: string;
     expiry?: string;
@@ -182,7 +194,7 @@ export type BitMexInstrument = {
     lowPrice?: number;
     lastPrice?: number;
     lastPriceProtected?: number;
-    lastTickDirection?: string;
+    lastTickDirection?: BitMexTickDirection;
     lastChangePcnt?: number;
     bidPrice?: number;
     midPrice?: number;
@@ -216,7 +228,7 @@ export type BitMexTrade = {
     size: number;
     price: number;
     tickDirection?: BitMexTickDirection;
-    trdType?: string;
+    trdType?: BitMexTradeType;
     grossValue?: number;
     homeNotional?: number;
     foreignNotional?: number;
@@ -284,7 +296,7 @@ export type BitMexExecution = {
     lastLiquidityInd?: BitMexLastLiquidityInd;
     text?: string;
     trdMatchID?: string;
-    trdType?: string;
+    trdType?: BitMexTradeType;
     tradePublishIndicator?: string;
     transactTime?: string;
     timestamp?: string;
