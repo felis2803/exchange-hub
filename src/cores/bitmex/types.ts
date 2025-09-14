@@ -22,6 +22,18 @@ export type BitMexChannel = (typeof BITMEX_CHANNELS)[number];
 
 export type BitMexSide = 'Buy' | 'Sell';
 
+export type BitMexOrderType =
+    | 'Market'
+    | 'Limit'
+    | 'Stop'
+    | 'StopLimit'
+    | 'MarketIfTouched'
+    | 'LimitIfTouched'
+    | 'MarketWithLeftoverAsLimit'
+    | 'LimitWithLeftoverAsMarket'
+    | 'StopMarket'
+    | 'Pegged';
+
 export type BitMexChannelMessageAction = 'partial' | 'insert' | 'update' | 'delete';
 
 export type BitMexChannelMessage<Channel extends BitMexChannel> = {
@@ -247,7 +259,7 @@ export type BitMexPlaceOrderRequest = {
     clOrdLinkID?: string;
     pegOffsetValue?: number;
     pegPriceType?: string;
-    ordType?: string;
+    ordType?: BitMexOrderType;
     timeInForce?: string;
     execInst?: string;
     contingencyType?: string;
