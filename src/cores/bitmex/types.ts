@@ -20,6 +20,20 @@ export type BitMexPublicChannel = (typeof BITMEX_PUBLIC_CHANNELS)[number];
 export type BitMexPrivateChannel = (typeof BITMEX_PRIVATE_CHANNELS)[number];
 export type BitMexChannel = (typeof BITMEX_CHANNELS)[number];
 
+export type BitMexSide = 'Buy' | 'Sell';
+
+export type BitMexOrderType =
+    | 'Market'
+    | 'Limit'
+    | 'Stop'
+    | 'StopLimit'
+    | 'MarketIfTouched'
+    | 'LimitIfTouched'
+    | 'MarketWithLeftoverAsLimit'
+    | 'LimitWithLeftoverAsMarket'
+    | 'StopMarket'
+    | 'Pegged';
+
 export type BitMexChannelMessageAction = 'partial' | 'insert' | 'update' | 'delete';
 
 export type BitMexChannelMessage<Channel extends BitMexChannel> = {
@@ -148,7 +162,7 @@ export type BitMexInstrument = {
 export type BitMexTrade = {
     trdMatchID: string;
     symbol: string;
-    side: 'Buy' | 'Sell';
+    side: BitMexSide;
     size: number;
     price: number;
     timestamp: string;
@@ -157,7 +171,7 @@ export type BitMexTrade = {
 export type BitMexLiquidation = {
     orderID: string;
     symbol: string;
-    side: 'Buy' | 'Sell';
+    side: BitMexSide;
     price: number;
     leavesQty: number;
 };
@@ -165,7 +179,7 @@ export type BitMexLiquidation = {
 export type BitMexOrderBookL2 = {
     symbol: string;
     id: number;
-    side: 'Buy' | 'Sell';
+    side: BitMexSide;
     size?: number;
     price?: number;
 };
@@ -182,7 +196,7 @@ export type BitMexExecution = {
     orderID: string;
     clOrdID?: string;
     symbol: string;
-    side?: 'Buy' | 'Sell';
+    side?: BitMexSide;
     price?: number;
     size?: number;
 };
@@ -191,7 +205,7 @@ export type BitMexOrder = {
     orderID: string;
     clOrdID?: string;
     symbol: string;
-    side?: 'Buy' | 'Sell';
+    side?: BitMexSide;
     price?: number;
     orderQty?: number;
     ordStatus?: string;
@@ -232,3 +246,38 @@ export type BitMexWallet = {
     availableMargin?: number;
     walletBalance?: number;
 };
+
+export type BitMexPlaceOrderRequest = {
+    symbol: string;
+    side?: BitMexSide;
+    simpleOrderQty?: number;
+    orderQty?: number;
+    price?: number;
+    displayQty?: number;
+    stopPx?: number;
+    clOrdID?: string;
+    clOrdLinkID?: string;
+    pegOffsetValue?: number;
+    pegPriceType?: string;
+    ordType?: BitMexOrderType;
+    timeInForce?: string;
+    execInst?: string;
+    contingencyType?: string;
+    text?: string;
+};
+
+export type BitMexChangeOrderRequest = {
+    orderID?: string;
+    origClOrdID?: string;
+    clOrdID?: string;
+    simpleOrderQty?: number;
+    orderQty?: number;
+    simpleLeavesQty?: number;
+    leavesQty?: number;
+    price?: number;
+    stopPx?: number;
+    pegOffsetValue?: number;
+    text?: string;
+};
+
+export type BitMexRequestVerb = 'GET' | 'POST' | 'PUT' | 'DELETE';
