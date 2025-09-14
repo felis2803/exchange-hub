@@ -249,3 +249,5 @@ export type BitMexChangeOrderRequest = {
     orderQty?: number;
     clOrdID?: string;
 };
+
+export type BitMexRequestVerb = 'GET' | 'POST' | 'PUT' | 'DELETE';

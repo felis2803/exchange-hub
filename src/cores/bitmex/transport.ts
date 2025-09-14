@@ -2,6 +2,7 @@ import { createHmac } from 'crypto';
 
 import { isSubscribeMessage, isChannelMessage, isWelcomeMessage } from './utils';
 import { channelMessageHandlers } from './channelMessageHandlers';
+import { BITMEX_WS_ENDPOINTS, BITMEX_REST_ENDPOINTS } from './constants';
 
 import type { BitMex } from '.';
 import type {
@@ -11,9 +12,9 @@ import type {
     BitMexChannelMessage,
     BitMexPlaceOrderRequest,
     BitMexChangeOrderRequest,
+    BitMexOrder,
+    BitMexRequestVerb,
 } from './types';
-
-type BitMexRequestVerb = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 export class BitMexTransport {
     #core: BitMex;
@@ -26,8 +27,8 @@ export class BitMexTransport {
     constructor(core: BitMex, isTest: boolean) {
         this.#core = core;
 
-        this.#wsEndpoint = isTest ? 'wss://testnet.bitmex.com/realtime' : 'wss://www.bitmex.com/realtime';
-        this.#restEndpoint = isTest ? 'https://testnet.bitmex.com/api/v1' : 'https://www.bitmex.com/api/v1';
+        this.#wsEndpoint = isTest ? BITMEX_WS_ENDPOINTS.testnet : BITMEX_WS_ENDPOINTS.mainnet;
+        this.#restEndpoint = isTest ? BITMEX_REST_ENDPOINTS.testnet : BITMEX_REST_ENDPOINTS.mainnet;
         this.#ws = new WebSocket(this.#wsEndpoint);
 
         this.#ws.onmessage = (event: MessageEvent) => this.#handleMessage(event);
@@ -59,11 +60,11 @@ export class BitMexTransport {
         throw new Error('Unknown message');
     }
 
-    #handleWelcomeMessage(message: BitMexWelcomeMessage) {
+    #handleWelcomeMessage(_message: BitMexWelcomeMessage) {
         throw 'not implemented';
     }
 
-    #handleSubscribeMessage(message: BitMexSubscribeMessage) {
+    #handleSubscribeMessage(_message: BitMexSubscribeMessage) {
         throw 'not implemented';
     }
 
@@ -111,21 +112,21 @@ export class BitMexTransport {
         this.send({ op: 'unsubscribe', args: channels });
     }
 
-    async placeOrder(order: BitMexPlaceOrderRequest): Promise<any> {
-        return this.#request('POST', '/order', order);
+    async placeOrder(order: BitMexPlaceOrderRequest): Promise<BitMexOrder> {
+        return this.#request<BitMexOrder>('POST', '/order', order);
     }
 
-    async changeOrder(order: BitMexChangeOrderRequest): Promise<any> {
-        return this.#request('PUT', '/order', order);
+    async changeOrder(order: BitMexChangeOrderRequest): Promise<BitMexOrder> {
+        return this.#request<BitMexOrder>('PUT', '/order', order);
     }
 
-    async deleteOrder(orderID: string): Promise<any> {
+    async deleteOrder(orderID: string): Promise<BitMexOrder[]> {
         const path = `/order?orderID=${orderID}`;
 
-        return this.#request('DELETE', path);
+        return this.#request<BitMexOrder[]>('DELETE', path);
     }
 
-    async #request<T>(verb: BitMexRequestVerb, path: string, body?: any): Promise<T> {
+    async #request<T>(verb: BitMexRequestVerb, path: string, body?: unknown): Promise<T> {
         if (!this.#apiKey || !this.#apiSec) {
             throw new Error('API credentials required');
         }
