@@ -34,6 +34,56 @@ export type BitMexOrderType =
     | 'StopMarket'
     | 'Pegged';
 
+export type BitMexOrderStatus =
+    | 'New'
+    | 'PartiallyFilled'
+    | 'Filled'
+    | 'Canceled'
+    | 'Rejected'
+    | 'Triggered'
+    | 'Expired';
+
+export type BitMexTimeInForce = 'Day' | 'GoodTillCancel' | 'ImmediateOrCancel' | 'FillOrKill' | 'GoodTillDate';
+
+export type BitMexExecInst =
+    | 'ParticipateDoNotInitiate'
+    | 'AllOrNone'
+    | 'MarkPrice'
+    | 'LastPrice'
+    | 'IndexPrice'
+    | 'Close'
+    | 'ReduceOnly'
+    | 'Fixed'
+    | 'Trail';
+
+export type BitMexContingencyType =
+    | 'OneCancelsTheOther'
+    | 'OneTriggersTheOther'
+    | 'OneUpdatesTheOtherAbsolute'
+    | 'OneUpdatesTheOtherProportional';
+
+export type BitMexPegPriceType = 'LastPeg' | 'MidPricePeg' | 'MarketPeg' | 'PrimaryPeg' | 'TrailingStopPeg';
+
+export type BitMexSettlementType = 'Settlement' | 'Delivery' | 'Termination' | 'Maturity';
+
+export type BitMexTickDirection = 'PlusTick' | 'ZeroPlusTick' | 'MinusTick' | 'ZeroMinusTick';
+
+export type BitMexExecType =
+    | 'New'
+    | 'Trade'
+    | 'Funding'
+    | 'Settlement'
+    | 'Canceled'
+    | 'Calculated'
+    | 'Expired'
+    | 'Restated';
+
+export type BitMexLastLiquidityInd = 'AddedLiquidity' | 'RemovedLiquidity' | 'LiquidityIndeterminate';
+
+export type BitMexTransactType = 'Withdrawal' | 'Deposit' | 'Transfer' | 'Settlement' | 'Rebate' | 'Reward' | 'Fee';
+
+export type BitMexTransactStatus = 'Pending' | 'Completed' | 'Canceled' | 'Rejected';
+
 export type BitMexChannelMessageAction = 'partial' | 'insert' | 'update' | 'delete';
 
 export type BitMexChannelMessage<Channel extends BitMexChannel> = {
@@ -165,6 +215,11 @@ export type BitMexTrade = {
     side: BitMexSide;
     size: number;
     price: number;
+    tickDirection?: BitMexTickDirection;
+    trdType?: string;
+    grossValue?: number;
+    homeNotional?: number;
+    foreignNotional?: number;
     timestamp: string;
 };
 
@@ -182,72 +237,76 @@ export type BitMexOrderBookL2 = {
     side: BitMexSide;
     size?: number;
     price?: number;
+    timestamp?: string;
+    transactTime?: string;
 };
 
 export type BitMexSettlement = {
     timestamp: string;
     symbol: string;
-    settlementType: string;
-    settlePrice?: number;
+    settlementType: BitMexSettlementType;
+    settledPrice?: number;
+    optionStrikePrice?: number;
+    optionUnderlyingPrice?: number;
+    bankrupt?: number;
+    taxBase?: number;
+    taxRate?: number;
 };
 
 export type BitMexExecution = {
     execID: string;
     orderID: string;
     clOrdID?: string;
+    clOrdLinkID?: string;
+    account?: number;
     symbol: string;
     side?: BitMexSide;
     price?: number;
-    size?: number;
+    orderQty?: number;
+    displayQty?: number;
+    stopPx?: number;
+    pegOffsetValue?: number;
+    pegPriceType?: BitMexPegPriceType;
+    currency?: string;
+    settlCurrency?: string;
+    execType?: BitMexExecType;
+    ordType?: BitMexOrderType;
+    ordStatus?: BitMexOrderStatus;
+    execInst?: BitMexExecInst;
+    contingencyType?: BitMexContingencyType;
+    timeInForce?: BitMexTimeInForce;
+    leavesQty?: number;
+    cumQty?: number;
+    avgPx?: number;
+    commission?: number;
+    lastPx?: number;
+    lastQty?: number;
+    lastLiquidityInd?: BitMexLastLiquidityInd;
+    text?: string;
+    trdMatchID?: string;
+    trdType?: string;
+    tradePublishIndicator?: string;
+    transactTime?: string;
+    timestamp?: string;
+    grossValue?: number;
+    homeNotional?: number;
+    foreignNotional?: number;
+    execCost?: number;
+    execComm?: number;
+    brokerCommission?: number;
+    brokerExecComm?: number;
+    feeType?: string;
+    realisedPnl?: number;
+    triggered?: string;
+    ordRejReason?: string;
+    workingIndicator?: boolean;
 };
 
 export type BitMexOrder = {
     orderID: string;
     clOrdID?: string;
-    symbol: string;
-    side?: BitMexSide;
-    price?: number;
-    orderQty?: number;
-    ordStatus?: string;
-};
-
-export type BitMexMargin = {
-    account: number;
-    currency: string;
-    riskLimit: number;
-    marginBalance: number;
-    availableMargin: number;
-};
-
-export type BitMexPosition = {
-    account: number;
-    symbol: string;
-    currentQty?: number;
-    avgEntryPrice?: number;
-    liquidationPrice?: number;
-};
-
-export type BitMexTransact = {
-    transactID: string;
-    account: number;
-    currency: string;
-    transactType?: string;
-    amount: number;
-    fee?: number;
-    transactStatus?: string;
-    address?: string;
-    timestamp?: string;
-};
-
-export type BitMexWallet = {
-    account: number;
-    currency: string;
-    balance: number;
-    availableMargin?: number;
-    walletBalance?: number;
-};
-
-export type BitMexPlaceOrderRequest = {
+    clOrdLinkID?: string;
+    account?: number;
     symbol: string;
     side?: BitMexSide;
     simpleOrderQty?: number;
@@ -255,29 +314,203 @@ export type BitMexPlaceOrderRequest = {
     price?: number;
     displayQty?: number;
     stopPx?: number;
-    clOrdID?: string;
-    clOrdLinkID?: string;
     pegOffsetValue?: number;
-    pegPriceType?: string;
+    pegPriceType?: BitMexPegPriceType;
+    currency?: string;
+    settlCurrency?: string;
     ordType?: BitMexOrderType;
-    timeInForce?: string;
-    execInst?: string;
-    contingencyType?: string;
+    timeInForce?: BitMexTimeInForce;
+    execInst?: BitMexExecInst;
+    contingencyType?: BitMexContingencyType;
+    ordStatus?: BitMexOrderStatus;
+    triggered?: string;
+    workingIndicator?: boolean;
+    ordRejReason?: string;
+    leavesQty?: number;
+    cumQty?: number;
+    avgPx?: number;
+    multiLegReportingType?: string;
     text?: string;
+    transactTime?: string;
+    timestamp?: string;
+    simpleLeavesQty?: number;
+    simpleCumQty?: number;
 };
 
-export type BitMexChangeOrderRequest = {
+export type BitMexMargin = {
+    account: number;
+    currency: string;
+    riskLimit: number;
+    riskValue?: number;
+    amount?: number;
+    marginBalance: number;
+    availableMargin: number;
+    grossComm?: number;
+    grossOpenCost?: number;
+    grossOpenPremium?: number;
+    grossExecCost?: number;
+    grossMarkValue?: number;
+    realisedPnl?: number;
+    unrealisedPnl?: number;
+    prevRealisedPnl?: number;
+    initMargin?: number;
+    maintMargin?: number;
+    targetExcessMargin?: number;
+    excessMargin?: number;
+    makerFeeDiscount?: number;
+    takerFeeDiscount?: number;
+    marginLeverage?: number;
+    marginUsedPcnt?: number;
+    withdrawableMargin?: number;
+    timestamp?: string;
+    foreignMarginBalance?: number;
+    foreignRequirement?: number;
+    state?: string;
+    walletBalance?: number;
+};
+
+export type BitMexPosition = {
+    account: number;
+    symbol: string;
+    currency?: string;
+    underlying?: string;
+    quoteCurrency?: string;
+    commission?: number;
+    initMarginReq?: number;
+    maintMarginReq?: number;
+    riskLimit?: number;
+    riskValue?: number;
+    leverage?: number;
+    crossMargin?: boolean;
+    deleveragePercentile?: number;
+    rebalancedPnl?: number;
+    prevRealisedPnl?: number;
+    prevUnrealisedPnl?: number;
+    openingQty?: number;
+    openOrderBuyQty?: number;
+    openOrderBuyCost?: number;
+    openOrderBuyPremium?: number;
+    openOrderSellQty?: number;
+    openOrderSellCost?: number;
+    openOrderSellPremium?: number;
+    currentQty?: number;
+    currentCost?: number;
+    currentComm?: number;
+    realisedCost?: number;
+    unrealisedCost?: number;
+    grossOpenCost?: number;
+    grossOpenPremium?: number;
+    posCost?: number;
+    posCost2?: number;
+    posCross?: number;
+    posLoss?: number;
+    posMaint?: number;
+    posMargin?: number;
+    posComm?: number;
+    posState?: string;
+    homeNotional?: number;
+    foreignNotional?: number;
+    liquidationPrice?: number;
+    bankruptPrice?: number;
+    marginCallPrice?: number;
+    avgEntryPrice?: number;
+    avgCostPrice?: number;
+    breakEvenPrice?: number;
+    markPrice?: number;
+    markValue?: number;
+    timestamp?: string;
+    realisedPnl?: number;
+    unrealisedPnl?: number;
+    unrealisedPnlPcnt?: number;
+    unrealisedRoePcnt?: number;
+    simpleQty?: number;
+    simpleCost?: number;
+    simpleValue?: number;
+    simplePnl?: number;
+    simplePnlPcnt?: number;
+    isOpen?: boolean;
+    maintMargin?: number;
+    initMargin?: number;
+};
+
+export type BitMexTransact = {
+    transactID: string;
+    account: number;
+    currency: string;
+    transactType?: BitMexTransactType;
+    amount: number;
+    fee?: number;
+    transactStatus?: BitMexTransactStatus;
+    address?: string;
+    tx?: string;
+    orderID?: string;
+    walletBalance?: number;
+    timestamp?: string;
+    transactTime?: string;
+    text?: string;
+    network?: string;
+    memo?: string;
+};
+
+export type BitMexWallet = {
+    account: number;
+    currency: string;
+    amount: number;
+    pendingCredit?: number;
+    pendingDebit?: number;
+    confirmedDebit?: number;
+    transferIn?: number;
+    transferOut?: number;
+    timestamp?: string;
+    deposited?: number;
+    withdrawn?: number;
+};
+
+export type BitMexPlaceOrderRequest = Omit<
+    BitMexOrder,
+    | 'orderID'
+    | 'account'
+    | 'cumQty'
+    | 'leavesQty'
+    | 'simpleLeavesQty'
+    | 'simpleCumQty'
+    | 'avgPx'
+    | 'ordStatus'
+    | 'triggered'
+    | 'workingIndicator'
+    | 'ordRejReason'
+    | 'timestamp'
+    | 'transactTime'
+    | 'multiLegReportingType'
+    | 'currency'
+    | 'settlCurrency'
+>;
+
+export type BitMexChangeOrderRequest = Omit<
+    BitMexOrder,
+    | 'symbol'
+    | 'side'
+    | 'ordType'
+    | 'timeInForce'
+    | 'execInst'
+    | 'contingencyType'
+    | 'ordStatus'
+    | 'account'
+    | 'currency'
+    | 'settlCurrency'
+    | 'timestamp'
+    | 'transactTime'
+    | 'triggered'
+    | 'workingIndicator'
+    | 'ordRejReason'
+    | 'cumQty'
+    | 'simpleCumQty'
+    | 'avgPx'
+    | 'multiLegReportingType'
+    | 'orderID'
+> & {
     orderID?: string;
     origClOrdID?: string;
-    clOrdID?: string;
-    simpleOrderQty?: number;
-    orderQty?: number;
-    simpleLeavesQty?: number;
-    leavesQty?: number;
-    price?: number;
-    stopPx?: number;
-    pegOffsetValue?: number;
-    text?: string;
 };
 
 export type BitMexRequestVerb = 'GET' | 'POST' | 'PUT' | 'DELETE';
