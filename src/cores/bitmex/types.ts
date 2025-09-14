@@ -237,17 +237,35 @@ export type BitMexWallet = {
 
 export type BitMexPlaceOrderRequest = {
     symbol: string;
-    side: BitMexSide;
-    orderQty: number;
+    side?: BitMexSide;
+    simpleOrderQty?: number;
+    orderQty?: number;
     price?: number;
+    displayQty?: number;
+    stopPx?: number;
     clOrdID?: string;
+    clOrdLinkID?: string;
+    pegOffsetValue?: number;
+    pegPriceType?: string;
+    ordType?: string;
+    timeInForce?: string;
+    execInst?: string;
+    contingencyType?: string;
+    text?: string;
 };
 
 export type BitMexChangeOrderRequest = {
-    orderID: string;
-    price?: number;
-    orderQty?: number;
+    orderID?: string;
+    origClOrdID?: string;
     clOrdID?: string;
+    simpleOrderQty?: number;
+    orderQty?: number;
+    simpleLeavesQty?: number;
+    leavesQty?: number;
+    price?: number;
+    stopPx?: number;
+    pegOffsetValue?: number;
+    text?: string;
 };
 
 export type BitMexRequestVerb = 'GET' | 'POST' | 'PUT' | 'DELETE';
