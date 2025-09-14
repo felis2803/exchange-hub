@@ -132,8 +132,9 @@ export class BitMexTransport {
 
         const expires = Math.round(Date.now() / 1000) + 60;
         const bodyText = body ? JSON.stringify(body) : '';
+        const signedPath = `/api/v1${path}`;
         const signature = createHmac('sha256', this.#apiSec)
-            .update(`${verb}${path}${expires}${bodyText}`)
+            .update(`${verb}${signedPath}${expires}${bodyText}`)
             .digest('hex');
 
         const headers: Record<string, string> = {
