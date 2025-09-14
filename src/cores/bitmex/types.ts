@@ -31,7 +31,6 @@ export type BitMexChannelMessage<Channel extends BitMexChannel> = {
 export type BitMexChannelMessageMap = {
     instrument: BitMexInstrument;
     trade: BitMexTrade;
-    funding: BitMexFunding;
     liquidation: BitMexLiquidation;
     orderBookL2: BitMexOrderBookL2;
     settlement: BitMexSettlement;
@@ -153,13 +152,6 @@ export type BitMexTrade = {
     size: number;
     price: number;
     timestamp: string;
-};
-
-export type BitMexFunding = {
-    timestamp: string;
-    symbol: string;
-    fundingRate: number;
-    fundingRateDaily: number;
 };
 
 export type BitMexLiquidation = {
