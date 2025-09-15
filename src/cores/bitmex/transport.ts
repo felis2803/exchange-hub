@@ -1,15 +1,9 @@
 import { createHmac } from 'crypto';
 
-import { isSubscribeMessage, isChannelMessage, isWelcomeMessage } from './utils';
-import { channelMessageHandlers } from './channelMessageHandlers';
 import { BITMEX_WS_ENDPOINTS, BITMEX_REST_ENDPOINTS } from './constants';
 
-import type { BitMex } from '.';
 import type {
     BitMexChannel,
-    BitMexSubscribeMessage,
-    BitMexWelcomeMessage,
-    BitMexChannelMessage,
     BitMexPlaceOrderRequest,
     BitMexChangeOrderRequest,
     BitMexOrder,
@@ -17,18 +11,18 @@ import type {
 } from './types';
 
 export class BitMexTransport {
-    #core: BitMex;
     #wsEndpoint: string;
     #ws: WebSocket;
     #restEndpoint: string;
     #apiKey?: string;
     #apiSec?: string;
+    #onMessage: (message: unknown) => void;
 
-    constructor(core: BitMex, isTest: boolean) {
-        this.#core = core;
-
+    constructor(isTest: boolean, onMessage: (message: unknown) => void) {
         this.#wsEndpoint = isTest ? BITMEX_WS_ENDPOINTS.testnet : BITMEX_WS_ENDPOINTS.mainnet;
         this.#restEndpoint = isTest ? BITMEX_REST_ENDPOINTS.testnet : BITMEX_REST_ENDPOINTS.mainnet;
+        this.#onMessage = onMessage;
+
         this.#ws = new WebSocket(this.#wsEndpoint);
 
         this.#ws.onmessage = (event: MessageEvent) => this.#handleMessage(event);
@@ -43,35 +37,7 @@ export class BitMexTransport {
 
         const message = JSON.parse(text);
 
-        if (isChannelMessage(message)) {
-            this.#handleChannelMessage(message);
-        }
-
-        if (isSubscribeMessage(message)) {
-            return this.#handleSubscribeMessage(message);
-        }
-
-        if (isWelcomeMessage(message)) {
-            return this.#handleWelcomeMessage(message);
-        }
-
-        console.log(message);
-
-        throw new Error('Unknown message');
-    }
-
-    #handleWelcomeMessage(_message: BitMexWelcomeMessage) {
-        throw 'not implemented';
-    }
-
-    #handleSubscribeMessage(_message: BitMexSubscribeMessage) {
-        throw 'not implemented';
-    }
-
-    #handleChannelMessage<Channel extends BitMexChannel>(message: BitMexChannelMessage<Channel>) {
-        const { table, action, data } = message;
-
-        channelMessageHandlers[table][action](this.#core, data);
+        this.#onMessage(message);
     }
 
     async connect(apiKey?: string, apiSec?: string): Promise<void> {
