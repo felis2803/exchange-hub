@@ -5,7 +5,7 @@ import type { Instrument } from './createInstrument';
 
 export function createTrade<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
     class Trade extends Entity {
-        static ex = eh;
+        static eh = eh;
 
         id: string;
         instrument: Instrument<ExName>;
