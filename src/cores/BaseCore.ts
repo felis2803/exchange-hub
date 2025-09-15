@@ -1,3 +1,4 @@
+import type { Instrument } from '../entities/createInstrument';
 import type { ExchangeHub } from '../ExchangeHub';
 import type { ApiKey, ApiSec, ExchangeName, Settings } from '../types';
 
@@ -6,6 +7,7 @@ export class BaseCore<ExName extends ExchangeName> {
     #isTest = false;
     #apiKey?: ApiKey;
     #apiSec?: ApiSec;
+    #instruments: Instrument<ExName>;
 
     constructor(shell: ExchangeHub<ExName>, settings: Settings) {
         const { isTest, apiKey, apiSec } = settings;
@@ -37,8 +39,8 @@ export class BaseCore<ExName extends ExchangeName> {
         return this.#apiSec;
     }
 
-    get instruments(): any {
-        return undefined;
+    get instruments() {
+        return this.#instruments;
     }
 
     async connect(): Promise<void> {

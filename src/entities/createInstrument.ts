@@ -6,7 +6,6 @@ import type { ExchangeHub } from '../ExchangeHub';
 import type { EntityClass } from './createEntity';
 import type { Asset } from './createAsset';
 import type { ExchangeName } from '../types';
-import type { OrderBook } from './createOrderBook';
 
 export function createInstrument<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
     class Instrument extends Entity {
@@ -18,7 +17,7 @@ export function createInstrument<ExName extends ExchangeName>(eh: ExchangeHub<Ex
         trades: Trade<ExName>[] = [];
         bid = NaN;
         ask = NaN;
-        orderBook: OrderBook<ExName> = new (createOrderBook(eh, Entity))(this);
+        orderBook = new (createOrderBook(eh, Entity))(this);
         orders: Order<ExName>[] = [];
 
         constructor(symbol: string, { baseAsset, quoteAsset }: Omit<Instrument, 'symbol'>) {
