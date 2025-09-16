@@ -1,1 +1,1 @@
-console.log('ExchangeHub initialized');
+export { ExchangeHub } from './ExchangeHub';

@@ -1,17 +1,49 @@
 {
-  "name": "exchange-hub",
-  "version": "0.1.0",
-  "type": "module",
-  "main": "dist/index.js",
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "dev": "ts-node src/index.ts",
-    "clean": "rm -rf dist",
-    "test": "node -e \"console.log('no tests yet')\""
-  },
-  "devDependencies": {
-    "typescript": "^5.4.0",
-    "ts-node": "^10.9.2",
-    "@types/node": "^20.11.30"
-  }
+    "name": "exchange-hub",
+    "version": "0.1.0",
+    "description": "",
+    "main": "dist/index.js",
+    "scripts": {
+        "build": "tsc",
+        "start": "tsc && node ./dist/src/index.js",
+        "lint": "eslint . --ext .ts,.js",
+        "format": "prettier --check .",
+        "fix": "prettier --write . && eslint . --ext .ts,.js --fix",
+        "check": "npm run lint && npm run format && npm run type-check",
+        "type-check": "tsc --noEmit",
+        "test": "node -e \"console.log('no tests yet')\"",
+        "exp": "node ./scripts/run-example.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/felis2803/exchange-hub.git"
+    },
+    "author": "Felis",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/felis2803/exchange-hub/issues"
+    },
+    "homepage": "https://github.com/felis2803/exchange-hub#readme",
+    "devDependencies": {
+        "@eslint/js": "^9.31.0",
+        "@types/jest": "^29",
+        "@types/node": "^24.0.15",
+        "@typescript-eslint/eslint-plugin": "^8.37.0",
+        "@typescript-eslint/parser": "^8.37.0",
+        "eslint": "^9.31.0",
+        "eslint-plugin-align-assignments": "^1.1.2",
+        "eslint-plugin-import": "^2.32.0",
+        "eslint-plugin-prettier": "^5.5.3",
+        "eslint-plugin-unused-imports": "^4.1.4",
+        "globals": "^16.3.0",
+        "jest": "^29",
+        "nock": "^14.0.6",
+        "prettier": "^3.2.5",
+        "ts-jest": "^29.4.0",
+        "ts-node": "^10.9.2"
+    },
+    "dependencies": {
+        "rxjs": "^7.8.2",
+        "typescript": "^5.8.3"
+    }
 }
