@@ -37,10 +37,6 @@ export class BaseCore<ExName extends ExchangeName> {
         return this.#apiSec;
     }
 
-    get instruments(): unknown {
-        throw new Error('Not implemented!');
-    }
-
     async connect(): Promise<void> {
         throw new Error('Not implemented!');
     }

@@ -3,9 +3,12 @@
     "version": "0.1.0",
     "description": "",
     "main": "dist/index.js",
+    "engines": {
+        "node": ">=22"
+    },
     "scripts": {
         "build": "tsc",
-        "start": "tsc && node ./dist/src/index.js",
+        "start": "tsc && node ./dist/index.js",
         "lint": "eslint . --ext .ts,.js",
         "format": "prettier --check .",
         "fix": "prettier --write . && eslint . --ext .ts,.js --fix",
