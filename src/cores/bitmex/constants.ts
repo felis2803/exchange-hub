@@ -17,11 +17,6 @@ export const BITMEX_PRIVATE_CHANNELS = [
 
 export const BITMEX_CHANNELS = [...BITMEX_PUBLIC_CHANNELS, ...BITMEX_PRIVATE_CHANNELS] as const;
 
-export const BITMEX_REST_ENDPOINTS = {
-  testnet: 'https://testnet.bitmex.com/api/v1',
-  mainnet: 'https://www.bitmex.com/api/v1',
-} as const;
-
 export const BITMEX_WS_ENDPOINTS = {
   mainnet: 'wss://www.bitmex.com/realtime',
   testnet: 'wss://testnet.bitmex.com/realtime',
@@ -33,3 +28,15 @@ export const WS_RECONNECT_MAX_ATTEMPTS = 12;
 export const WS_RECONNECT_BASE_DELAY_MS = 200; // min 200ms
 export const WS_RECONNECT_MAX_DELAY_MS = 10 * 60 * 1000; // 10min
 export const WS_SEND_BUFFER_LIMIT = 1_000;
+
+export const BITMEX_REST_ENDPOINTS = {
+  testnet: 'https://testnet.bitmex.com/api/v1',
+  mainnet: 'https://www.bitmex.com/api/v1',
+} as const;
+
+export const BITMEX_REST_HOSTS = {
+  testnet: 'https://testnet.bitmex.com',
+  mainnet: 'https://www.bitmex.com',
+} as const;
+
+export const BITMEX_REST_DEFAULT_TIMEOUT_MS = 30_000;
