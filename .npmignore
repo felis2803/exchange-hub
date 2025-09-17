@@ -7,5 +7,8 @@ examples/
 node_modules/
 jest.config.js
 tsconfig.json
-eslint.config.js
-.prettierrc
+.eslintrc.cjs
+.eslintignore
+.prettierrc.json
+.prettierignore
+.editorconfig

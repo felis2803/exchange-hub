@@ -6,63 +6,63 @@ import { BaseCore } from '../BaseCore';
 import type { Settings } from '../../types';
 import type { ExchangeHub } from '../../ExchangeHub';
 import type {
-    BitMexChannel,
-    BitMexChannelMessage,
-    BitMexSubscribeMessage,
-    BitMexWelcomeMessage,
-    BitMexInstrument,
+  BitMexChannel,
+  BitMexChannelMessage,
+  BitMexSubscribeMessage,
+  BitMexWelcomeMessage,
+  BitMexInstrument,
 } from './types';
 
 export class BitMex extends BaseCore<'BitMex'> {
-    #settings: Settings;
-    #transport: BitMexTransport;
-    #instruments = new Map<string, BitMexInstrument>();
+  #settings: Settings;
+  #transport: BitMexTransport;
+  #instruments = new Map<string, BitMexInstrument>();
 
-    constructor(shell: ExchangeHub<'BitMex'>, settings: Settings) {
-        super(shell, settings);
+  constructor(shell: ExchangeHub<'BitMex'>, settings: Settings) {
+    super(shell, settings);
 
-        this.#settings = settings;
-        this.#transport = new BitMexTransport(settings.isTest ?? false, message =>
-            this.#handleMessage(message),
-        );
+    this.#settings = settings;
+    this.#transport = new BitMexTransport(settings.isTest ?? false, (message) =>
+      this.#handleMessage(message),
+    );
+  }
+
+  override get instruments(): Map<string, BitMexInstrument> {
+    return this.#instruments;
+  }
+
+  async connect(): Promise<void> {
+    await this.#transport.connect(this.#settings.apiKey, this.#settings.apiSec);
+  }
+
+  async disconnect(): Promise<void> {
+    await this.#transport.disconnect();
+  }
+
+  #handleMessage(message: unknown) {
+    if (isChannelMessage(message)) {
+      return this.#handleChannelMessage(message);
     }
 
-    override get instruments(): Map<string, BitMexInstrument> {
-        return this.#instruments;
+    if (isSubscribeMessage(message)) {
+      return this.#handleSubscribeMessage(message);
     }
 
-    async connect(): Promise<void> {
-        await this.#transport.connect(this.#settings.apiKey, this.#settings.apiSec);
+    if (isWelcomeMessage(message)) {
+      return this.#handleWelcomeMessage(message);
     }
 
-    async disconnect(): Promise<void> {
-        await this.#transport.disconnect();
-    }
+    console.log(message);
+    throw new Error('Unknown message');
+  }
 
-    #handleMessage(message: unknown) {
-        if (isChannelMessage(message)) {
-            return this.#handleChannelMessage(message);
-        }
+  #handleWelcomeMessage(_message: BitMexWelcomeMessage) {}
 
-        if (isSubscribeMessage(message)) {
-            return this.#handleSubscribeMessage(message);
-        }
+  #handleSubscribeMessage(_message: BitMexSubscribeMessage) {}
 
-        if (isWelcomeMessage(message)) {
-            return this.#handleWelcomeMessage(message);
-        }
+  #handleChannelMessage<Channel extends BitMexChannel>(message: BitMexChannelMessage<Channel>) {
+    const { table, action, data } = message;
 
-        console.log(message);
-        throw new Error('Unknown message');
-    }
-
-    #handleWelcomeMessage(_message: BitMexWelcomeMessage) {}
-
-    #handleSubscribeMessage(_message: BitMexSubscribeMessage) {}
-
-    #handleChannelMessage<Channel extends BitMexChannel>(message: BitMexChannelMessage<Channel>) {
-        const { table, action, data } = message;
-
-        channelMessageHandlers[table][action](this, data);
-    }
+    channelMessageHandlers[table][action](this, data);
+  }
 }

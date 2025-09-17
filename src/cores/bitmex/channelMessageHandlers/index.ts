@@ -14,19 +14,22 @@ import type { BitMex } from '..';
 import type { BitMexChannel, BitMexChannelMessageAction, BitMexChannelMessageMap } from '../types';
 
 export const channelMessageHandlers: {
-    [Channel in BitMexChannel]: {
-        [Action in BitMexChannelMessageAction]: (core: BitMex, data: BitMexChannelMessageMap[Channel][]) => void;
-    };
+  [Channel in BitMexChannel]: {
+    [Action in BitMexChannelMessageAction]: (
+      core: BitMex,
+      data: BitMexChannelMessageMap[Channel][],
+    ) => void;
+  };
 } = {
-    instrument,
-    trade,
-    liquidation,
-    orderBookL2,
-    settlement,
-    execution,
-    order,
-    margin,
-    position,
-    transact,
-    wallet,
+  instrument,
+  trade,
+  liquidation,
+  orderBookL2,
+  settlement,
+  execution,
+  order,
+  margin,
+  position,
+  transact,
+  wallet,
 };
