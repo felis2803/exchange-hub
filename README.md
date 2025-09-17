@@ -51,12 +51,7 @@ only when the log level allows the message to be emitted.
 Библиотека использует унифицированную иерархию ошибок с кодами и сериализацией:
 
 ```ts
-import {
-  fromHttpResponse,
-  NetworkError,
-  RateLimitError,
-  wrap,
-} from 'exchange-hub';
+import { fromHttpResponse, NetworkError, RateLimitError, wrap } from 'exchange-hub';
 
 async function fetchOrders() {
   try {
