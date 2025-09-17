@@ -18,6 +18,5 @@ export {
   fromFetchError,
   fromWsClose,
   wrap,
-  isRetryable,
 } from './infra/errors.js';
-export type { ErrorCode, ErrorJSON, ErrorOptions, ErrorExtras } from './infra/errors.js';
+export type { ErrorCode, ErrorJSON, ErrorOptions } from './infra/errors.js';

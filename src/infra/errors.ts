@@ -37,7 +37,7 @@ export interface ErrorOptions {
   requestId?: string;
 }
 
-export type ErrorExtras = Omit<ErrorOptions, 'code'>;
+type ErrorOverrides = Partial<Omit<ErrorOptions, 'code'>>;
 
 export class BaseError extends Error {
   public readonly code: ErrorCode;
@@ -193,6 +193,7 @@ export function fromHttpResponse(params: HttpResponseErrorParams): BaseError {
   if (method) details.method = method;
   if (body !== undefined) details.body = safeSerializeValue(body);
   if (normalizedHeaders) details.headers = normalizedHeaders;
+  if (retryAfterMs !== undefined) details.retryAfterMs = retryAfterMs;
 
   if (status === 401 || status === 403) {
     return new AuthError('Unauthorized', { httpStatus: status, exchange, requestId, details });
@@ -257,7 +258,7 @@ export function fromHttpResponse(params: HttpResponseErrorParams): BaseError {
 }
 
 /** Build error from low-level fetch/network error */
-export function fromFetchError(err: unknown, extra: ErrorExtras = {}): BaseError {
+export function fromFetchError(err: unknown, extra: ErrorOverrides = {}): BaseError {
   if (err instanceof BaseError) {
     return err;
   }
@@ -285,14 +286,17 @@ export function fromWsClose(params: WsCloseParams): BaseError {
   const details = { code, reason } satisfies Record<string, unknown>;
 
   if (code === 1000) {
+    // Normal closure as defined by the WebSocket spec. Treat as transient network event.
     return new NetworkError('WebSocket closed', { details, exchange });
   }
 
   if (code === 1006 || code === 1011) {
+    // 1006: abnormal close, 1011: server error — both signal exchange-side issues.
     return new ExchangeDownError('WebSocket abnormal closure', { details, exchange });
   }
 
   if (code === 1013) {
+    // 1013: try again later — exchanges use this for rate limiting/backpressure.
     return new RateLimitError('WebSocket rate limited', { details, exchange });
   }
 
@@ -300,9 +304,9 @@ export function fromWsClose(params: WsCloseParams): BaseError {
 }
 
 /** Wrap unknown error into BaseError with specific code */
-export function wrap(err: unknown, code?: ErrorCode, extras: ErrorExtras = {}): BaseError {
+export function wrap(err: unknown, code?: ErrorCode, overrides: ErrorOverrides = {}): BaseError {
   if (err instanceof BaseError) {
-    if (!code && !hasExtras(extras)) {
+    if (!code && !hasOverrides(overrides)) {
       return err;
     }
 
@@ -310,8 +314,11 @@ export function wrap(err: unknown, code?: ErrorCode, extras: ErrorExtras = {}): 
       message: overrideMessage,
       cause: overrideCause,
       details: extraDetails,
-      ...rest
-    } = extras;
+      httpStatus,
+      retryAfterMs,
+      exchange,
+      requestId,
+    } = overrides;
     const mergedDetails = mergeDetails(err.details, extraDetails);
 
     return new BaseError({
@@ -319,51 +326,30 @@ export function wrap(err: unknown, code?: ErrorCode, extras: ErrorExtras = {}): 
       message: overrideMessage ?? err.message,
       cause: overrideCause ?? err,
       details: mergedDetails,
-      httpStatus: rest.httpStatus ?? err.httpStatus,
-      retryAfterMs: rest.retryAfterMs ?? err.retryAfterMs,
-      exchange: rest.exchange ?? err.exchange,
-      requestId: rest.requestId ?? err.requestId,
+      httpStatus: httpStatus ?? err.httpStatus,
+      retryAfterMs: retryAfterMs ?? err.retryAfterMs,
+      exchange: exchange ?? err.exchange,
+      requestId: requestId ?? err.requestId,
     });
   }
 
-  const { message: overrideMessage, cause: overrideCause, details, ...rest } = extras;
-  const fallbackMessage = err instanceof Error ? err.message : String(err);
-  const message = overrideMessage ?? fallbackMessage;
+  const { message, cause, details, httpStatus, retryAfterMs, exchange, requestId } = overrides;
+  const fallbackMessage = message ?? coerceUnknownErrorMessage(err);
 
   return new BaseError({
     code: code ?? 'UNKNOWN_ERROR',
-    message,
-    cause: overrideCause ?? err,
+    message: fallbackMessage,
+    cause: cause ?? err,
     details,
-    httpStatus: rest.httpStatus,
-    retryAfterMs: rest.retryAfterMs,
-    exchange: rest.exchange,
-    requestId: rest.requestId,
+    httpStatus,
+    retryAfterMs,
+    exchange,
+    requestId,
   });
 }
 
-/** Determine if an error is retryable using heuristics */
-export function isRetryable(err: unknown): boolean {
-  if (err instanceof BaseError) {
-    return err.isRetryable();
-  }
-
-  if (err instanceof Error) {
-    const errno = (err as ErrnoException).code;
-    if (errno && RETRYABLE_ERRNO_CODES.has(errno)) {
-      return true;
-    }
-
-    if (isAbortError(err)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-function hasExtras(extras: ErrorExtras): boolean {
-  return Object.values(extras).some((value) => value !== undefined);
+function hasOverrides(overrides: ErrorOverrides): boolean {
+  return Object.values(overrides).some((value) => value !== undefined);
 }
 
 function mergeDetails(
@@ -557,17 +543,30 @@ function safeSerializeValue(value: unknown, seen: WeakSet<object> = new WeakSet(
     return { type: value.constructor.name, byteLength: value.byteLength };
   }
 
+  if (value instanceof Error) {
+    return {
+      type: value.name,
+      message: value.message,
+      stack: value.stack,
+    };
+  }
+
   if (value instanceof Map) {
     if (seen.has(value)) {
       return '[Circular]';
     }
     seen.add(value);
-    const entries = Array.from(value.entries()).map(([k, v]) => [
-      safeSerializeValue(k, seen),
-      safeSerializeValue(v, seen),
-    ]);
-    seen.delete(value);
-    return { type: 'Map', entries };
+    try {
+      const entries = Array.from(value.entries()).map(([k, v]) => [
+        safeSerializeValue(k, seen),
+        safeSerializeValue(v, seen),
+      ]);
+      return { type: 'Map', entries };
+    } catch {
+      return { type: 'Map', entries: '[Unserializable]' };
+    } finally {
+      seen.delete(value);
+    }
   }
 
   if (value instanceof Set) {
@@ -575,9 +574,14 @@ function safeSerializeValue(value: unknown, seen: WeakSet<object> = new WeakSet(
       return '[Circular]';
     }
     seen.add(value);
-    const entries = Array.from(value.values()).map((v) => safeSerializeValue(v, seen));
-    seen.delete(value);
-    return { type: 'Set', values: entries };
+    try {
+      const entries = Array.from(value.values()).map((v) => safeSerializeValue(v, seen));
+      return { type: 'Set', values: entries };
+    } catch {
+      return { type: 'Set', values: '[Unserializable]' };
+    } finally {
+      seen.delete(value);
+    }
   }
 
   if (Array.isArray(value)) {
@@ -585,9 +589,13 @@ function safeSerializeValue(value: unknown, seen: WeakSet<object> = new WeakSet(
       return '[Circular]';
     }
     seen.add(value);
-    const result = value.map((item) => safeSerializeValue(item, seen));
-    seen.delete(value);
-    return result;
+    try {
+      return value.map((item) => safeSerializeValue(item, seen));
+    } catch {
+      return '[Unserializable array]';
+    } finally {
+      seen.delete(value);
+    }
   }
 
   if (typeof value === 'object') {
@@ -596,15 +604,36 @@ function safeSerializeValue(value: unknown, seen: WeakSet<object> = new WeakSet(
       return '[Circular]';
     }
     seen.add(obj);
-    const result: Record<string, unknown> = {};
-    for (const [key, val] of Object.entries(obj)) {
-      result[key] = safeSerializeValue(val, seen);
+    try {
+      const result: Record<string, unknown> = {};
+      for (const [key, val] of Object.entries(obj)) {
+        result[key] = safeSerializeValue(val, seen);
+      }
+      return result;
+    } catch {
+      return '[Unserializable object]';
+    } finally {
+      seen.delete(obj);
     }
-    seen.delete(obj);
-    return result;
   }
 
   return String(value);
+}
+
+function coerceUnknownErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+
+  if (typeof err === 'string') {
+    return err;
+  }
+
+  if (typeof err === 'number' || typeof err === 'boolean' || typeof err === 'bigint') {
+    return String(err);
+  }
+
+  return 'Unknown error';
 }
 
 function isAbortError(err: unknown): err is Error {
