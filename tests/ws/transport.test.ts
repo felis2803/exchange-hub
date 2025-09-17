@@ -89,7 +89,7 @@ describe('BitmexWsClient (transport)', () => {
     expect(() => client.send('three')).toThrow(ValidationError);
   });
 
-  test('reconnects after close and resets attempt counter', async () => {
+  test('reconnects after abnormal close and resets attempt counter', async () => {
     const client = new BitmexWsClient({
       url,
       pingIntervalMs: 200,
@@ -164,5 +164,97 @@ describe('BitmexWsClient (transport)', () => {
     expect(client.getState()).toBe('reconnecting');
 
     await client.disconnect();
+  });
+
+  test('does not reconnect after manual disconnect', async () => {
+    const client = new TestBitmexWsClient({
+      url,
+      pingIntervalMs: 5_000,
+      pongTimeoutMs: 5_000,
+      reconnect: { baseDelayMs: 25, maxDelayMs: 25, maxAttempts: 3 },
+    });
+
+    client.on('error', () => {});
+
+    await client.connect();
+
+    expect(client.getState()).toBe('open');
+    expect(client.openCalls).toEqual(['connecting']);
+
+    await client.disconnect();
+
+    expect(client.getState()).toBe('idle');
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(client.openCalls).toEqual(['connecting']);
+    expect((client as any).reconnectTimer).toBeNull();
+  });
+
+  test('does not reconnect after normal server close', async () => {
+    const client = new TestBitmexWsClient({
+      url,
+      pingIntervalMs: 5_000,
+      pongTimeoutMs: 5_000,
+      reconnect: { baseDelayMs: 25, maxDelayMs: 25, maxAttempts: 3 },
+    });
+
+    client.on('error', () => {});
+
+    wss.once('connection', (socket) => {
+      setTimeout(() => socket.close(1000, 'server-close'), 20);
+    });
+
+    await client.connect();
+
+    const closeInfo = await new Promise<{ code: number; reason?: string }>((resolve) =>
+      client.once('close', resolve),
+    );
+
+    expect(closeInfo.code).toBe(1000);
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(client.getState()).toBe('idle');
+    expect(client.openCalls).toEqual(['connecting']);
+    expect((client as any).reconnectTimer).toBeNull();
+
+    await client.disconnect();
+  });
+
+  test('pong extends deadline on pong event', async () => {
+    jest.useFakeTimers();
+
+    const client = new BitmexWsClient({
+      url,
+      pingIntervalMs: 1_000_000,
+      pongTimeoutMs: 200,
+      reconnect: { baseDelayMs: 25, maxDelayMs: 25, maxAttempts: 3 },
+    });
+
+    client.on('error', () => {});
+
+    try {
+      await client.connect();
+
+      const timeoutSpy = jest.spyOn(client as any, 'handlePongTimeout');
+
+      try {
+        expect((client as any).pongTimer).not.toBeNull();
+
+        jest.advanceTimersByTime(150);
+        expect(timeoutSpy).not.toHaveBeenCalled();
+
+        (client as any).handlePong();
+
+        jest.advanceTimersByTime(60);
+        expect(timeoutSpy).not.toHaveBeenCalled();
+      } finally {
+        timeoutSpy.mockRestore();
+      }
+    } finally {
+      jest.useRealTimers();
+      await client.disconnect();
+    }
   });
 });

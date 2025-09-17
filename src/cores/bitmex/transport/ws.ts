@@ -53,7 +53,7 @@ export class BitmexWsClient extends EventEmitter {
   private state: WsState = 'idle';
   private sendBuffer: string[] = [];
   private reconnectAttempts = 0;
-  private manualCloseRequested = false;
+  private manualClose = false;
 
   private pingTimer: NodeJS.Timeout | null = null;
   private pongTimer: NodeJS.Timeout | null = null;
@@ -99,7 +99,7 @@ export class BitmexWsClient extends EventEmitter {
   }
 
   async connect(): Promise<void> {
-    this.manualCloseRequested = false;
+    this.manualClose = false;
 
     if (this.isOpen()) {
       this.log.info('BitMEX WS already open', { url: this.url });
@@ -124,47 +124,50 @@ export class BitmexWsClient extends EventEmitter {
   }
 
   async disconnect({ graceful = true }: { graceful?: boolean } = {}): Promise<void> {
-    this.manualCloseRequested = true;
+    this.manualClose = true;
     this.clearReconnectTimer();
-    this.stopKeepalive();
+    this.clearKeepaliveTimers();
 
-    if (!this.ws) {
-      this.log.info('BitMEX WS disconnect requested but no active socket');
-      if (this.connectPromise) {
-        this.rejectPendingConnect(new Error('BitMEX WS disconnected'));
-      }
-      this.transitionState('idle');
-      return;
-    }
-
-    const ws = this.ws;
-
-    if (ws.readyState === WebSocket.CLOSED) {
-      this.cleanupWebSocket(ws);
-      this.transitionState('idle');
-      this.manualCloseRequested = false;
-      this.rejectPendingConnect(new Error('BitMEX WS disconnected'));
-      return;
-    }
-
-    this.transitionState('closing');
-    this.log.info('BitMEX WS disconnect → %s', graceful ? 'graceful' : 'terminate');
-
-    await new Promise<void>((resolve) => {
-      const finalize = () => resolve();
-      ws.once('close', finalize);
-
-      try {
-        if (graceful) {
-          ws.close(1000, 'client-request');
-        } else {
-          ws.terminate();
+    try {
+      if (!this.ws) {
+        this.log.info('BitMEX WS disconnect requested but no active socket');
+        if (this.connectPromise) {
+          this.rejectPendingConnect(new Error('BitMEX WS disconnected'));
         }
-      } catch (err) {
-        this.log.warn('BitMEX WS disconnect error: %s', (err as Error).message);
-        resolve();
+        this.transitionState('idle');
+        return;
       }
-    });
+
+      const ws = this.ws;
+
+      if (ws.readyState === WebSocket.CLOSED) {
+        this.cleanupWebSocket(ws);
+        this.transitionState('idle');
+        this.rejectPendingConnect(new Error('BitMEX WS disconnected'));
+        return;
+      }
+
+      this.transitionState('closing');
+      this.log.info('BitMEX WS disconnect → %s', graceful ? 'graceful' : 'terminate');
+
+      await new Promise<void>((resolve) => {
+        const finalize = () => resolve();
+        ws.once('close', finalize);
+
+        try {
+          if (graceful) {
+            ws.close(1000, 'client-request');
+          } else {
+            ws.terminate();
+          }
+        } catch (err) {
+          this.log.warn('BitMEX WS disconnect error: %s', (err as Error).message);
+          resolve();
+        }
+      });
+    } finally {
+      this.manualClose = false;
+    }
   }
 
   send(raw: string): void {
@@ -186,7 +189,7 @@ export class BitmexWsClient extends EventEmitter {
 
   protected openSocket(initialState: 'connecting' | 'reconnecting'): void {
     this.clearReconnectTimer();
-    this.stopKeepalive();
+    this.clearKeepaliveTimers();
     this.cleanupWebSocket();
 
     this.transitionState(initialState);
@@ -210,7 +213,6 @@ export class BitmexWsClient extends EventEmitter {
 
     this.transitionState('open');
     this.reconnectAttempts = 0;
-    this.manualCloseRequested = false;
 
     this.log.info('BitMEX WS open');
 
@@ -224,7 +226,6 @@ export class BitmexWsClient extends EventEmitter {
   private readonly handleMessage = (data: RawData): void => {
     const text = this.normalizeMessage(data);
     this.emit('message', text);
-    this.bumpPongDeadline();
   };
 
   private readonly handlePong = (): void => {
@@ -239,18 +240,27 @@ export class BitmexWsClient extends EventEmitter {
   private readonly handleClose = (code: number, reasonBuf: Buffer): void => {
     const reason = reasonBuf?.toString('utf8') || undefined;
 
-    this.log.warn('BitMEX WS close', { code, reason });
+    const context = { code, reason, manual: this.manualClose } as const;
 
-    this.stopKeepalive();
+    this.log.info('BitMEX WS close', context);
+
+    this.clearKeepaliveTimers();
     this.emit('close', { code, reason });
 
     const ws = this.ws;
     this.cleanupWebSocket(ws ?? undefined);
 
-    if (this.manualCloseRequested) {
-      this.manualCloseRequested = false;
+    if (this.manualClose) {
+      this.log.info('BitMEX WS close handled manually', context);
       this.transitionState('idle');
       this.rejectPendingConnect(new Error('BitMEX WS disconnected'));
+      return;
+    }
+
+    if (code === 1000) {
+      this.log.info('BitMEX WS close — normal closure, staying idle', context);
+      this.transitionState('idle');
+      this.rejectPendingConnect(fromWsClose({ code, reason, exchange: 'BitMEX' }));
       return;
     }
 
@@ -280,7 +290,11 @@ export class BitmexWsClient extends EventEmitter {
   // region: buffering -------------------------------------------------------
 
   private flushSendBuffer(): void {
-    if (!this.isOpen() || this.sendBuffer.length === 0) {
+    if (this.sendBuffer.length === 0) {
+      return;
+    }
+
+    if (!this.isOpen()) {
       return;
     }
 
@@ -288,6 +302,12 @@ export class BitmexWsClient extends EventEmitter {
     this.sendBuffer.length = 0;
 
     for (let i = 0; i < pending.length; i += 1) {
+      if (!this.isOpen()) {
+        this.log.warn('BitMEX WS flush aborted — socket not open');
+        this.sendBuffer = pending.slice(i);
+        break;
+      }
+
       const message = pending[i];
       try {
         this.ws!.send(message);
@@ -304,28 +324,20 @@ export class BitmexWsClient extends EventEmitter {
   // region: keepalive -------------------------------------------------------
 
   private startKeepalive(): void {
-    this.stopKeepalive();
+    this.clearKeepaliveTimers();
 
     if (!this.isOpen()) {
       return;
     }
 
     this.pingTimer = setInterval(() => {
-      if (this.ws?.readyState === WebSocket.OPEN) {
-        try {
-          this.ws.ping();
-        } catch (err) {
-          this.log.warn('BitMEX WS ping error: %s', (err as Error).message);
-        }
-      }
-
-      this.bumpPongDeadline();
+      this.sendPing();
     }, this.pingIntervalMs);
 
-    this.bumpPongDeadline();
+    this.sendPing();
   }
 
-  private stopKeepalive(): void {
+  private clearKeepaliveTimers(): void {
     if (this.pingTimer) {
       clearInterval(this.pingTimer);
       this.pingTimer = null;
@@ -334,6 +346,19 @@ export class BitmexWsClient extends EventEmitter {
     if (this.pongTimer) {
       clearTimeout(this.pongTimer);
       this.pongTimer = null;
+    }
+  }
+
+  private sendPing(): void {
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    try {
+      this.ws.ping();
+      this.bumpPongDeadline();
+    } catch (err) {
+      this.log.warn('BitMEX WS ping error: %s', (err as Error).message);
     }
   }
 
@@ -370,8 +395,29 @@ export class BitmexWsClient extends EventEmitter {
   // region: reconnect -------------------------------------------------------
 
   private scheduleReconnect(code?: number, reason?: string): void {
+    const closeCode = code ?? 1006;
+
+    if (this.manualClose) {
+      this.log.debug('BitMEX WS reconnect skipped due to manual close', {
+        code: closeCode,
+        reason,
+      });
+      return;
+    }
+
+    if (closeCode === 1000) {
+      this.log.info('BitMEX WS reconnect skipped after normal closure', {
+        code: closeCode,
+        reason,
+      });
+      this.transitionState('idle');
+      const error = fromWsClose({ code: closeCode, reason, exchange: 'BitMEX' });
+      this.rejectPendingConnect(error);
+      return;
+    }
+
     const error = fromWsClose({
-      code: code ?? 1006,
+      code: closeCode,
       reason,
       exchange: 'BitMEX',
     });
@@ -381,7 +427,7 @@ export class BitmexWsClient extends EventEmitter {
     if (this.reconnectAttempts > this.reconnectOptions.maxAttempts) {
       this.log.error('BitMEX WS reconnect attempts exceeded', {
         attempts: this.reconnectAttempts,
-        code,
+        code: closeCode,
         reason,
       });
 
@@ -395,7 +441,7 @@ export class BitmexWsClient extends EventEmitter {
 
     this.transitionState('reconnecting');
     this.log.warn('BitMEX WS reconnect in %dms (attempt %d)', delay, this.reconnectAttempts, {
-      code,
+      code: closeCode,
       reason,
     });
 
@@ -463,8 +509,9 @@ export class BitmexWsClient extends EventEmitter {
       return;
     }
 
+    const prev = this.state;
     this.state = next;
-    this.log.debug('BitMEX WS state → %s', next);
+    this.log.info('BitMEX WS state %s → %s', prev, next);
   }
 }
 
