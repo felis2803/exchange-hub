@@ -2,19 +2,19 @@ import type { BitMex } from '../index.js';
 import type { BitMexMargin } from '../types.js';
 
 export const margin = {
-  partial(core: BitMex, data: BitMexMargin[]) {
+  partial(_core: BitMex, _data: BitMexMargin[]) {
     throw 'not implemented';
   },
 
-  insert(core: BitMex, data: BitMexMargin[]) {
+  insert(_core: BitMex, _data: BitMexMargin[]) {
     throw 'not implemented';
   },
 
-  update(core: BitMex, data: BitMexMargin[]) {
+  update(_core: BitMex, _data: BitMexMargin[]) {
     throw 'not implemented';
   },
 
-  delete(core: BitMex, data: BitMexMargin[]) {
+  delete(_core: BitMex, _data: BitMexMargin[]) {
     throw 'not implemented';
   },
 };

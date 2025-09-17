@@ -2,19 +2,19 @@ import type { BitMex } from '../index.js';
 import type { BitMexPosition } from '../types.js';
 
 export const position = {
-  partial(core: BitMex, data: BitMexPosition[]) {
+  partial(_core: BitMex, _data: BitMexPosition[]) {
     throw 'not implemented';
   },
 
-  insert(core: BitMex, data: BitMexPosition[]) {
+  insert(_core: BitMex, _data: BitMexPosition[]) {
     throw 'not implemented';
   },
 
-  update(core: BitMex, data: BitMexPosition[]) {
+  update(_core: BitMex, _data: BitMexPosition[]) {
     throw 'not implemented';
   },
 
-  delete(core: BitMex, data: BitMexPosition[]) {
+  delete(_core: BitMex, _data: BitMexPosition[]) {
     throw 'not implemented';
   },
 };

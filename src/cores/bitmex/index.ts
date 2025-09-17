@@ -52,7 +52,7 @@ export class BitMex extends BaseCore<'BitMex'> {
       return this.#handleWelcomeMessage(message);
     }
 
-    console.log(message);
+    console.warn(message);
     throw new Error('Unknown message');
   }
 

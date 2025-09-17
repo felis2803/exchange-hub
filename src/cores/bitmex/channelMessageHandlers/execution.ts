@@ -2,19 +2,19 @@ import type { BitMex } from '../index.js';
 import type { BitMexExecution } from '../types.js';
 
 export const execution = {
-  partial(core: BitMex, data: BitMexExecution[]) {
+  partial(_core: BitMex, _data: BitMexExecution[]) {
     throw 'not implemented';
   },
 
-  insert(core: BitMex, data: BitMexExecution[]) {
+  insert(_core: BitMex, _data: BitMexExecution[]) {
     throw 'not implemented';
   },
 
-  update(core: BitMex, data: BitMexExecution[]) {
+  update(_core: BitMex, _data: BitMexExecution[]) {
     throw 'not implemented';
   },
 
-  delete(core: BitMex, data: BitMexExecution[]) {
+  delete(_core: BitMex, _data: BitMexExecution[]) {
     throw 'not implemented';
   },
 };

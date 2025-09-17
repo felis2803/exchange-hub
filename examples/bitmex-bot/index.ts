@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import { ExchangeHub } from '../../src/ExchangeHub';
 
 async function main() {
