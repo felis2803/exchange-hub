@@ -54,7 +54,7 @@ function isPlainObject(value: unknown): value is LogContext {
 function stringifyContext(context: LogContext): string {
   try {
     return JSON.stringify(context);
-  } catch (error) {
+  } catch {
     return inspect(context, { depth: null, compact: true, breakLength: Infinity });
   }
 }

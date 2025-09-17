@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 const ws = new WebSocket('wss://ws.bitmex.com/realtime?subscribe=instrument');
 
 ws.onopen = () => {

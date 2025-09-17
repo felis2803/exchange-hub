@@ -2,19 +2,19 @@ import type { BitMex } from '../index.js';
 import type { BitMexSettlement } from '../types.js';
 
 export const settlement = {
-  partial(core: BitMex, data: BitMexSettlement[]) {
+  partial(_core: BitMex, _data: BitMexSettlement[]) {
     throw 'not implemented';
   },
 
-  insert(core: BitMex, data: BitMexSettlement[]) {
+  insert(_core: BitMex, _data: BitMexSettlement[]) {
     throw 'not implemented';
   },
 
-  update(core: BitMex, data: BitMexSettlement[]) {
+  update(_core: BitMex, _data: BitMexSettlement[]) {
     throw 'not implemented';
   },
 
-  delete(core: BitMex, data: BitMexSettlement[]) {
+  delete(_core: BitMex, _data: BitMexSettlement[]) {
     throw 'not implemented';
   },
 };
