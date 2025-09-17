@@ -1,5 +1,5 @@
-import type { ExchangeHub } from '../ExchangeHub';
-import type { ApiKey, ApiSec, ExchangeName, Settings } from '../types';
+import type { ExchangeHub } from '../ExchangeHub.js';
+import type { ApiKey, ApiSec, ExchangeName, Settings } from '../types.js';
 
 export class BaseCore<ExName extends ExchangeName> {
   #shell: ExchangeHub<ExName>;

@@ -1,11 +1,11 @@
-import { createOrderBook } from './createOrderBook';
+import { createOrderBook } from './createOrderBook.js';
 
-import type { Order } from './createOrder';
-import type { Trade } from './createTrade';
-import type { ExchangeHub } from '../ExchangeHub';
-import type { EntityClass } from './createEntity';
-import type { Asset } from './createAsset';
-import type { ExchangeName } from '../types';
+import type { Order } from './createOrder.js';
+import type { Trade } from './createTrade.js';
+import type { ExchangeHub } from '../ExchangeHub.js';
+import type { EntityClass } from './createEntity.js';
+import type { Asset } from './createAsset.js';
+import type { ExchangeName } from '../types.js';
 
 export function createInstrument<ExName extends ExchangeName>(
   eh: ExchangeHub<ExName>,

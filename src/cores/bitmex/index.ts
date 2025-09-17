@@ -1,17 +1,17 @@
-import { BitMexTransport } from './transport';
-import { channelMessageHandlers } from './channelMessageHandlers';
-import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils';
+import { BitMexTransport } from './transport.js';
+import { channelMessageHandlers } from './channelMessageHandlers/index.js';
+import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.js';
 
-import { BaseCore } from '../BaseCore';
-import type { Settings } from '../../types';
-import type { ExchangeHub } from '../../ExchangeHub';
+import { BaseCore } from '../BaseCore.js';
+import type { Settings } from '../../types.js';
+import type { ExchangeHub } from '../../ExchangeHub.js';
 import type {
   BitMexChannel,
   BitMexChannelMessage,
   BitMexSubscribeMessage,
   BitMexWelcomeMessage,
   BitMexInstrument,
-} from './types';
+} from './types.js';
 
 export class BitMex extends BaseCore<'BitMex'> {
   #settings: Settings;

@@ -1,5 +1,5 @@
-import type { BitMex } from '..';
-import type { BitMexOrder } from '../types';
+import type { BitMex } from '../index.js';
+import type { BitMexOrder } from '../types.js';
 
 export const order = {
   partial(core: BitMex, data: BitMexOrder[]) {

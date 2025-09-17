@@ -1,6 +1,6 @@
-import type { ExchangeHub } from '../ExchangeHub';
-import type { ExchangeName } from '../types';
-import type { EntityClass } from './createEntity';
+import type { ExchangeHub } from '../ExchangeHub.js';
+import type { ExchangeName } from '../types.js';
+import type { EntityClass } from './createEntity.js';
 
 type OrderBookLevel = {
   price: number;
