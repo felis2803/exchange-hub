@@ -1,5 +1,7 @@
 import { EventEmitter } from 'node:events';
 
+import type { Trade as NormalizedTrade } from '../types/bitmex.js';
+
 export type Nullable<T> = T | null | undefined;
 
 export type InstrumentStatus =
@@ -50,7 +52,150 @@ export type InstrumentUpdate = Partial<InstrumentShape> & {
   priceFilters?: InstrumentPriceFilters;
 };
 
-export type InstrumentChanges = InstrumentUpdate;
+export type InstrumentTrade = NormalizedTrade;
+
+export type InstrumentTradePushOptions = {
+  reset?: boolean;
+  silent?: boolean;
+};
+
+export type InstrumentTradePushResult = {
+  added: number;
+  dropped: number;
+  reset: boolean;
+};
+
+type InstrumentTradePushMeta = {
+  reset: boolean;
+  dropped: number;
+  added: number;
+};
+
+type InstrumentTradeInsertListener = (
+  trades: InstrumentTrade[],
+  meta: InstrumentTradePushMeta,
+) => void;
+
+const TRADE_SEEN_IDS_CAPACITY = 10_000;
+
+export class InstrumentTradesBuffer {
+  #buffer: InstrumentTrade[] = [];
+  #capacity: number;
+  #onInsert: InstrumentTradeInsertListener;
+  #seenIds = new Set<string>();
+  #seenCapacity: number;
+
+  constructor(capacity: number, onInsert: InstrumentTradeInsertListener) {
+    this.#capacity = InstrumentTradesBuffer.#normalizeCapacity(capacity);
+    this.#onInsert = onInsert;
+    this.#seenCapacity = InstrumentTradesBuffer.#normalizeCapacity(TRADE_SEEN_IDS_CAPACITY);
+  }
+
+  static #normalizeCapacity(size: number): number {
+    if (!Number.isFinite(size) || size <= 0) {
+      return 1;
+    }
+
+    return Math.max(1, Math.floor(size));
+  }
+
+  get capacity(): number {
+    return this.#capacity;
+  }
+
+  get length(): number {
+    return this.#buffer.length;
+  }
+
+  push(
+    batch: InstrumentTrade[],
+    options: InstrumentTradePushOptions = {},
+  ): InstrumentTradePushResult {
+    const { reset = false, silent = false } = options;
+
+    if (reset) {
+      this.#buffer = [];
+      this.#seenIds.clear();
+    }
+
+    if (!Array.isArray(batch) || batch.length === 0) {
+      return { added: 0, dropped: 0, reset };
+    }
+
+    const inserted: InstrumentTrade[] = [];
+
+    for (const trade of batch) {
+      if (!trade) {
+        continue;
+      }
+
+      const normalizedId =
+        typeof trade.id === 'string' && trade.id.trim().length > 0 ? trade.id.trim() : undefined;
+
+      if (normalizedId && this.#seenIds.has(normalizedId)) {
+        continue;
+      }
+
+      const normalized: InstrumentTrade = Object.freeze({
+        ...trade,
+        ...(normalizedId ? { id: normalizedId } : {}),
+      });
+
+      if (normalizedId) {
+        this.#rememberTradeId(normalizedId);
+      }
+
+      this.#buffer.push(normalized);
+      inserted.push(normalized);
+    }
+
+    let dropped = 0;
+
+    if (this.#buffer.length > this.#capacity) {
+      dropped = this.#buffer.length - this.#capacity;
+      this.#buffer.splice(0, dropped);
+    }
+
+    if (!silent && inserted.length > 0) {
+      this.#onInsert(inserted, { reset, dropped, added: inserted.length });
+    }
+
+    return { added: inserted.length, dropped, reset };
+  }
+
+  toArray(): InstrumentTrade[] {
+    return this.#buffer.slice();
+  }
+
+  #rememberTradeId(id: string): void {
+    if (!id) {
+      return;
+    }
+
+    if (this.#seenIds.has(id)) {
+      this.#seenIds.delete(id);
+    }
+
+    this.#seenIds.add(id);
+
+    if (this.#seenIds.size > this.#seenCapacity) {
+      const oldest = this.#seenIds.values().next().value;
+
+      if (oldest !== undefined) {
+        this.#seenIds.delete(oldest);
+      }
+    }
+  }
+}
+
+export type InstrumentChanges = InstrumentUpdate & {
+  trades?: InstrumentTrade[];
+};
+
+export type InstrumentOptions = {
+  tradeBufferSize?: number;
+  tradeEventEnabled?: boolean;
+};
 
 const WRITABLE_FIELDS: (keyof InstrumentShape)[] = [
   'symbolNative',
@@ -78,6 +223,24 @@ const WRITABLE_FIELDS: (keyof InstrumentShape)[] = [
 ];
 
 export class Instrument extends EventEmitter {
+  static readonly DEFAULT_TRADE_BUFFER_SIZE = 1_000;
+
+  static normalizeTradeBufferSize(size?: number): number {
+    if (!Number.isFinite(size)) {
+      return Instrument.DEFAULT_TRADE_BUFFER_SIZE;
+    }
+
+    const normalized = Math.floor(size as number);
+
+    if (!Number.isFinite(normalized) || normalized <= 0) {
+      return Instrument.DEFAULT_TRADE_BUFFER_SIZE;
+    }
+
+    return Math.max(1, normalized);
+  }
+
+  #tradeEventEnabled: boolean;
+
   public symbolNative: string;
   public symbolUni: string;
   public status?: Nullable<InstrumentStatus>;
@@ -101,10 +264,15 @@ export class Instrument extends EventEmitter {
   public expiry?: Nullable<string>;
   public timestamp?: Nullable<string>;
   public priceFilters: InstrumentPriceFilters;
+  public readonly trades: InstrumentTradesBuffer;
 
   override on(
     event: 'update',
     listener: (instrument: Instrument, changes: InstrumentChanges) => void,
+  ): this;
+  override on(
+    event: 'trade',
+    listener: (instrument: Instrument, trades: InstrumentTrade[]) => void,
   ): this;
   override on(event: string | symbol, listener: (...args: any[]) => void): this;
   override on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -115,6 +283,10 @@ export class Instrument extends EventEmitter {
     event: 'update',
     listener: (instrument: Instrument, changes: InstrumentChanges) => void,
   ): this;
+  override once(
+    event: 'trade',
+    listener: (instrument: Instrument, trades: InstrumentTrade[]) => void,
+  ): this;
   override once(event: string | symbol, listener: (...args: any[]) => void): this;
   override once(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.once(event, listener);
@@ -124,25 +296,70 @@ export class Instrument extends EventEmitter {
     event: 'update',
     listener: (instrument: Instrument, changes: InstrumentChanges) => void,
   ): this;
+  override off(
+    event: 'trade',
+    listener: (instrument: Instrument, trades: InstrumentTrade[]) => void,
+  ): this;
   override off(event: string | symbol, listener: (...args: any[]) => void): this;
   override off(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.off(event, listener);
   }
 
   override emit(event: 'update', instrument: Instrument, changes: InstrumentChanges): boolean;
+  override emit(event: 'trade', instrument: Instrument, trades: InstrumentTrade[]): boolean;
   override emit(event: string | symbol, ...args: any[]): boolean;
   override emit(event: string | symbol, ...args: any[]): boolean {
     return super.emit(event, ...args);
   }
 
-  constructor(data: InstrumentInit) {
+  constructor(data: InstrumentInit, options: InstrumentOptions = {}) {
     super();
+
+    const { tradeBufferSize, tradeEventEnabled } = options;
+    const bufferSize = Instrument.normalizeTradeBufferSize(tradeBufferSize);
 
     this.symbolNative = data.symbolNative;
     this.symbolUni = data.symbolUni;
     this.priceFilters = {};
+    this.trades = new InstrumentTradesBuffer(bufferSize, (trades, meta) =>
+      this.#handleTradesInserted(trades, meta),
+    );
+    this.#tradeEventEnabled = tradeEventEnabled ?? false;
 
     this.applyUpdate(data, { emit: false });
+  }
+
+  #handleTradesInserted(trades: InstrumentTrade[], _meta: InstrumentTradePushMeta): void {
+    if (trades.length === 0) {
+      return;
+    }
+
+    const changes: InstrumentChanges = { trades };
+    this.emit('update', this, changes);
+
+    if (this.#tradeEventEnabled) {
+      this.emit('trade', this, trades);
+    }
+  }
+
+  get tradeBufferSize(): number {
+    return this.trades.capacity;
+  }
+
+  get tradeEventEnabled(): boolean {
+    return this.#tradeEventEnabled;
+  }
+
+  setTradeEventEnabled(enabled: boolean): void {
+    this.#tradeEventEnabled = Boolean(enabled);
+  }
+
+  enableTradeEvents(): void {
+    this.setTradeEventEnabled(true);
+  }
+
+  disableTradeEvents(): void {
+    this.setTradeEventEnabled(false);
   }
 
   applyUpdate(update: InstrumentUpdate, options: { emit?: boolean } = {}): boolean {

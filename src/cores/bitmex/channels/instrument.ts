@@ -1,6 +1,7 @@
 import { Instrument } from '../../../domain/instrument.js';
 import type { InstrumentInit } from '../../../domain/instrument.js';
 import { mapSymbolNativeToUni } from '../../../utils/symbolMapping.js';
+import { TRADE_BUFFER_DEFAULT } from '../constants.js';
 
 import type { BitMex } from '../index.js';
 import type {
@@ -105,7 +106,7 @@ export function handleInstrumentDelete(core: BitMex, data: BitMexInstrument[]): 
 function createInstrument(core: BitMex, raw: BitMexInstrument): Instrument {
   const init = buildInstrumentUpdate(core, raw);
 
-  return new Instrument(init);
+  return new Instrument(init, { tradeBufferSize: TRADE_BUFFER_DEFAULT });
 }
 
 function buildInstrumentUpdate(core: BitMex, raw: BitMexInstrument): InstrumentInit {

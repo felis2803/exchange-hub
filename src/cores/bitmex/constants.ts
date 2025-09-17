@@ -29,6 +29,10 @@ export const WS_RECONNECT_BASE_DELAY_MS = 200; // min 200ms
 export const WS_RECONNECT_MAX_DELAY_MS = 10 * 60 * 1000; // 10min
 export const WS_SEND_BUFFER_LIMIT = 1_000;
 
+export const TRADE_BUFFER_DEFAULT = 1_000;
+export const TRADE_BUFFER_MIN = 1;
+export const TRADE_BUFFER_MAX = 10_000;
+
 export const BITMEX_REST_ENDPOINTS = {
   testnet: 'https://testnet.bitmex.com/api/v1',
   mainnet: 'https://www.bitmex.com/api/v1',
