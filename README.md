@@ -45,3 +45,42 @@ log.error('Request failed', new Error('timeout'));
 
 Passing a trailing object attaches context to the message. It will be stringified lazily
 only when the log level allows the message to be emitted.
+
+### Errors
+
+Библиотека использует унифицированную иерархию ошибок с кодами и сериализацией:
+
+```ts
+import {
+  fromHttpResponse,
+  NetworkError,
+  RateLimitError,
+  wrap,
+} from 'exchange-hub';
+
+async function fetchOrders() {
+  try {
+    // ... выполняем HTTP-запрос
+  } catch (unknownError) {
+    const err = wrap(unknownError, 'NETWORK_ERROR');
+    if (err.isRetryable()) {
+      // повторяем запрос
+    }
+    console.error(JSON.stringify(err.toJSON()));
+    throw err;
+  }
+}
+
+const error = fromHttpResponse({ status: 429, exchange: 'BitMEX' });
+if (error instanceof RateLimitError && error.retryAfterMs) {
+  console.log(`Подождите ${error.retryAfterMs} мс перед повтором`);
+}
+
+const networkIssue = new NetworkError('WebSocket disconnected', {
+  exchange: 'Deribit',
+  details: { reconnecting: true },
+});
+console.log(networkIssue.code); // "NETWORK_ERROR"
+```
+
+Коды ошибок: `NETWORK_ERROR`, `AUTH_ERROR`, `RATE_LIMIT`, `VALIDATION_ERROR`, `ORDER_REJECTED`, `EXCHANGE_DOWN`, `TIMEOUT`, `UNKNOWN_ERROR`.
