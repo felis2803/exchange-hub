@@ -1,7 +1,12 @@
-module.exports = {
-  preset: 'ts-jest/presets/js-with-ts',
+export default {
+  preset: 'ts-jest/presets/default-esm',
   testEnvironment: 'node',
-  // Ignore the compiled output to avoid duplicate mocks and tests
-  testPathIgnorePatterns: ['<rootDir>/dist/'],
-  modulePathIgnorePatterns: ['<rootDir>/dist/'],
+  transform: {
+    '^.+\\.ts$': ['ts-jest', { tsconfig: 'tsconfig.json', useESM: true, diagnostics: false }],
+  },
+  extensionsToTreatAsEsm: ['.ts'],
+  moduleNameMapper: {
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+  },
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.d.ts'],
 };

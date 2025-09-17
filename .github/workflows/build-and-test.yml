@@ -27,5 +27,5 @@ jobs:
         run: npm run format:check
       - name: Build
         run: npm run build
-      - name: Test (stub)
+      - name: Test
         run: npm test

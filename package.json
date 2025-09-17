@@ -14,7 +14,10 @@
     "lint:fix": "ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts,.tsx,.mts,.cts --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
-    "test": "node -e \"console.log('no tests yet')\"",
+    "pretest": "npm run type-check",
+    "test": "jest --passWithNoTests",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --coverage --coverageReporters=text",
     "exp": "node ./scripts/run-example.js"
   },
   "repository": {
@@ -29,7 +32,7 @@
   "homepage": "https://github.com/felis2803/exchange-hub#readme",
   "devDependencies": {
     "@eslint/js": "^9.10.0",
-    "@types/jest": "^29",
+    "@types/jest": "^29.5.12",
     "@types/node": "^20.14.0",
     "@typescript-eslint/eslint-plugin": "^8.5.0",
     "@typescript-eslint/parser": "^8.5.0",
@@ -40,10 +43,10 @@
     "eslint-plugin-prettier": "^5.1.3",
     "eslint-plugin-unused-imports": "^4.1.4",
     "globals": "^16.3.0",
-    "jest": "^29",
+    "jest": "^29.7.0",
     "nock": "^14.0.6",
     "prettier": "^3.3.3",
-    "ts-jest": "^29.4.0",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0"
   },
