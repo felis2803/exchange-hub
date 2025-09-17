@@ -4,7 +4,7 @@ import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.
 
 import { BaseCore } from '../BaseCore.js';
 import { getUnifiedSymbolAliases } from '../../utils/symbolMapping.js';
-import type { Instrument } from '../../domain/instrument.js';
+import { Instrument } from '../../domain/instrument.js';
 import type { Settings } from '../../types.js';
 import type { ExchangeHub } from '../../ExchangeHub.js';
 import type {
@@ -47,6 +47,10 @@ export class BitMex extends BaseCore<'BitMex'> {
   }
 
   registerInstrument(instrument: Instrument): void {
+    if (!(instrument instanceof Instrument)) {
+      throw new TypeError('Expected Instrument instance');
+    }
+
     const existing = this.#instrumentsByNative.get(instrument.symbolNative);
 
     if (existing && existing !== instrument) {

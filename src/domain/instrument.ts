@@ -106,8 +106,8 @@ export class Instrument extends EventEmitter {
     event: 'update',
     listener: (instrument: Instrument, changes: InstrumentChanges) => void,
   ): this;
-  override on(event: string | symbol, listener: (...args: unknown[]) => void): this;
-  override on(event: string | symbol, listener: (...args: unknown[]) => void): this {
+  override on(event: string | symbol, listener: (...args: any[]) => void): this;
+  override on(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.on(event, listener);
   }
 
@@ -115,8 +115,8 @@ export class Instrument extends EventEmitter {
     event: 'update',
     listener: (instrument: Instrument, changes: InstrumentChanges) => void,
   ): this;
-  override once(event: string | symbol, listener: (...args: unknown[]) => void): this;
-  override once(event: string | symbol, listener: (...args: unknown[]) => void): this {
+  override once(event: string | symbol, listener: (...args: any[]) => void): this;
+  override once(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.once(event, listener);
   }
 
@@ -124,14 +124,14 @@ export class Instrument extends EventEmitter {
     event: 'update',
     listener: (instrument: Instrument, changes: InstrumentChanges) => void,
   ): this;
-  override off(event: string | symbol, listener: (...args: unknown[]) => void): this;
-  override off(event: string | symbol, listener: (...args: unknown[]) => void): this {
+  override off(event: string | symbol, listener: (...args: any[]) => void): this;
+  override off(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.off(event, listener);
   }
 
   override emit(event: 'update', instrument: Instrument, changes: InstrumentChanges): boolean;
-  override emit(event: string | symbol, ...args: unknown[]): boolean;
-  override emit(event: string | symbol, ...args: unknown[]): boolean {
+  override emit(event: string | symbol, ...args: any[]): boolean;
+  override emit(event: string | symbol, ...args: any[]): boolean {
     return super.emit(event, ...args);
   }
 
