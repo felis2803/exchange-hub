@@ -26,3 +26,10 @@ export const BITMEX_REST_ENDPOINTS = {
   testnet: 'https://testnet.bitmex.com/api/v1',
   mainnet: 'https://www.bitmex.com/api/v1',
 } as const;
+
+export const BITMEX_REST_HOSTS = {
+  testnet: 'https://testnet.bitmex.com',
+  mainnet: 'https://www.bitmex.com',
+} as const;
+
+export const BITMEX_REST_DEFAULT_TIMEOUT_MS = 30_000;
