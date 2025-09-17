@@ -1,23 +1,27 @@
+import {
+  handleInstrumentDelete,
+  handleInstrumentInsert,
+  handleInstrumentPartial,
+  handleInstrumentUpdate,
+} from '../channels/instrument.js';
+
 import type { BitMex } from '../index.js';
 import type { BitMexInstrument } from '../types.js';
 
 export const instrument = {
   partial(core: BitMex, data: BitMexInstrument[]) {
-    data.forEach((item) => core.instruments.set(item.symbol, item));
+    handleInstrumentPartial(core, data);
   },
 
   insert(core: BitMex, data: BitMexInstrument[]) {
-    data.forEach((item) => core.instruments.set(item.symbol, item));
+    handleInstrumentInsert(core, data);
   },
 
   update(core: BitMex, data: BitMexInstrument[]) {
-    data.forEach((item) => {
-      const prev = core.instruments.get(item.symbol) || {};
-      core.instruments.set(item.symbol, { ...prev, ...item });
-    });
+    handleInstrumentUpdate(core, data);
   },
 
   delete(core: BitMex, data: BitMexInstrument[]) {
-    data.forEach((item) => core.instruments.delete(item.symbol));
+    handleInstrumentDelete(core, data);
   },
 };
