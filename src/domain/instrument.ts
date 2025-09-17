@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 
-import type { Side } from '../types.js';
+import type { Trade as NormalizedTrade } from '../types/bitmex.js';
 
 export type Nullable<T> = T | null | undefined;
 
@@ -52,43 +52,43 @@ export type InstrumentUpdate = Partial<InstrumentShape> & {
   priceFilters?: InstrumentPriceFilters;
 };
 
-export type InstrumentTrade = {
-  ts: number;
-  side: Side;
-  price: number;
-  size?: number;
-  id?: string;
-  foreignNotional?: number;
-};
+export type InstrumentTrade = NormalizedTrade;
 
 export type InstrumentTradePushOptions = {
   reset?: boolean;
+  silent?: boolean;
 };
 
 export type InstrumentTradePushResult = {
-  inserted: InstrumentTrade[];
+  added: number;
   dropped: number;
   reset: boolean;
 };
 
-type InstrumentTradeInsertMeta = {
+type InstrumentTradePushMeta = {
   reset: boolean;
   dropped: number;
+  added: number;
 };
 
 type InstrumentTradeInsertListener = (
   trades: InstrumentTrade[],
-  meta: InstrumentTradeInsertMeta,
+  meta: InstrumentTradePushMeta,
 ) => void;
+
+const TRADE_SEEN_IDS_CAPACITY = 10_000;
 
 export class InstrumentTradesBuffer {
   #buffer: InstrumentTrade[] = [];
   #capacity: number;
   #onInsert: InstrumentTradeInsertListener;
+  #seenIds = new Set<string>();
+  #seenCapacity: number;
 
   constructor(capacity: number, onInsert: InstrumentTradeInsertListener) {
     this.#capacity = InstrumentTradesBuffer.#normalizeCapacity(capacity);
     this.#onInsert = onInsert;
+    this.#seenCapacity = InstrumentTradesBuffer.#normalizeCapacity(TRADE_SEEN_IDS_CAPACITY);
   }
 
   static #normalizeCapacity(size: number): number {
@@ -111,14 +111,15 @@ export class InstrumentTradesBuffer {
     batch: InstrumentTrade[],
     options: InstrumentTradePushOptions = {},
   ): InstrumentTradePushResult {
-    const { reset = false } = options;
+    const { reset = false, silent = false } = options;
 
     if (reset) {
       this.#buffer = [];
+      this.#seenIds.clear();
     }
 
     if (!Array.isArray(batch) || batch.length === 0) {
-      return { inserted: [], dropped: 0, reset };
+      return { added: 0, dropped: 0, reset };
     }
 
     const inserted: InstrumentTrade[] = [];
@@ -128,7 +129,22 @@ export class InstrumentTradesBuffer {
         continue;
       }
 
-      const normalized: InstrumentTrade = Object.freeze({ ...trade });
+      const normalizedId =
+        typeof trade.id === 'string' && trade.id.trim().length > 0 ? trade.id.trim() : undefined;
+
+      if (normalizedId && this.#seenIds.has(normalizedId)) {
+        continue;
+      }
+
+      const normalized: InstrumentTrade = Object.freeze({
+        ...trade,
+        ...(normalizedId ? { id: normalizedId } : {}),
+      });
+
+      if (normalizedId) {
+        this.#rememberTradeId(normalizedId);
+      }
+
       this.#buffer.push(normalized);
       inserted.push(normalized);
     }
@@ -140,15 +156,35 @@ export class InstrumentTradesBuffer {
       this.#buffer.splice(0, dropped);
     }
 
-    if (inserted.length > 0) {
-      this.#onInsert(inserted, { reset, dropped });
+    if (!silent && inserted.length > 0) {
+      this.#onInsert(inserted, { reset, dropped, added: inserted.length });
     }
 
-    return { inserted, dropped, reset };
+    return { added: inserted.length, dropped, reset };
   }
 
   toArray(): InstrumentTrade[] {
     return this.#buffer.slice();
+  }
+
+  #rememberTradeId(id: string): void {
+    if (!id) {
+      return;
+    }
+
+    if (this.#seenIds.has(id)) {
+      this.#seenIds.delete(id);
+    }
+
+    this.#seenIds.add(id);
+
+    if (this.#seenIds.size > this.#seenCapacity) {
+      const oldest = this.#seenIds.values().next().value;
+
+      if (oldest !== undefined) {
+        this.#seenIds.delete(oldest);
+      }
+    }
   }
 }
 
@@ -293,7 +329,7 @@ export class Instrument extends EventEmitter {
     this.applyUpdate(data, { emit: false });
   }
 
-  #handleTradesInserted(trades: InstrumentTrade[], _meta: InstrumentTradeInsertMeta): void {
+  #handleTradesInserted(trades: InstrumentTrade[], _meta: InstrumentTradePushMeta): void {
     if (trades.length === 0) {
       return;
     }

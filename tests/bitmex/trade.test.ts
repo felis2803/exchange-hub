@@ -99,10 +99,12 @@ function createTrade(
     side?: 'Buy' | 'Sell';
     price?: number;
     size?: number;
+    id?: string;
+    timestamp?: string;
   },
 ): BitmexTradeRaw {
-  const { index, baseTime, side, price, size } = options;
-  const ts = new Date(baseTime + index * 1_000).toISOString();
+  const { index, baseTime, side, price, size, id, timestamp } = options;
+  const ts = timestamp ?? new Date(baseTime + index * 1_000).toISOString();
 
   return {
     symbol,
@@ -110,7 +112,7 @@ function createTrade(
     price: price ?? 50_000 + index,
     size: size ?? 10,
     timestamp: ts,
-    trdMatchID: `${symbol}-${index}`,
+    trdMatchID: id ?? `${symbol}-${index}`,
   };
 }
 
@@ -127,7 +129,7 @@ describe('BitMEX trade channel', () => {
     const total = TRADE_BUFFER_DEFAULT + 200;
     const trades: BitmexTradeRaw[] = Array.from({ length: total }, (_, index) =>
       createTrade('XBTUSD', { index, baseTime }),
-    );
+    ).reverse();
 
     handleTradePartial(core, trades);
 
@@ -143,7 +145,7 @@ describe('BitMEX trade channel', () => {
     }
   });
 
-  test('insert batches are ordered by timestamp and extend the buffer', () => {
+  test('multiple insert batches maintain chronological and stable ordering', () => {
     const { hub, core } = createHub();
     handleInstrumentPartial(core, clone(INSTRUMENT_FIXTURE));
 
@@ -153,19 +155,33 @@ describe('BitMEX trade channel', () => {
     const baseTime = Date.parse('2024-01-01T00:00:00.000Z');
     handleTradePartial(core, [createTrade('XBTUSD', { index: 0, baseTime })]);
 
-    const insertBatch: BitmexTradeRaw[] = [
-      createTrade('XBTUSD', { index: 3, baseTime, price: 50_003 }),
-      createTrade('XBTUSD', { index: 2, baseTime, price: 50_002 }),
+    const firstInsert: BitmexTradeRaw[] = [
       createTrade('XBTUSD', { index: 4, baseTime, price: 50_004 }),
+      createTrade('XBTUSD', { index: 2, baseTime, price: 50_002 }),
     ];
 
-    handleTradeInsert(core, insertBatch);
+    handleTradeInsert(core, firstInsert);
+
+    const secondInsert: BitmexTradeRaw[] = [
+      createTrade('XBTUSD', { index: 3, baseTime, price: 50_003 }),
+      createTrade('XBTUSD', {
+        index: 3,
+        baseTime,
+        id: 'XBTUSD-3b',
+        timestamp: new Date(baseTime + 3 * 1_000).toISOString(),
+        price: 50_003.5,
+      }),
+    ];
+
+    handleTradeInsert(core, secondInsert);
 
     const snapshot = instrument!.trades.toArray();
+    expect(snapshot).toHaveLength(5);
     expect(snapshot.map((trade) => trade.id)).toEqual([
       'XBTUSD-0',
       'XBTUSD-2',
       'XBTUSD-3',
+      'XBTUSD-3b',
       'XBTUSD-4',
     ]);
 
@@ -174,7 +190,7 @@ describe('BitMEX trade channel', () => {
     }
   });
 
-  test('emits update and trade events with inserted batches', () => {
+  test('skips duplicate trades identified by the same trdMatchID', () => {
     const { hub, core } = createHub();
     handleInstrumentPartial(core, clone(INSTRUMENT_FIXTURE));
 
@@ -184,12 +200,38 @@ describe('BitMEX trade channel', () => {
     const baseTime = Date.parse('2024-01-01T00:00:00.000Z');
     handleTradePartial(core, [createTrade('XBTUSD', { index: 0, baseTime })]);
 
+    handleTradeInsert(core, [createTrade('XBTUSD', { index: 1, baseTime, id: 'dup-trade' })]);
+
+    handleTradeInsert(core, [
+      createTrade('XBTUSD', { index: 2, baseTime, id: 'dup-trade' }),
+      createTrade('XBTUSD', { index: 3, baseTime, id: 'unique-trade' }),
+    ]);
+
+    const snapshot = instrument!.trades.toArray();
+    expect(snapshot).toHaveLength(3);
+    expect(snapshot.map((trade) => trade.id)).toEqual(['XBTUSD-0', 'dup-trade', 'unique-trade']);
+    expect(snapshot.filter((trade) => trade.id === 'dup-trade')).toHaveLength(1);
+  });
+
+  test('emits events only for insert batches', () => {
+    const { hub, core } = createHub();
+    handleInstrumentPartial(core, clone(INSTRUMENT_FIXTURE));
+
+    const instrument = hub.instruments.get('btcusdt');
+    expect(instrument).toBeDefined();
+
+    const baseTime = Date.parse('2024-01-01T00:00:00.000Z');
     instrument!.setTradeEventEnabled(true);
 
     const updateListener = jest.fn();
     const tradeListener = jest.fn();
     instrument!.on('update', updateListener);
     instrument!.on('trade', tradeListener);
+
+    handleTradePartial(core, [createTrade('XBTUSD', { index: 0, baseTime })]);
+
+    expect(updateListener).not.toHaveBeenCalled();
+    expect(tradeListener).not.toHaveBeenCalled();
 
     const insertBatch: BitmexTradeRaw[] = [
       createTrade('XBTUSD', { index: 5, baseTime }),
@@ -217,6 +259,7 @@ describe('BitMEX trade channel', () => {
     const mappedInstrumentNative = mappedCore.getInstrumentByNative('XBTUSD');
     expect(mappedInstrumentNative).toBeDefined();
     expect(mappedHub.instruments.get('btcusdt')).toBe(mappedInstrumentNative);
+    expect(mappedCore.instruments.get('XBTUSD')).toBe(mappedInstrumentNative);
 
     handleTradeInsert(mappedCore, [
       createTrade('XBTUSD', {
@@ -225,6 +268,7 @@ describe('BitMEX trade channel', () => {
       }),
     ]);
     expect(mappedInstrumentNative!.trades.toArray()).toHaveLength(1);
+    expect(mappedCore.instruments.get('XBTUSD')).toBe(mappedInstrumentNative);
 
     const { hub: nativeHub, core: nativeCore } = createHub({ symbolMappingEnabled: false });
     handleInstrumentPartial(nativeCore, clone(INSTRUMENT_FIXTURE));
@@ -232,6 +276,8 @@ describe('BitMEX trade channel', () => {
     expect(nativeHub.instruments.get('btcusdt')).toBeUndefined();
     const nativeInstrument = nativeCore.getInstrumentByNative('XBTUSD');
     expect(nativeInstrument).toBeDefined();
+    expect(nativeCore.instruments.get('XBTUSD')).toBe(nativeInstrument);
+    expect(nativeCore.instruments.get('btcusdt')).toBeUndefined();
 
     handleTradeInsert(nativeCore, [
       createTrade('XBTUSD', {

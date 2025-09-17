@@ -10,7 +10,7 @@ export type BitmexTradeRaw = {
   trdMatchID?: string;
 };
 
-export type BitmexTrade = {
+export type Trade = {
   ts: number;
   side: Side;
   price: number;
@@ -18,3 +18,5 @@ export type BitmexTrade = {
   id?: string;
   foreignNotional?: number;
 };
+
+export type BitmexTrade = Trade;

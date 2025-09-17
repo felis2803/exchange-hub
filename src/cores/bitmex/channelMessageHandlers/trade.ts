@@ -1,30 +1,28 @@
-import { handleTradeInsert, handleTradeMessage, handleTradePartial } from '../channels/trade.js';
+import { handleTradeMessage } from '../channels/trade.js';
 
 import type { BitMex } from '../index.js';
-import type { BitMexChannelMessage, BitMexTrade } from '../types.js';
+import type { BitMexChannelMessage } from '../types.js';
 
-function forward(
-  core: BitMex,
-  action: BitMexChannelMessage<'trade'>['action'],
-  data: BitMexTrade[],
-): void {
+type TradeMessage = BitMexChannelMessage<'trade'>;
+
+function forward(core: BitMex, action: TradeMessage['action'], data: TradeMessage['data']): void {
   handleTradeMessage(core, { table: 'trade', action, data });
 }
 
 export const trade = {
-  partial(core: BitMex, data: BitMexTrade[]) {
-    handleTradePartial(core, data);
+  partial(core: BitMex, data: TradeMessage['data']) {
+    forward(core, 'partial', data);
   },
 
-  insert(core: BitMex, data: BitMexTrade[]) {
-    handleTradeInsert(core, data);
+  insert(core: BitMex, data: TradeMessage['data']) {
+    forward(core, 'insert', data);
   },
 
-  update(core: BitMex, data: BitMexTrade[]) {
+  update(core: BitMex, data: TradeMessage['data']) {
     forward(core, 'update', data);
   },
 
-  delete(core: BitMex, data: BitMexTrade[]) {
+  delete(core: BitMex, data: TradeMessage['data']) {
     forward(core, 'delete', data);
   },
 };

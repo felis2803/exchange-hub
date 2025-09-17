@@ -133,6 +133,9 @@ describe('BitMEX trade channel smoke test', () => {
 
     socket!.simulateMessage(partialMessage);
 
+    expect(updates).toHaveLength(0);
+    expect(instrument!.trades.toArray()).toHaveLength(3);
+
     const insertMessage: BitMexChannelMessage<'trade'> = {
       table: 'trade',
       action: 'insert',
@@ -148,7 +151,7 @@ describe('BitMEX trade channel smoke test', () => {
     const uniqueIds = Array.from(new Set(ids));
 
     expect(uniqueIds).toEqual(['trade-0', 'trade-1', 'trade-2', 'trade-3', 'trade-4']);
-    expect(updates.length).toBeGreaterThanOrEqual(2);
+    expect(updates).toEqual([snapshot.length]);
 
     await hub.disconnect();
   });

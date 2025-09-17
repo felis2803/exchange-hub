@@ -1,10 +1,9 @@
 import { createLogger } from '../../../infra/logger.js';
-import { mapSymbolNativeToUni } from '../../../utils/symbolMapping.js';
 
 import { TRADE_BUFFER_MAX, TRADE_BUFFER_MIN } from '../constants.js';
 
 import type { Instrument } from '../../../domain/instrument.js';
-import type { BitmexTrade, BitmexTradeRaw } from '../../../types/bitmex.js';
+import type { Trade, BitmexTradeRaw } from '../../../types/bitmex.js';
 import type { BitMex } from '../index.js';
 import type { BitMexChannelMessage } from '../types.js';
 
@@ -47,24 +46,20 @@ export function handleTradePartial(core: BitMex, rows: BitmexTradeRaw[]): void {
     }
 
     const capacity = clampBufferSize(instrument.tradeBufferSize);
-    const limited = trades.length > capacity ? trades.slice(trades.length - capacity) : trades;
+    const start = trades.length > capacity ? trades.length - capacity : 0;
+    const limited = start > 0 ? trades.slice(start) : trades;
     const trimmed = trades.length - limited.length;
-    const result = instrument.trades.push(limited, { reset: true });
+    const result = instrument.trades.push(limited, { reset: true, silent: true });
 
-    log.info('BitMEX trade partial snapshot for %s', symbol, {
-      total: batch.length,
-      accepted: trades.length,
-      stored: limited.length,
-      skipped,
+    log.debug('BitMEX trade partial processed for %s', symbol, {
+      batchSize: batch.length,
+      normalized: trades.length,
       trimmed,
+      skipped,
+      added: result.added,
+      dropped: result.dropped,
+      bufferSize: instrument.trades.length,
     });
-
-    if (trimmed > 0 || result.dropped > 0) {
-      log.warn('BitMEX trade partial trimmed buffer for %s', symbol, {
-        trimmed,
-        dropped: result.dropped,
-      });
-    }
   }
 }
 
@@ -91,11 +86,16 @@ export function handleTradeInsert(core: BitMex, rows: BitmexTradeRaw[]): void {
     }
 
     const result = instrument.trades.push(trades);
+    const deduplicated = trades.length - result.added;
 
-    log.debug('BitMEX trade insert for %s', symbol, {
-      total: batch.length,
-      accepted: trades.length,
+    log.debug('BitMEX trade insert processed for %s', symbol, {
+      batchSize: batch.length,
+      normalized: trades.length,
       skipped,
+      added: result.added,
+      deduplicated,
+      dropped: result.dropped,
+      bufferSize: instrument.trades.length,
     });
 
     if (result.dropped > 0) {
@@ -125,46 +125,50 @@ function groupBySymbol(rows: BitmexTradeRaw[]): Map<string, BitmexTradeRaw[]> {
 }
 
 function resolveInstrument(core: BitMex, symbol: string): Instrument | undefined {
-  const byNative = core.getInstrumentByNative(symbol);
-
-  if (byNative) {
-    return byNative;
-  }
-
-  if (!core.symbolMappingEnabled) {
+  if (typeof symbol !== 'string') {
     return undefined;
   }
 
-  const unified = mapSymbolNativeToUni(symbol, { enabled: core.symbolMappingEnabled });
+  const normalized = symbol.trim();
 
-  if (!unified) {
+  if (!normalized) {
     return undefined;
   }
 
-  return core.instruments.get(unified);
+  return (
+    core.instruments.get(normalized) ??
+    core.instruments.get(normalized.toLowerCase()) ??
+    core.instruments.get(normalized.toUpperCase())
+  );
 }
 
-function normalizeBatch(rows: BitmexTradeRaw[]): { trades: BitmexTrade[]; skipped: number } {
-  const normalized: BitmexTrade[] = [];
+function normalizeBatch(rows: BitmexTradeRaw[]): { trades: Trade[]; skipped: number } {
+  const normalized: { trade: Trade; index: number }[] = [];
   let skipped = 0;
 
-  for (const row of rows) {
+  rows.forEach((row, index) => {
     const trade = normalizeTrade(row);
 
     if (!trade) {
       skipped += 1;
-      continue;
+      return;
     }
 
-    normalized.push(trade);
-  }
+    normalized.push({ trade, index });
+  });
 
-  normalized.sort((a, b) => a.ts - b.ts);
+  normalized.sort((a, b) => {
+    if (a.trade.ts === b.trade.ts) {
+      return a.index - b.index;
+    }
 
-  return { trades: normalized, skipped };
+    return a.trade.ts - b.trade.ts;
+  });
+
+  return { trades: normalized.map(({ trade }) => trade), skipped };
 }
 
-function normalizeTrade(raw: BitmexTradeRaw): BitmexTrade | null {
+function normalizeTrade(raw: BitmexTradeRaw): Trade | null {
   if (!raw || typeof raw.timestamp !== 'string' || typeof raw.side !== 'string') {
     return null;
   }
@@ -195,7 +199,7 @@ function normalizeTrade(raw: BitmexTradeRaw): BitmexTrade | null {
 
   const side = raw.side.toLowerCase() === 'sell' ? 'sell' : 'buy';
 
-  const trade: BitmexTrade = {
+  const trade: Trade = {
     ts,
     side,
     price,
@@ -205,8 +209,8 @@ function normalizeTrade(raw: BitmexTradeRaw): BitmexTrade | null {
     trade.size = raw.size;
   }
 
-  if (raw.trdMatchID) {
-    trade.id = raw.trdMatchID;
+  if (typeof raw.trdMatchID === 'string' && raw.trdMatchID.trim().length > 0) {
+    trade.id = raw.trdMatchID.trim();
   }
 
   if (typeof raw.foreignNotional === 'number' && Number.isFinite(raw.foreignNotional)) {
