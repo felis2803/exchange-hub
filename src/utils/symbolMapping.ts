@@ -54,7 +54,7 @@ export function mapSymbolNativeToUni(symbol: string, config: SymbolMappingConfig
 
   const [, baseNative, quoteNative] = match;
   const baseUni = (BASE_NATIVE_TO_UNI[baseNative] ?? baseNative).toLowerCase();
-  const quoteUni = (QUOTE_NATIVE_TO_UNI[quoteNative] ?? quoteNative.toLowerCase());
+  const quoteUni = QUOTE_NATIVE_TO_UNI[quoteNative] ?? quoteNative.toLowerCase();
   const isPerpetual = quoteNative === 'USD' || quoteNative === 'USDT';
   const suffix = isPerpetual ? PERP_SUFFIX : '';
 

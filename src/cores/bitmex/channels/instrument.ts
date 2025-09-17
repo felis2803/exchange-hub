@@ -1,5 +1,5 @@
 import { Instrument } from '../../../domain/instrument.js';
-import type { InstrumentInit, InstrumentUpdate } from '../../../domain/instrument.js';
+import type { InstrumentInit } from '../../../domain/instrument.js';
 import { mapSymbolNativeToUni } from '../../../utils/symbolMapping.js';
 
 import type { BitMex } from '../index.js';
@@ -53,9 +53,12 @@ export function handleInstrumentInsert(core: BitMex, data: BitMexInstrument[]): 
     const existing = core.getInstrumentByNative(raw.symbol);
 
     if (existing) {
-      const update = buildInstrumentUpdate(core, raw);
-      existing.applyUpdate(update);
-      core.refreshInstrumentKeys(existing);
+      const changed = existing.applyUpdate(buildInstrumentUpdate(core, raw));
+
+      if (changed) {
+        core.refreshInstrumentKeys(existing);
+      }
+
       continue;
     }
 
@@ -66,17 +69,24 @@ export function handleInstrumentInsert(core: BitMex, data: BitMexInstrument[]): 
 
 export function handleInstrumentUpdate(core: BitMex, data: BitMexInstrument[]): void {
   for (const raw of data) {
-    const update = buildInstrumentUpdate(core, raw);
     const existing = core.getInstrumentByNative(raw.symbol);
 
     if (!existing) {
-      const instrument = new Instrument(update as InstrumentInit);
+      const instrument = createInstrument(core, raw);
       core.registerInstrument(instrument);
       continue;
     }
 
-    existing.applyUpdate(update);
-    core.refreshInstrumentKeys(existing);
+    if (existing.status === 'delisted') {
+      // Ignore updates for delisted instruments. They can be revived only via a new insert snapshot.
+      continue;
+    }
+
+    const changed = existing.applyUpdate(buildInstrumentUpdate(core, raw));
+
+    if (changed) {
+      core.refreshInstrumentKeys(existing);
+    }
   }
 }
 
@@ -93,16 +103,13 @@ export function handleInstrumentDelete(core: BitMex, data: BitMexInstrument[]): 
 }
 
 function createInstrument(core: BitMex, raw: BitMexInstrument): Instrument {
-  const init = buildInstrumentUpdate(core, raw) as InstrumentInit;
+  const init = buildInstrumentUpdate(core, raw);
 
   return new Instrument(init);
 }
 
-function buildInstrumentUpdate(core: BitMex, raw: BitMexInstrument): InstrumentUpdate & {
-  symbolNative: string;
-  symbolUni: string;
-} {
-  const update: InstrumentUpdate & { symbolNative: string; symbolUni: string } = {
+function buildInstrumentUpdate(core: BitMex, raw: BitMexInstrument): InstrumentInit {
+  const update: InstrumentInit = {
     symbolNative: raw.symbol,
     symbolUni: mapSymbolNativeToUni(raw.symbol, { enabled: core.symbolMappingEnabled }),
   };
@@ -198,8 +205,8 @@ function buildInstrumentUpdate(core: BitMex, raw: BitMexInstrument): InstrumentU
   return update;
 }
 
-function buildPriceFilters(raw: BitMexInstrument): InstrumentUpdate['priceFilters'] | undefined {
-  const filters: InstrumentUpdate['priceFilters'] = {};
+function buildPriceFilters(raw: BitMexInstrument): InstrumentInit['priceFilters'] | undefined {
+  const filters: InstrumentInit['priceFilters'] = {};
 
   if (hasOwn(raw, 'limitDownPrice')) {
     filters.limitDownPrice = raw.limitDownPrice ?? null;

@@ -130,8 +130,9 @@ describe('BitmexWsClient (transport)', () => {
       reconnect: { baseDelayMs: 200, maxDelayMs: 1_000, maxAttempts: 12 },
     });
 
-    const delays = Array.from({ length: 6 }, (_, idx) =>
-      (client as any).computeReconnectDelay(idx + 1) as number,
+    const delays = Array.from(
+      { length: 6 },
+      (_, idx) => (client as any).computeReconnectDelay(idx + 1) as number,
     );
 
     expect(delays).toEqual([200, 400, 800, 1_000, 1_000, 1_000]);

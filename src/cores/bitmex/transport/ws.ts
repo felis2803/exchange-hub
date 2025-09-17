@@ -87,7 +87,11 @@ export class BitmexWsClient extends EventEmitter {
     this.pingIntervalMs = pingIntervalMs;
     this.pongTimeoutMs = pongTimeoutMs;
     this.sendBufferLimit = sendBufferLimit;
-    this.reconnectOptions = { baseDelayMs, maxDelayMs, maxAttempts } satisfies NormalizedReconnectOptions;
+    this.reconnectOptions = {
+      baseDelayMs,
+      maxDelayMs,
+      maxAttempts,
+    } satisfies NormalizedReconnectOptions;
   }
 
   getState(): WsState {

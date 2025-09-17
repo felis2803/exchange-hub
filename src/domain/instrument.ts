@@ -116,7 +116,7 @@ export class Instrument extends EventEmitter {
     this.applyUpdate(data, { emit: false });
   }
 
-  applyUpdate(update: InstrumentUpdate, options: { emit?: boolean } = {}): InstrumentChanges | null {
+  applyUpdate(update: InstrumentUpdate, options: { emit?: boolean } = {}): boolean {
     const { emit = true } = options;
     let changed = false;
     const changes: InstrumentChanges = {};
@@ -166,7 +166,7 @@ export class Instrument extends EventEmitter {
       this.emit('update', this, changes);
     }
 
-    return changed ? changes : null;
+    return changed;
   }
 }
 

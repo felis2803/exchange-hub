@@ -5,6 +5,7 @@ import {
   handleInstrumentPartial,
   handleInstrumentUpdate,
 } from '../../src/cores/bitmex/channels/instrument.js';
+import { Instrument } from '../../src/domain/instrument.js';
 import { mapSymbolNativeToUni, mapSymbolUniToNative } from '../../src/utils/symbolMapping.js';
 
 import type { BitMex } from '../../src/cores/bitmex/index.js';
@@ -123,6 +124,20 @@ function clone<T>(value: T): T {
 }
 
 describe('BitMEX instrument channel', () => {
+  test('partial snapshot initializes instruments without emitting update events', () => {
+    const emitSpy = jest.spyOn(Instrument.prototype, 'emit');
+    const { core } = createHub();
+
+    try {
+      handleInstrumentPartial(core, clone(PARTIAL_FIXTURE));
+
+      const updateEmits = emitSpy.mock.calls.filter((call) => call[0] === 'update');
+      expect(updateEmits).toHaveLength(0);
+    } finally {
+      emitSpy.mockRestore();
+    }
+  });
+
   test('handles partial snapshot and exposes instruments via mapping', () => {
     const { hub, core } = createHub();
 
@@ -138,8 +153,8 @@ describe('BitMEX instrument channel', () => {
     expect(btcInstrument?.priceFilters?.limitUpPrice).toBe(100_000);
 
     expect(hub.instruments.get('btcusdt.perp')).toBe(btcInstrument);
-    expect(hub.instruments.get('BTCUSDT')).toBe(btcInstrument);
     expect(hub.instruments.get('XBTUSD')).toBe(btcInstrument);
+    expect(hub.instruments.get('BTCUSDT')).toBe(btcInstrument);
 
     const ethInstrument = hub.instruments.get('ethusdt');
     expect(ethInstrument).toBeDefined();
@@ -230,10 +245,50 @@ describe('BitMEX instrument channel', () => {
     const { hub, core } = createHub();
     handleInstrumentPartial(core, clone(PARTIAL_FIXTURE));
 
+    const ethInstrument = hub.instruments.get('ethusdt');
+    expect(ethInstrument).toBeDefined();
+    const updateListener = jest.fn();
+    ethInstrument!.on('update', updateListener);
+
     handleInstrumentDelete(core, [{ symbol: 'ETHUSDT' } as BitMexInstrument]);
 
-    const ethInstrument = hub.instruments.get('ethusdt');
     expect(ethInstrument?.status).toBe('delisted');
+    expect(updateListener).toHaveBeenCalledTimes(1);
+    expect(updateListener).toHaveBeenCalledWith(ethInstrument, { status: 'delisted' });
+
+    handleInstrumentUpdate(core, [
+      {
+        symbol: 'ETHUSDT',
+        lastPrice: 4_200,
+        fundingRate: 0.0005,
+        state: 'Open',
+      } as BitMexInstrument,
+    ]);
+
+    expect(updateListener).toHaveBeenCalledTimes(1);
+    expect(ethInstrument?.lastPrice).toBe(3_500);
+    expect(ethInstrument?.fundingRate).toBe(0.0003);
+    expect(ethInstrument?.status).toBe('delisted');
+
+    handleInstrumentInsert(core, [
+      {
+        symbol: 'ETHUSDT',
+        lastPrice: 4_250,
+        fundingRate: 0.00055,
+        state: 'Open',
+        quoteCurrency: 'USDT',
+      } as BitMexInstrument,
+    ]);
+
+    expect(updateListener).toHaveBeenCalledTimes(2);
+    expect(updateListener.mock.calls[1][1]).toEqual({
+      lastPrice: 4_250,
+      fundingRate: 0.00055,
+      status: 'open',
+    });
+    expect(ethInstrument?.status).toBe('open');
+    expect(ethInstrument?.lastPrice).toBe(4_250);
+    expect(ethInstrument?.fundingRate).toBe(0.00055);
   });
 
   test('symbol mapping utilities convert between native and unified symbols', () => {
@@ -252,9 +307,11 @@ describe('BitMEX instrument channel', () => {
     handleInstrumentPartial(core, clone(PARTIAL_FIXTURE));
 
     expect(hub.instruments.get('btcusdt')).toBeUndefined();
+    expect(hub.instruments.get('btcusdt.perp')).toBeUndefined();
 
     const nativeInstrument = hub.instruments.get('XBTUSD');
     expect(nativeInstrument).toBeDefined();
     expect(nativeInstrument?.symbolUni).toBe('XBTUSD');
+    expect(hub.instruments.get('xbtusd')).toBe(nativeInstrument);
   });
 });
