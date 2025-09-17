@@ -19,6 +19,7 @@ The log level can be configured globally. By default it is set to `info`.
   EXH_LOG_LEVEL=debug node app.js
   ```
 - Programmatically at runtime:
+
   ```ts
   import { createLogger } from 'exchange-hub';
 

@@ -79,7 +79,8 @@ function formatMessage(args: unknown[]): string {
     }
   }
 
-  const baseMessage = formatArgs.length > 0 ? format(...(formatArgs as [unknown, ...unknown[]])) : '';
+  const baseMessage =
+    formatArgs.length > 0 ? format(...(formatArgs as [unknown, ...unknown[]])) : '';
 
   if (!context) {
     return baseMessage;
