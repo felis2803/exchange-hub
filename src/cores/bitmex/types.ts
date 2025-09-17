@@ -3,6 +3,7 @@ import type {
   BITMEX_PUBLIC_CHANNELS,
   BITMEX_CHANNELS,
 } from './constants.js';
+import type { BitmexTradeRaw } from '../../types/bitmex.js';
 
 export type BitMexWelcomeMessage = {
   info: string;
@@ -245,18 +246,11 @@ export type BitMexInstrument = {
   timestamp?: string;
 };
 
-export type BitMexTrade = {
-  trdMatchID: string;
-  symbol: string;
-  side: BitMexSide;
-  size: number;
-  price: number;
+export type BitMexTrade = BitmexTradeRaw & {
   tickDirection?: BitMexTickDirection;
   trdType?: BitMexTradeType;
   grossValue?: number;
   homeNotional?: number;
-  foreignNotional?: number;
-  timestamp: string;
 };
 
 export type BitMexLiquidation = {
