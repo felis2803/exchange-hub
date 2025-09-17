@@ -1,13 +1,13 @@
-import { createEntity } from './createEntity';
-import { createAsset } from './createAsset';
-import { createInstrument } from './createInstrument';
-import { createOrder } from './createOrder';
-import { createTrade } from './createTrade';
-import { createWallet } from './createWallet';
-import { createPosition } from './createPosition';
+import { createEntity } from './createEntity.js';
+import { createAsset } from './createAsset.js';
+import { createInstrument } from './createInstrument.js';
+import { createOrder } from './createOrder.js';
+import { createTrade } from './createTrade.js';
+import { createWallet } from './createWallet.js';
+import { createPosition } from './createPosition.js';
 
-import type { ExchangeHub } from '../ExchangeHub';
-import type { ExchangeName } from '../types';
+import type { ExchangeHub } from '../ExchangeHub.js';
+import type { ExchangeName } from '../types.js';
 
 export function createEntities<ExName extends ExchangeName>(eh: ExchangeHub<ExName>) {
   const Entity = createEntity(eh);

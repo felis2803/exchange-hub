@@ -1,7 +1,7 @@
-import type { ExchangeHub } from '../ExchangeHub';
-import type { ExchangeName, Side } from '../types';
-import type { EntityClass } from './createEntity';
-import type { Instrument } from './createInstrument';
+import type { ExchangeHub } from '../ExchangeHub.js';
+import type { ExchangeName, Side } from '../types.js';
+import type { EntityClass } from './createEntity.js';
+import type { Instrument } from './createInstrument.js';
 
 export function createPosition<ExName extends ExchangeName>(
   eh: ExchangeHub<ExName>,

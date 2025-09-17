@@ -1,5 +1,5 @@
-import type { BitMex } from '..';
-import type { BitMexWallet } from '../types';
+import type { BitMex } from '../index.js';
+import type { BitMexWallet } from '../types.js';
 
 export const wallet = {
   partial(core: BitMex, data: BitMexWallet[]) {

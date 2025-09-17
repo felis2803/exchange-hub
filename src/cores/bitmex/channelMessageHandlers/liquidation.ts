@@ -1,5 +1,5 @@
-import type { BitMex } from '..';
-import type { BitMexLiquidation } from '../types';
+import type { BitMex } from '../index.js';
+import type { BitMexLiquidation } from '../types.js';
 
 export const liquidation = {
   partial(core: BitMex, data: BitMexLiquidation[]) {

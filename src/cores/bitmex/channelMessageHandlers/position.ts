@@ -1,5 +1,5 @@
-import type { BitMex } from '..';
-import type { BitMexPosition } from '../types';
+import type { BitMex } from '../index.js';
+import type { BitMexPosition } from '../types.js';
 
 export const position = {
   partial(core: BitMex, data: BitMexPosition[]) {

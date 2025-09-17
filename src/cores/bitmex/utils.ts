@@ -3,7 +3,7 @@ import type {
   BitMexChannelMessage,
   BitMexSubscribeMessage,
   BitMexWelcomeMessage,
-} from './types';
+} from './types.js';
 
 export function isWelcomeMessage(message: any): message is BitMexWelcomeMessage {
   return typeof message?.info === 'string' && 'version' in message;

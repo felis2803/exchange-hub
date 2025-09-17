@@ -1,17 +1,21 @@
-import { instrument } from './instrument';
-import { trade } from './trade';
-import { liquidation } from './liquidation';
-import { orderBookL2 } from './orderBookL2';
-import { settlement } from './settlement';
-import { execution } from './execution';
-import { order } from './order';
-import { margin } from './margin';
-import { position } from './position';
-import { transact } from './transact';
-import { wallet } from './wallet';
+import { instrument } from './instrument.js';
+import { trade } from './trade.js';
+import { liquidation } from './liquidation.js';
+import { orderBookL2 } from './orderBookL2.js';
+import { settlement } from './settlement.js';
+import { execution } from './execution.js';
+import { order } from './order.js';
+import { margin } from './margin.js';
+import { position } from './position.js';
+import { transact } from './transact.js';
+import { wallet } from './wallet.js';
 
-import type { BitMex } from '..';
-import type { BitMexChannel, BitMexChannelMessageAction, BitMexChannelMessageMap } from '../types';
+import type { BitMex } from '../index.js';
+import type {
+  BitMexChannel,
+  BitMexChannelMessageAction,
+  BitMexChannelMessageMap,
+} from '../types.js';
 
 export const channelMessageHandlers: {
   [Channel in BitMexChannel]: {

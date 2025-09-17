@@ -1,4 +1,8 @@
-import type { BITMEX_PRIVATE_CHANNELS, BITMEX_PUBLIC_CHANNELS, BITMEX_CHANNELS } from './constants';
+import type {
+  BITMEX_PRIVATE_CHANNELS,
+  BITMEX_PUBLIC_CHANNELS,
+  BITMEX_CHANNELS,
+} from './constants.js';
 
 export type BitMexWelcomeMessage = {
   info: string;

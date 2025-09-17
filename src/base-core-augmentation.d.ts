@@ -1,4 +1,4 @@
-import type { ExchangeName } from './types';
+import type { ExchangeName } from './types.js';
 
 declare module './cores/BaseCore' {
   interface BaseCore<ExName extends ExchangeName> {
