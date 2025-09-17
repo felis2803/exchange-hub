@@ -3,22 +3,25 @@ import type { EntityClass } from './createEntity';
 import type { Asset } from './createAsset';
 import type { ExchangeName } from '../types';
 
-export function createWallet<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
-    class Wallet extends Entity {
-        static eh = eh;
+export function createWallet<ExName extends ExchangeName>(
+  eh: ExchangeHub<ExName>,
+  Entity: EntityClass<ExName>,
+) {
+  class Wallet extends Entity {
+    static eh = eh;
 
-        asset: Asset<ExName>;
-        balance: number;
+    asset: Asset<ExName>;
+    balance: number;
 
-        constructor(asset: Asset<ExName>, { balance }: { balance: number }) {
-            super();
+    constructor(asset: Asset<ExName>, { balance }: { balance: number }) {
+      super();
 
-            this.asset = asset;
-            this.balance = balance;
-        }
+      this.asset = asset;
+      this.balance = balance;
     }
+  }
 
-    return Wallet;
+  return Wallet;
 }
 
 export type WalletClass<ExName extends ExchangeName> = ReturnType<typeof createWallet<ExName>>;

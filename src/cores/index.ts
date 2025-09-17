@@ -1,5 +1,5 @@
 import { BitMex } from './bitmex';
 
 export const Cores = {
-    BitMex,
+  BitMex,
 } as const;
