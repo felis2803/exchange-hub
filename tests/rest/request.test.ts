@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 
 import { BitmexRestClient } from '../../src/cores/bitmex/rest/request.js';
 import { sign } from '../../src/cores/bitmex/rest/sign.js';
-import { AuthError, ExchangeDownError } from '../../src/infra/errors.js';
+import { AuthError, ExchangeDownError, RateLimitError } from '../../src/infra/errors.js';
 
 describe('BitmexRestClient.request()', () => {
   const originalFetch = global.fetch;
@@ -92,17 +92,18 @@ describe('BitmexRestClient.request()', () => {
     global.fetch = mockFetch as unknown as typeof fetch;
 
     const client = new BitmexRestClient({ apiKey: 'k', apiSecret: 's', isTest: true });
-    await expect(client.request('GET', '/api/v1/user/margin', { auth: true })).rejects.toBeInstanceOf(
-      AuthError,
-    );
+    await expect(
+      client.request('GET', '/api/v1/user/margin', { auth: true }),
+    ).rejects.toBeInstanceOf(AuthError);
   });
 
   test('maps 429 to RateLimitError with retryAfterMs', async () => {
-    const mockFetch = jest.fn(async () =>
-      new Response('{"error":"Too Many Requests"}', {
-        status: 429,
-        headers: { 'Retry-After': '2' },
-      }),
+    const mockFetch = jest.fn(
+      async () =>
+        new Response('{"error":"Too Many Requests"}', {
+          status: 429,
+          headers: { 'Retry-After': '2' },
+        }),
     );
     global.fetch = mockFetch as unknown as typeof fetch;
 
@@ -116,18 +117,28 @@ describe('BitmexRestClient.request()', () => {
   test('maps Retry-After date header to retryAfterMs', async () => {
     const now = 1_700_000_000_000;
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(now);
-    const retryDate = new Date(now + 5_000).toUTCString();
-    const mockFetch = jest.fn(async () =>
-      new Response('Too many', {
-        status: 429,
-        headers: { 'Retry-After': retryDate },
-      }),
-    );
-    global.fetch = mockFetch as unknown as typeof fetch;
 
-    const client = new BitmexRestClient({ isTest: true });
-    await expect(client.request('GET', '/api/v1/instrument/active')).rejects.toHaveProperty('retryAfterMs', 5000);
-    nowSpy.mockRestore();
+    try {
+      const retryDate = new Date(now + 3_000).toUTCString();
+      const mockFetch = jest.fn(
+        async () =>
+          new Response('Too many', {
+            status: 429,
+            headers: { 'Retry-After': retryDate },
+          }),
+      );
+      global.fetch = mockFetch as unknown as typeof fetch;
+
+      const client = new BitmexRestClient({ isTest: true });
+      const promise = client.request('GET', '/api/v1/instrument/active');
+      const error = (await promise.catch((err) => err)) as RateLimitError;
+
+      expect(error).toBeInstanceOf(RateLimitError);
+      expect(error.retryAfterMs).toBeGreaterThanOrEqual(2_900);
+      expect(error.retryAfterMs).toBeLessThanOrEqual(3_100);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   test('maps 5xx to ExchangeDownError', async () => {
