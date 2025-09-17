@@ -10,6 +10,7 @@ export type Settings = {
   apiKey?: ApiKey;
   apiSec?: ApiSec;
   isTest?: boolean;
+  symbolMappingEnabled?: boolean;
 };
 
 export type Side = 'buy' | 'sell';
