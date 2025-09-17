@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 
-import WebSocket, { RawData } from 'ws';
+import WebSocket from 'ws';
+import type { RawData } from 'ws';
 
 import { createLogger } from '../../../infra/logger.js';
 import { ValidationError, fromWsClose } from '../../../infra/errors.js';
@@ -64,6 +65,42 @@ export class BitmexWsClient extends EventEmitter {
   private rejectConnect?: (err: Error) => void;
 
   private readonly log = createLogger('bitmex:ws');
+
+  override on<Event extends keyof BitmexWsEvents>(
+    event: Event,
+    listener: BitmexWsEvents[Event],
+  ): this;
+  override on(event: string | symbol, listener: (...args: unknown[]) => void): this;
+  override on(event: string | symbol, listener: (...args: unknown[]) => void): this {
+    return super.on(event, listener);
+  }
+
+  override once<Event extends keyof BitmexWsEvents>(
+    event: Event,
+    listener: BitmexWsEvents[Event],
+  ): this;
+  override once(event: string | symbol, listener: (...args: unknown[]) => void): this;
+  override once(event: string | symbol, listener: (...args: unknown[]) => void): this {
+    return super.once(event, listener);
+  }
+
+  override off<Event extends keyof BitmexWsEvents>(
+    event: Event,
+    listener: BitmexWsEvents[Event],
+  ): this;
+  override off(event: string | symbol, listener: (...args: unknown[]) => void): this;
+  override off(event: string | symbol, listener: (...args: unknown[]) => void): this {
+    return super.off(event, listener);
+  }
+
+  override emit<Event extends keyof BitmexWsEvents>(
+    event: Event,
+    ...args: Parameters<BitmexWsEvents[Event]>
+  ): boolean;
+  override emit(event: string | symbol, ...args: unknown[]): boolean;
+  override emit(event: string | symbol, ...args: unknown[]): boolean {
+    return super.emit(event, ...args);
+  }
 
   constructor(opts: BitmexWsOptions = {}) {
     super();
@@ -470,11 +507,4 @@ export class BitmexWsClient extends EventEmitter {
     this.state = next;
     this.log.debug('BitMEX WS state → %s', next);
   }
-}
-
-export interface BitmexWsClient {
-  on<U extends keyof BitmexWsEvents>(event: U, listener: BitmexWsEvents[U]): this;
-  once<U extends keyof BitmexWsEvents>(event: U, listener: BitmexWsEvents[U]): this;
-  off<U extends keyof BitmexWsEvents>(event: U, listener: BitmexWsEvents[U]): this;
-  emit<U extends keyof BitmexWsEvents>(event: U, ...args: Parameters<BitmexWsEvents[U]>): boolean;
 }

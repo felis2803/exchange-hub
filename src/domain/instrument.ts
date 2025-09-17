@@ -52,10 +52,6 @@ export type InstrumentUpdate = Partial<InstrumentShape> & {
 
 export type InstrumentChanges = InstrumentUpdate;
 
-export type InstrumentEvents = {
-  update: (instrument: Instrument, changes: InstrumentChanges) => void;
-};
-
 const WRITABLE_FIELDS: (keyof InstrumentShape)[] = [
   'symbolNative',
   'symbolUni',
@@ -105,6 +101,39 @@ export class Instrument extends EventEmitter {
   public expiry?: Nullable<string>;
   public timestamp?: Nullable<string>;
   public priceFilters: InstrumentPriceFilters;
+
+  override on(
+    event: 'update',
+    listener: (instrument: Instrument, changes: InstrumentChanges) => void,
+  ): this;
+  override on(event: string | symbol, listener: (...args: unknown[]) => void): this;
+  override on(event: string | symbol, listener: (...args: unknown[]) => void): this {
+    return super.on(event, listener);
+  }
+
+  override once(
+    event: 'update',
+    listener: (instrument: Instrument, changes: InstrumentChanges) => void,
+  ): this;
+  override once(event: string | symbol, listener: (...args: unknown[]) => void): this;
+  override once(event: string | symbol, listener: (...args: unknown[]) => void): this {
+    return super.once(event, listener);
+  }
+
+  override off(
+    event: 'update',
+    listener: (instrument: Instrument, changes: InstrumentChanges) => void,
+  ): this;
+  override off(event: string | symbol, listener: (...args: unknown[]) => void): this;
+  override off(event: string | symbol, listener: (...args: unknown[]) => void): this {
+    return super.off(event, listener);
+  }
+
+  override emit(event: 'update', instrument: Instrument, changes: InstrumentChanges): boolean;
+  override emit(event: string | symbol, ...args: unknown[]): boolean;
+  override emit(event: string | symbol, ...args: unknown[]): boolean {
+    return super.emit(event, ...args);
+  }
 
   constructor(data: InstrumentInit) {
     super();
@@ -168,15 +197,4 @@ export class Instrument extends EventEmitter {
 
     return changed;
   }
-}
-
-export interface Instrument {
-  on(event: 'update', listener: InstrumentEvents['update']): this;
-  on(event: string | symbol, listener: (...args: unknown[]) => void): this;
-  once(event: 'update', listener: InstrumentEvents['update']): this;
-  once(event: string | symbol, listener: (...args: unknown[]) => void): this;
-  off(event: 'update', listener: InstrumentEvents['update']): this;
-  off(event: string | symbol, listener: (...args: unknown[]) => void): this;
-  emit(event: 'update', instrument: Instrument, changes: InstrumentChanges): boolean;
-  emit(event: string | symbol, ...args: unknown[]): boolean;
 }

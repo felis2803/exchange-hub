@@ -4,7 +4,7 @@ import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.
 
 import { BaseCore } from '../BaseCore.js';
 import { getUnifiedSymbolAliases } from '../../utils/symbolMapping.js';
-import { Instrument } from '../../domain/instrument.js';
+import type { Instrument } from '../../domain/instrument.js';
 import type { Settings } from '../../types.js';
 import type { ExchangeHub } from '../../ExchangeHub.js';
 import type {
