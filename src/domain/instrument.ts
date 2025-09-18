@@ -1,5 +1,7 @@
 import { EventEmitter } from 'node:events';
 
+import { OrderBookL2 } from './orderBookL2.js';
+
 import type { Trade as NormalizedTrade } from '../types/bitmex.js';
 
 export type Nullable<T> = T | null | undefined;
@@ -145,7 +147,8 @@ export class InstrumentTradesBuffer {
         this.#rememberTradeId(normalizedId);
       }
 
-      this.#buffer.push(normalized);
+      const index = this.#findInsertIndex(normalized.ts);
+      this.#buffer.splice(index, 0, normalized);
       inserted.push(normalized);
     }
 
@@ -165,6 +168,32 @@ export class InstrumentTradesBuffer {
 
   toArray(): InstrumentTrade[] {
     return this.#buffer.slice();
+  }
+
+  #findInsertIndex(ts: number): number {
+    if (!Number.isFinite(ts) || this.#buffer.length === 0) {
+      return this.#buffer.length;
+    }
+
+    let low = 0;
+    let high = this.#buffer.length;
+
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      const current = this.#buffer[mid];
+
+      if (!current) {
+        break;
+      }
+
+      if (current.ts > ts) {
+        high = mid;
+      } else {
+        low = mid + 1;
+      }
+    }
+
+    return low;
   }
 
   #rememberTradeId(id: string): void {
@@ -240,6 +269,7 @@ export class Instrument extends EventEmitter {
   }
 
   #tradeEventEnabled: boolean;
+  #orderBook?: OrderBookL2;
 
   public symbolNative: string;
   public symbolUni: string;
@@ -265,6 +295,14 @@ export class Instrument extends EventEmitter {
   public timestamp?: Nullable<string>;
   public priceFilters: InstrumentPriceFilters;
   public readonly trades: InstrumentTradesBuffer;
+
+  get orderBook(): OrderBookL2 {
+    if (!this.#orderBook) {
+      this.#orderBook = new OrderBookL2();
+    }
+
+    return this.#orderBook;
+  }
 
   override on(
     event: 'update',

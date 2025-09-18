@@ -1,10 +1,12 @@
 import { BitMexTransport } from './transport.js';
 import { channelMessageHandlers } from './channelMessageHandlers/index.js';
 import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.js';
+import { L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants.js';
 
 import { BaseCore } from '../BaseCore.js';
 import { getUnifiedSymbolAliases } from '../../utils/symbolMapping.js';
 import { Instrument } from '../../domain/instrument.js';
+import { createLogger } from '../../infra/logger.js';
 import type { Settings } from '../../types.js';
 import type { ExchangeHub } from '../../ExchangeHub.js';
 import type {
@@ -15,6 +17,7 @@ import type {
 } from './types.js';
 
 export class BitMex extends BaseCore<'BitMex'> {
+  #log = createLogger('bitmex:core');
   #settings: Settings;
   #transport: BitMexTransport;
   #symbolMappingEnabled: boolean;
@@ -137,6 +140,22 @@ export class BitMex extends BaseCore<'BitMex'> {
 
   async disconnect(): Promise<void> {
     await this.#transport.disconnect();
+  }
+
+  resubscribeOrderBook(symbol: string): void {
+    const normalized = typeof symbol === 'string' ? symbol.trim() : '';
+
+    if (!normalized) {
+      return;
+    }
+
+    const channelPrefix = L2_MAX_DEPTH_HINT > 0 ? `${L2_CHANNEL}_${L2_MAX_DEPTH_HINT}` : L2_CHANNEL;
+    const channel = `${channelPrefix}:${normalized}`;
+
+    this.#log.warn('BitMEX orderBookL2 resubscribe requested for %s', normalized);
+
+    this.#transport.send({ op: 'unsubscribe', args: [channel] });
+    this.#transport.send({ op: 'subscribe', args: [channel] });
   }
 
   #handleMessage(message: unknown) {

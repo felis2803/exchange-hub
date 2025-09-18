@@ -1,20 +1,32 @@
+import { handleOrderBookMessage } from '../channels/orderBookL2.js';
+
 import type { BitMex } from '../index.js';
-import type { BitMexOrderBookL2 } from '../types.js';
+import type { BitMexChannelMessage } from '../types.js';
+
+type OrderBookMessage = BitMexChannelMessage<'orderBookL2'>;
+
+function forward(
+  core: BitMex,
+  action: OrderBookMessage['action'],
+  data: OrderBookMessage['data'],
+): void {
+  handleOrderBookMessage(core, { table: 'orderBookL2', action, data });
+}
 
 export const orderBookL2 = {
-  partial(_core: BitMex, _data: BitMexOrderBookL2[]) {
-    throw 'not implemented';
+  partial(core: BitMex, data: OrderBookMessage['data']) {
+    forward(core, 'partial', data);
   },
 
-  insert(_core: BitMex, _data: BitMexOrderBookL2[]) {
-    throw 'not implemented';
+  insert(core: BitMex, data: OrderBookMessage['data']) {
+    forward(core, 'insert', data);
   },
 
-  update(_core: BitMex, _data: BitMexOrderBookL2[]) {
-    throw 'not implemented';
+  update(core: BitMex, data: OrderBookMessage['data']) {
+    forward(core, 'update', data);
   },
 
-  delete(_core: BitMex, _data: BitMexOrderBookL2[]) {
-    throw 'not implemented';
+  delete(core: BitMex, data: OrderBookMessage['data']) {
+    forward(core, 'delete', data);
   },
 };
