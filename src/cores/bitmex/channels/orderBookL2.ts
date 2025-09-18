@@ -1,7 +1,4 @@
 import { createLogger } from '../../../infra/logger.js';
-import { mapSymbolNativeToUni } from '../../../utils/symbolMapping.js';
-
-import type { Instrument } from '../../../domain/instrument.js';
 import type { BitmexOrderBookL2Raw } from '../../../types/bitmex.js';
 import type { L2Row } from '../../../types/orderbook.js';
 import type { BitMex } from '../index.js';
@@ -11,6 +8,11 @@ const log = createLogger('bitmex:orderbook');
 
 type OrderBookMessage = BitMexChannelMessage<'orderBookL2'>;
 type L2UpdateRow = Pick<L2Row, 'id'> & Partial<Omit<L2Row, 'id'>>;
+type NormalizedBatch = {
+  rows: L2Row[];
+  bids: number;
+  asks: number;
+};
 
 export function handleOrderBookMessage(core: BitMex, message: OrderBookMessage): void {
   const { action, data } = message;
@@ -39,7 +41,7 @@ export function handleL2Partial(core: BitMex, rows: BitmexOrderBookL2Raw[]): voi
   }
 
   for (const [symbol, batch] of groupBySymbol(rows)) {
-    const instrument = resolveInstrument(core, symbol);
+    const instrument = core.resolveInstrument(symbol);
 
     if (!instrument) {
       log.debug('BitMEX orderBookL2 partial ignored: instrument not found for %s', symbol);
@@ -56,6 +58,12 @@ export function handleL2Partial(core: BitMex, rows: BitmexOrderBookL2Raw[]): voi
       bestBid: book.bestBid,
       bestAsk: book.bestAsk,
     });
+
+    log.debug('BitMEX orderBookL2 partial processed for %s', symbol, {
+      batchSize: batch.length,
+      bestBid: book.bestBid,
+      bestAsk: book.bestAsk,
+    });
   }
 }
 
@@ -65,14 +73,14 @@ export function handleL2Insert(core: BitMex, rows: BitmexOrderBookL2Raw[]): void
   }
 
   for (const [symbol, batch] of groupBySymbol(rows)) {
-    const instrument = resolveInstrument(core, symbol);
+    const instrument = core.resolveInstrument(symbol);
 
     if (!instrument) {
       log.debug('BitMEX orderBookL2 insert ignored: instrument not found for %s', symbol);
       continue;
     }
 
-    const { rows: normalized } = normalizeSnapshot(batch);
+    const { rows: normalized } = normalizeInsert(batch);
 
     if (normalized.length === 0) {
       continue;
@@ -83,6 +91,14 @@ export function handleL2Insert(core: BitMex, rows: BitmexOrderBookL2Raw[]): void
     const delta = book.applyInsert(normalized);
 
     book.emit('update', delta);
+
+    log.debug('BitMEX orderBookL2 insert processed for %s', symbol, {
+      batchSize: batch.length,
+      changed: delta.changed,
+      bestBid: book.bestBid,
+      bestAsk: book.bestAsk,
+      outOfSync: book.outOfSync,
+    });
 
     if (!wasOutOfSync && book.outOfSync) {
       log.warn('BitMEX orderBookL2 insert out-of-sync for %s, requesting resubscribe', symbol);
@@ -97,7 +113,7 @@ export function handleL2Update(core: BitMex, rows: BitmexOrderBookL2Raw[]): void
   }
 
   for (const [symbol, batch] of groupBySymbol(rows)) {
-    const instrument = resolveInstrument(core, symbol);
+    const instrument = core.resolveInstrument(symbol);
 
     if (!instrument) {
       log.debug('BitMEX orderBookL2 update ignored: instrument not found for %s', symbol);
@@ -116,6 +132,14 @@ export function handleL2Update(core: BitMex, rows: BitmexOrderBookL2Raw[]): void
 
     book.emit('update', delta);
 
+    log.debug('BitMEX orderBookL2 update processed for %s', symbol, {
+      batchSize: batch.length,
+      changed: delta.changed,
+      bestBid: book.bestBid,
+      bestAsk: book.bestAsk,
+      outOfSync: book.outOfSync,
+    });
+
     if (!wasOutOfSync && book.outOfSync) {
       log.warn('BitMEX orderBookL2 update out-of-sync for %s, requesting resubscribe', symbol);
       core.resubscribeOrderBook(symbol);
@@ -129,14 +153,14 @@ export function handleL2Delete(core: BitMex, rows: BitmexOrderBookL2Raw[]): void
   }
 
   for (const [symbol, batch] of groupBySymbol(rows)) {
-    const instrument = resolveInstrument(core, symbol);
+    const instrument = core.resolveInstrument(symbol);
 
     if (!instrument) {
       log.debug('BitMEX orderBookL2 delete ignored: instrument not found for %s', symbol);
       continue;
     }
 
-    const ids = normalizeIds(batch);
+    const ids = normalizeDelete(batch);
 
     if (ids.length === 0) {
       continue;
@@ -147,6 +171,14 @@ export function handleL2Delete(core: BitMex, rows: BitmexOrderBookL2Raw[]): void
     const delta = book.applyDelete(ids);
 
     book.emit('update', delta);
+
+    log.debug('BitMEX orderBookL2 delete processed for %s', symbol, {
+      batchSize: batch.length,
+      changed: delta.changed,
+      bestBid: book.bestBid,
+      bestAsk: book.bestAsk,
+      outOfSync: book.outOfSync,
+    });
 
     if (!wasOutOfSync && book.outOfSync) {
       log.warn('BitMEX orderBookL2 delete out-of-sync for %s, requesting resubscribe', symbol);
@@ -175,50 +207,45 @@ function groupBySymbol(rows: BitmexOrderBookL2Raw[]): Map<string, BitmexOrderBoo
   return grouped;
 }
 
-function resolveInstrument(core: BitMex, symbol: string): Instrument | undefined {
-  const normalized = typeof symbol === 'string' ? symbol.trim() : '';
-
-  if (!normalized) {
-    return undefined;
-  }
-
-  const direct =
-    core.getInstrumentByNative(normalized) ??
-    core.instruments.get(normalized) ??
-    core.instruments.get(normalized.toLowerCase()) ??
-    core.instruments.get(normalized.toUpperCase());
-
-  if (direct) {
-    return direct;
-  }
-
-  const unified = mapSymbolNativeToUni(normalized, { enabled: core.symbolMappingEnabled });
-
-  return (
-    core.instruments.get(unified) ??
-    core.instruments.get(unified.toLowerCase()) ??
-    core.instruments.get(unified.toUpperCase())
-  );
+function normalizeSnapshot(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
+  return normalizeFullRows(rows);
 }
 
-function normalizeSnapshot(rows: BitmexOrderBookL2Raw[]): {
-  rows: L2Row[];
-  bids: number;
-  asks: number;
-} {
+function normalizeInsert(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
+  return normalizeFullRows(rows);
+}
+
+function normalizeFullRows(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
   const normalized: L2Row[] = [];
   let bids = 0;
   let asks = 0;
 
   for (const row of rows) {
-    const normalizedRow = normalizeFullRow(row);
-
-    if (!normalizedRow) {
+    if (!row || typeof row.id !== 'number') {
       continue;
     }
 
-    normalized.push(normalizedRow);
-    if (normalizedRow.side === 'buy') {
+    const price = toNumber(row.price);
+    const size = toNumber(row.size);
+
+    if (price === null || size === null) {
+      continue;
+    }
+
+    const side = normalizeSide(row.side);
+
+    if (!side) {
+      continue;
+    }
+
+    normalized.push({
+      id: row.id,
+      side,
+      price,
+      size,
+    });
+
+    if (side === 'buy') {
       bids += 1;
     } else {
       asks += 1;
@@ -226,32 +253,6 @@ function normalizeSnapshot(rows: BitmexOrderBookL2Raw[]): {
   }
 
   return { rows: normalized, bids, asks };
-}
-
-function normalizeFullRow(row: BitmexOrderBookL2Raw): L2Row | null {
-  if (!row || typeof row.id !== 'number') {
-    return null;
-  }
-
-  const price = toNumber(row.price);
-  const size = toNumber(row.size);
-
-  if (price === null || size === null) {
-    return null;
-  }
-
-  const side = normalizeSide(row.side);
-
-  if (!side) {
-    return null;
-  }
-
-  return {
-    id: row.id,
-    side,
-    price,
-    size,
-  };
 }
 
 function normalizeUpdate(rows: BitmexOrderBookL2Raw[]): L2UpdateRow[] {
@@ -291,7 +292,7 @@ function normalizeUpdate(rows: BitmexOrderBookL2Raw[]): L2UpdateRow[] {
   return normalized;
 }
 
-function normalizeIds(rows: BitmexOrderBookL2Raw[]): number[] {
+function normalizeDelete(rows: BitmexOrderBookL2Raw[]): number[] {
   const ids: number[] = [];
 
   for (const row of rows) {

@@ -4,7 +4,7 @@ import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.
 import { L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants.js';
 
 import { BaseCore } from '../BaseCore.js';
-import { getUnifiedSymbolAliases } from '../../utils/symbolMapping.js';
+import { getUnifiedSymbolAliases, mapSymbolNativeToUni } from '../../utils/symbolMapping.js';
 import { Instrument } from '../../domain/instrument.js';
 import { createLogger } from '../../infra/logger.js';
 import type { Settings } from '../../types.js';
@@ -66,6 +66,40 @@ export class BitMex extends BaseCore<'BitMex'> {
 
   getInstrumentByNative(symbol: string): Instrument | undefined {
     return this.#instrumentsByNative.get(symbol);
+  }
+
+  resolveInstrument(symbol: string): Instrument | undefined {
+    if (typeof symbol !== 'string') {
+      return undefined;
+    }
+
+    const normalized = symbol.trim();
+
+    if (!normalized) {
+      return undefined;
+    }
+
+    const direct =
+      this.getInstrumentByNative(normalized) ??
+      this.instruments.get(normalized) ??
+      this.instruments.get(normalized.toLowerCase()) ??
+      this.instruments.get(normalized.toUpperCase());
+
+    if (direct) {
+      return direct;
+    }
+
+    const unified = mapSymbolNativeToUni(normalized, { enabled: this.#symbolMappingEnabled });
+
+    if (!unified) {
+      return undefined;
+    }
+
+    return (
+      this.instruments.get(unified) ??
+      this.instruments.get(unified.toLowerCase()) ??
+      this.instruments.get(unified.toUpperCase())
+    );
   }
 
   refreshInstrumentKeys(instrument: Instrument): void {
@@ -142,7 +176,7 @@ export class BitMex extends BaseCore<'BitMex'> {
     await this.#transport.disconnect();
   }
 
-  resubscribeOrderBook(symbol: string): void {
+  override resubscribeOrderBook(symbol: string): void {
     const normalized = typeof symbol === 'string' ? symbol.trim() : '';
 
     if (!normalized) {
