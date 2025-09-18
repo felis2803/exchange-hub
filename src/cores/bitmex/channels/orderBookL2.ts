@@ -48,7 +48,7 @@ export function handleL2Partial(core: BitMex, rows: BitmexOrderBookL2Raw[]): voi
       continue;
     }
 
-    const { rows: snapshot, bids, asks } = normalizeSnapshot(batch);
+    const { rows: snapshot, bids, asks } = normalizeInsert(batch);
     const book = instrument.orderBook;
 
     book.reset(snapshot);
@@ -207,28 +207,37 @@ function groupBySymbol(rows: BitmexOrderBookL2Raw[]): Map<string, BitmexOrderBoo
   return grouped;
 }
 
-function normalizeSnapshot(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
-  return normalizeFullRows(rows);
-}
-
 function normalizeInsert(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
-  return normalizeFullRows(rows);
-}
-
-function normalizeFullRows(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
   const normalized: L2Row[] = [];
   let bids = 0;
   let asks = 0;
 
   for (const row of rows) {
-    const normalizedRow = normalizeRow(row);
-
-    if (!normalizedRow) {
+    if (!row || typeof row.id !== 'number') {
       continue;
     }
 
-    normalized.push(normalizedRow);
-    if (normalizedRow.side === 'buy') {
+    const price = toNumber(row.price);
+    const size = toNumber(row.size);
+
+    if (price === null || size === null) {
+      continue;
+    }
+
+    const side = normalizeSide(row.side);
+
+    if (!side) {
+      continue;
+    }
+
+    normalized.push({
+      id: row.id,
+      side,
+      price,
+      size,
+    });
+
+    if (side === 'buy') {
       bids += 1;
     } else {
       asks += 1;
@@ -236,32 +245,6 @@ function normalizeFullRows(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
   }
 
   return { rows: normalized, bids, asks };
-}
-
-function normalizeRow(row: BitmexOrderBookL2Raw): L2Row | null {
-  if (!row || typeof row.id !== 'number') {
-    return null;
-  }
-
-  const price = toNumber(row.price);
-  const size = toNumber(row.size);
-
-  if (price === null || size === null) {
-    return null;
-  }
-
-  const side = normalizeSide(row.side);
-
-  if (!side) {
-    return null;
-  }
-
-  return {
-    id: row.id,
-    side,
-    price,
-    size,
-  };
 }
 
 function normalizeUpdate(rows: BitmexOrderBookL2Raw[]): L2UpdateRow[] {
