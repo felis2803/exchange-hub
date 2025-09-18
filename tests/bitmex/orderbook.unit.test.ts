@@ -1,6 +1,82 @@
+import { ExchangeHub } from '../../src/ExchangeHub.js';
+import { handleInstrumentPartial } from '../../src/cores/bitmex/channels/instrument.js';
 import { OrderBookL2 } from '../../src/domain/orderBookL2.js';
 
+import type { BitMex } from '../../src/cores/bitmex/index.js';
+import type { BitMexInstrument } from '../../src/cores/bitmex/types.js';
 import type { L2Row } from '../../src/types/orderbook.js';
+
+class NoopWebSocket {
+  public readonly url: string;
+  public onmessage: ((event: { data: unknown }) => void) | null = null;
+  public onopen: (() => void) | null = null;
+  public onerror: ((err: unknown) => void) | null = null;
+  public onclose: ((event?: { code?: number; reason?: string }) => void) | null = null;
+
+  #listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+
+  constructor(url: string) {
+    this.url = url;
+  }
+
+  addEventListener(event: string, listener: (...args: unknown[]) => void): void {
+    if (!this.#listeners.has(event)) {
+      this.#listeners.set(event, new Set());
+    }
+
+    this.#listeners.get(event)!.add(listener);
+  }
+
+  removeEventListener(event: string, listener: (...args: unknown[]) => void): void {
+    this.#listeners.get(event)?.delete(listener);
+  }
+
+  send(_data: string): void {}
+
+  close(): void {
+    this.#emit('close');
+  }
+
+  #emit(event: string, ...args: unknown[]): void {
+    const handler = (this as any)[`on${event}`];
+
+    if (typeof handler === 'function') {
+      handler(...args);
+    }
+
+    for (const listener of this.#listeners.get(event) ?? []) {
+      listener(...args);
+    }
+  }
+}
+
+const ORIGINAL_WEBSOCKET = (globalThis as any).WebSocket;
+
+beforeAll(() => {
+  (globalThis as any).WebSocket = NoopWebSocket as unknown as typeof WebSocket;
+});
+
+afterAll(() => {
+  (globalThis as any).WebSocket = ORIGINAL_WEBSOCKET;
+});
+
+const INSTRUMENT_SNAPSHOT: BitMexInstrument[] = [
+  {
+    symbol: 'XBTUSD',
+    state: 'Open',
+    typ: 'FFWCSX',
+    quoteCurrency: 'USD',
+    underlying: 'XBT',
+    lotSize: 100,
+    tickSize: 0.5,
+    lastPrice: 50_000,
+    timestamp: '2024-01-01T00:00:00.000Z',
+  },
+];
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value));
+}
 
 describe('OrderBookL2 (unit)', () => {
   test('reset builds price levels and aggregates best bid/ask', () => {
@@ -99,5 +175,37 @@ describe('OrderBookL2 (unit)', () => {
     book.reset([{ id: 11, side: 'sell', price: 105, size: 4 }]);
     expect(book.outOfSync).toBe(false);
     expect(book.bestAsk).toEqual({ price: 105, size: 4 });
+  });
+});
+
+describe('BitMEX core resolveInstrument', () => {
+  test('returns the same instrument for native and unified symbols when mapping is enabled', () => {
+    const hub = new ExchangeHub('BitMex', { isTest: true });
+    const core = hub.Core as BitMex;
+
+    handleInstrumentPartial(core, clone(INSTRUMENT_SNAPSHOT));
+
+    const native = core.resolveInstrument('XBTUSD');
+    const unifiedLower = core.resolveInstrument('btcusdt');
+    const unifiedUpper = core.resolveInstrument('BTCUSDT');
+
+    expect(native).toBeDefined();
+    expect(unifiedLower).toBe(native);
+    expect(unifiedUpper).toBe(native);
+  });
+
+  test('prefers native symbol variants when mapping is disabled', () => {
+    const hub = new ExchangeHub('BitMex', { isTest: true, symbolMappingEnabled: false });
+    const core = hub.Core as BitMex;
+
+    handleInstrumentPartial(core, clone(INSTRUMENT_SNAPSHOT));
+
+    const native = core.resolveInstrument('XBTUSD');
+    const lowercaseNative = core.resolveInstrument('xbtusd');
+    const unified = core.resolveInstrument('btcusdt');
+
+    expect(native).toBeDefined();
+    expect(lowercaseNative).toBe(native);
+    expect(unified).toBeUndefined();
   });
 });
