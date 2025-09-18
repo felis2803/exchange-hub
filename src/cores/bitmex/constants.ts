@@ -17,6 +17,9 @@ export const BITMEX_PRIVATE_CHANNELS = [
 
 export const BITMEX_CHANNELS = [...BITMEX_PUBLIC_CHANNELS, ...BITMEX_PRIVATE_CHANNELS] as const;
 
+export const L2_CHANNEL = 'orderBookL2';
+export const L2_MAX_DEPTH_HINT = 0; // 0 = full order book
+
 export const BITMEX_WS_ENDPOINTS = {
   mainnet: 'wss://www.bitmex.com/realtime',
   testnet: 'wss://testnet.bitmex.com/realtime',

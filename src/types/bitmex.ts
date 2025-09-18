@@ -20,3 +20,13 @@ export type Trade = {
 };
 
 export type BitmexTrade = Trade;
+
+export type BitmexOrderBookL2Raw = {
+  symbol: string;
+  id: number;
+  side: 'Buy' | 'Sell';
+  size?: number;
+  price?: number;
+  timestamp?: string;
+  transactTime?: string;
+};

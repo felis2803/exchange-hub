@@ -48,7 +48,6 @@ class ControlledWebSocket {
 
   simulateMessage(message: BitMexChannelMessage<any>): void {
     const payload = JSON.stringify(message);
-    this.onmessage?.({ data: payload });
     this.#emit('message', { data: payload });
   }
 
