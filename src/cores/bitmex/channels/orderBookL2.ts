@@ -48,7 +48,7 @@ export function handleL2Partial(core: BitMex, rows: BitmexOrderBookL2Raw[]): voi
       continue;
     }
 
-    const { rows: snapshot, bids, asks } = normalizeInsert(batch);
+    const { rows: snapshot, bids, asks } = normalizeSnapshot(batch);
     const book = instrument.orderBook;
 
     book.reset(snapshot);
@@ -207,7 +207,15 @@ function groupBySymbol(rows: BitmexOrderBookL2Raw[]): Map<string, BitmexOrderBoo
   return grouped;
 }
 
+function normalizeSnapshot(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
+  return normalizeFullRows(rows);
+}
+
 function normalizeInsert(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
+  return normalizeFullRows(rows);
+}
+
+function normalizeFullRows(rows: BitmexOrderBookL2Raw[]): NormalizedBatch {
   const normalized: L2Row[] = [];
   let bids = 0;
   let asks = 0;
