@@ -9,6 +9,9 @@ export {
   BaseError,
   NetworkError,
   AuthError,
+  AuthTimeoutError,
+  AuthBadCredentialsError,
+  AuthClockSkewError,
   RateLimitError,
   ValidationError,
   OrderRejectedError,
@@ -20,3 +23,15 @@ export {
   wrap,
 } from './infra/errors.js';
 export type { ErrorCode, ErrorJSON, ErrorOptions } from './infra/errors.js';
+export {
+  incrementCounter,
+  observeHistogram,
+  getCounterValue,
+  getHistogramValues,
+  resetMetrics,
+} from './infra/metrics.js';
+export {
+  getBitmexCredentials,
+  getAuthExpiresSkewSec,
+  DEFAULT_AUTH_EXPIRES_SKEW_SEC,
+} from './config/bitmex.js';

@@ -110,6 +110,33 @@ export class AuthError extends BaseError {
   }
 }
 
+export class AuthTimeoutError extends AuthError {
+  constructor(
+    message = 'Authentication timed out',
+    opts: Omit<ErrorOptions, 'code' | 'message'> = {},
+  ) {
+    super(message, opts);
+  }
+}
+
+export class AuthBadCredentialsError extends AuthError {
+  constructor(
+    message = 'Authentication failed: bad credentials',
+    opts: Omit<ErrorOptions, 'code' | 'message'> = {},
+  ) {
+    super(message, opts);
+  }
+}
+
+export class AuthClockSkewError extends AuthError {
+  constructor(
+    message = 'Authentication failed: clock skew detected',
+    opts: Omit<ErrorOptions, 'code' | 'message'> = {},
+  ) {
+    super(message, opts);
+  }
+}
+
 export class RateLimitError extends BaseError {
   constructor(message = 'Rate limit exceeded', opts: Omit<ErrorOptions, 'code' | 'message'> = {}) {
     super({ code: 'RATE_LIMIT', message, ...opts });

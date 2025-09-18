@@ -13,7 +13,7 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
 
 const PLACEHOLDER_REGEX = /%[sdifjoOc]/g;
 
-type LogContext = Record<string, unknown>;
+type LogContext = Record<string, unknown> & { tags?: readonly string[] };
 
 function normalizeLevel(level?: string | LogLevel | null): LogLevel | undefined {
   if (!level) {
@@ -57,6 +57,61 @@ function stringifyContext(context: LogContext): string {
   } catch {
     return inspect(context, { depth: null, compact: true, breakLength: Infinity });
   }
+}
+
+function mergeTags(
+  base?: readonly unknown[],
+  extra?: readonly unknown[],
+): readonly string[] | undefined {
+  const normalizedBase = base?.filter((value): value is string => typeof value === 'string') ?? [];
+  const normalizedExtra =
+    extra?.filter((value): value is string => typeof value === 'string') ?? [];
+
+  if (normalizedBase.length === 0 && normalizedExtra.length === 0) {
+    return undefined;
+  }
+
+  const merged = new Set<string>([...normalizedBase, ...normalizedExtra]);
+  return Array.from(merged);
+}
+
+function mergeContext(base?: LogContext, extra?: LogContext): LogContext | undefined {
+  if (!base) {
+    return extra ? { ...extra } : undefined;
+  }
+
+  if (!extra) {
+    return { ...base };
+  }
+
+  const { tags: baseTags, ...baseRest } = base;
+  const { tags: extraTags, ...extraRest } = extra;
+
+  const merged: LogContext = { ...baseRest, ...extraRest };
+  const tags = mergeTags(baseTags, extraTags);
+  if (tags && tags.length > 0) {
+    merged.tags = tags;
+  }
+
+  return merged;
+}
+
+function appendContext(args: unknown[], baseContext?: LogContext): unknown[] {
+  if (!baseContext) {
+    return args;
+  }
+
+  if (args.length === 0) {
+    return [{ ...baseContext }];
+  }
+
+  const candidate = args.at(-1);
+  if (candidate && isPlainObject(candidate)) {
+    const merged = mergeContext(baseContext, candidate as LogContext) ?? {};
+    return [...args.slice(0, -1), merged];
+  }
+
+  return [...args, { ...baseContext }];
 }
 
 function formatMessage(args: unknown[]): string {
@@ -108,13 +163,14 @@ function formatLine(level: LogLevel, namespace: string | undefined, args: unknow
   return `[${time}] ${levelLabel}${scope}${separator}${message}`;
 }
 
-function createWriter(level: LogLevel, namespace?: string) {
+function createWriter(level: LogLevel, namespace?: string, baseContext?: LogContext) {
   const stream = level === 'error' || level === 'warn' ? process.stderr : process.stdout;
   return (...args: unknown[]) => {
     if (!shouldLog(level)) {
       return;
     }
-    const line = formatLine(level, namespace, args);
+    const finalArgs = appendContext(args, baseContext);
+    const line = formatLine(level, namespace, finalArgs);
     stream.write(`${line}\n`);
   };
 }
@@ -127,16 +183,30 @@ export interface Logger {
   info: (...args: unknown[]) => void;
   warn: (...args: unknown[]) => void;
   error: (...args: unknown[]) => void;
+  withContext(context: LogContext): Logger;
+  withTags(tags: readonly string[]): Logger;
 }
 
-export function createLogger(namespace?: string): Logger {
+export function createLogger(namespace?: string, context?: LogContext): Logger {
+  const baseContext = context ? { ...context } : undefined;
+
+  const makeWriter = (level: LogLevel) => createWriter(level, namespace, baseContext);
+
   return {
     level: () => getLevel(),
     setLevel,
-    trace: createWriter('trace', namespace),
-    debug: createWriter('debug', namespace),
-    info: createWriter('info', namespace),
-    warn: createWriter('warn', namespace),
-    error: createWriter('error', namespace),
+    trace: makeWriter('trace'),
+    debug: makeWriter('debug'),
+    info: makeWriter('info'),
+    warn: makeWriter('warn'),
+    error: makeWriter('error'),
+    withContext(extra: LogContext): Logger {
+      const nextContext = mergeContext(baseContext, extra);
+      return createLogger(namespace, nextContext);
+    },
+    withTags(tags: readonly string[]): Logger {
+      const nextContext = mergeContext(baseContext, { tags });
+      return createLogger(namespace, nextContext);
+    },
   };
 }
