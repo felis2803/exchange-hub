@@ -2,7 +2,15 @@ import { EventEmitter } from 'node:events';
 
 import { OrderBookL2 } from './orderBookL2.js';
 
+import { inferOrderType } from '../core/bitmex/mappers/order.js';
 import type { Trade as NormalizedTrade } from '../types/bitmex.js';
+import type { Side } from '../types.js';
+import { genClOrdID } from '../infra/ids.js';
+import {
+  validatePlaceInput,
+  type PlaceOpts,
+  type PreparedPlaceInput,
+} from '../infra/validation.js';
 
 export type Nullable<T> = T | null | undefined;
 
@@ -302,6 +310,37 @@ export class Instrument extends EventEmitter {
     }
 
     return this.#orderBook;
+  }
+
+  buy(size: number, price?: number, opts?: PlaceOpts): PreparedPlaceInput {
+    return this.#preparePlace('buy', size, price, opts);
+  }
+
+  sell(size: number, price?: number, opts?: PlaceOpts): PreparedPlaceInput {
+    return this.#preparePlace('sell', size, price, opts);
+  }
+
+  #preparePlace(side: Side, size: number, price?: number, opts?: PlaceOpts): PreparedPlaceInput {
+    const book = this.#orderBook ?? this.orderBook;
+    const bestBid = book.bestBid?.price ?? undefined;
+    const bestAsk = book.bestAsk?.price ?? undefined;
+
+    const type = inferOrderType(side, price, bestBid, bestAsk);
+    const validated = validatePlaceInput({
+      symbol: this.symbolNative,
+      side,
+      size,
+      price,
+      type,
+      opts,
+    });
+
+    const clOrdId = validated.options.clOrdId ?? genClOrdID();
+
+    return {
+      ...validated,
+      options: { ...validated.options, clOrdId },
+    };
   }
 
   override on(

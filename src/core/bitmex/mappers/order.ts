@@ -1,6 +1,8 @@
 import { OrderStatus } from '../../../domain/order.js';
 
 import type { BitMexExecType, BitMexOrderStatus } from '../types.js';
+import type { Side } from '../../../types.js';
+import type { OrderType } from '../../../infra/validation.js';
 
 export type BitmexOrderStatusInput = {
   ordStatus?: BitMexOrderStatus | null;
@@ -19,6 +21,48 @@ const STATUS_PRIORITY: Record<OrderStatus, number> = {
   [OrderStatus.Canceling]: 2,
   [OrderStatus.Placed]: 1,
 };
+
+export function inferOrderType(
+  side: Side,
+  price?: number | null,
+  bestBid?: number | null,
+  bestAsk?: number | null,
+): OrderType {
+  const normalizedPrice = normalizeFinite(price);
+
+  if (normalizedPrice === null) {
+    return 'Market';
+  }
+
+  const normalizedBid = normalizeFinite(bestBid);
+  const normalizedAsk = normalizeFinite(bestAsk);
+
+  if (side === 'buy') {
+    if (normalizedAsk !== null && normalizedPrice > normalizedAsk) {
+      return 'Stop';
+    }
+
+    return 'Limit';
+  }
+
+  if (side === 'sell') {
+    if (normalizedBid !== null && normalizedPrice < normalizedBid) {
+      return 'Stop';
+    }
+
+    return 'Limit';
+  }
+
+  return 'Limit';
+}
+
+function normalizeFinite(value: number | null | undefined): number | null {
+  if (typeof value !== 'number') {
+    return null;
+  }
+
+  return Number.isFinite(value) ? value : null;
+}
 
 export function mapBitmexOrderStatus({
   ordStatus,

@@ -53,6 +53,7 @@ export type OrderSnapshot = {
   avgFillPrice: number | null;
   text: string | null;
   lastUpdateTs: number | null;
+  submittedAt: number | null;
   executions: Execution[];
 };
 
@@ -104,6 +105,7 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
   #leavesQty: number | null = null;
   #text: string | null = null;
   #lastUpdateTs: number | null = null;
+  #submittedAt: number | null = null;
 
   #filledQty = 0;
   #avgFillPrice: number | null = null;
@@ -129,6 +131,7 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
       leavesQty,
       text,
       lastUpdateTs,
+      submittedAt,
       filledQty,
       avgFillPrice,
     } = init;
@@ -151,6 +154,7 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
     this.#leavesQty = normalizeOptionalNumber(leavesQty);
     this.#text = normalizeString(text);
     this.#lastUpdateTs = normalizeTimestamp(lastUpdateTs);
+    this.#submittedAt = normalizeTimestamp(submittedAt);
 
     const initialFilled = normalizeQuantity(filledQty);
     if (initialFilled !== null) {
@@ -205,6 +209,7 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
       avgFillPrice: this.#avgFillPrice,
       text: this.#text,
       lastUpdateTs: this.#lastUpdateTs,
+      submittedAt: this.#submittedAt,
       executions: this.#executions.map((execution) => ({ ...execution })),
     };
   }
@@ -310,6 +315,14 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
       if (!Object.is(this.#lastUpdateTs, next)) {
         this.#lastUpdateTs = next;
         changed.add('lastUpdateTs');
+      }
+    }
+
+    if ('submittedAt' in update) {
+      const next = normalizeTimestamp(update.submittedAt);
+      if (!Object.is(this.#submittedAt, next)) {
+        this.#submittedAt = next;
+        changed.add('submittedAt');
       }
     }
 

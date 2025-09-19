@@ -3,6 +3,8 @@ import { Order, OrderStatus, type OrderInit, type OrderUpdateReason } from '../d
 import type { ClOrdID, OrderID, Symbol } from './types.js';
 import type { DomainUpdate } from './types.js';
 
+export type { PlaceOpts, OrderType, PreparedPlaceInput } from '../infra/validation.js';
+
 type OrderListener = (
   snapshot: ReturnType<Order['getSnapshot']>,
   diff: DomainUpdate<ReturnType<Order['getSnapshot']>>,
@@ -15,6 +17,7 @@ export class OrdersRegistry {
   #bySymbol = new Map<string, Set<Order>>();
   #activeOrders = new Set<Order>();
   #activeBySymbol = new Map<string, Set<Order>>();
+  #inflightByClOrdId = new Map<string, Promise<Order>>();
   #listeners = new Map<Order, OrderListener>();
 
   get size(): number {
@@ -36,6 +39,30 @@ export class OrdersRegistry {
   getByClOrdId(clOrdId: ClOrdID | null | undefined): Order | undefined {
     const key = normalizeClOrdId(clOrdId);
     return key ? this.#byClOrdId.get(key) : undefined;
+  }
+
+  getInflightByClOrdId(clOrdId: ClOrdID | null | undefined): Promise<Order> | undefined {
+    const key = normalizeClOrdId(clOrdId);
+    return key ? this.#inflightByClOrdId.get(key) : undefined;
+  }
+
+  registerInflight(clOrdId: ClOrdID, promise: Promise<Order>): void {
+    const key = normalizeClOrdId(clOrdId);
+
+    if (!key) {
+      throw new TypeError('clOrdId must be a non-empty string');
+    }
+
+    this.#inflightByClOrdId.set(key, promise);
+  }
+
+  clearInflight(clOrdId: ClOrdID | null | undefined): boolean {
+    const key = normalizeClOrdId(clOrdId);
+    if (!key) {
+      return false;
+    }
+
+    return this.#inflightByClOrdId.delete(key);
   }
 
   getBySymbol(symbol: Symbol | null | undefined): Order[] {
@@ -109,6 +136,7 @@ export class OrdersRegistry {
     this.#bySymbol.clear();
     this.#activeOrders.clear();
     this.#activeBySymbol.clear();
+    this.#inflightByClOrdId.clear();
   }
 
   #register(order: Order): void {
@@ -134,6 +162,7 @@ export class OrdersRegistry {
     const clOrdKey = normalizeClOrdId(snapshot.clOrdId);
     if (clOrdKey && this.#byClOrdId.get(clOrdKey) === order) {
       this.#byClOrdId.delete(clOrdKey);
+      this.#inflightByClOrdId.delete(clOrdKey);
     }
 
     const symbolKey = normalizeSymbolKey(snapshot.symbol);
@@ -158,6 +187,7 @@ export class OrdersRegistry {
     const clOrdKey = normalizeClOrdId(snapshot.clOrdId);
     if (clOrdKey) {
       this.#byClOrdId.set(clOrdKey, order);
+      this.#inflightByClOrdId.delete(clOrdKey);
     }
 
     const symbolKey = normalizeSymbolKey(snapshot.symbol);
@@ -208,11 +238,13 @@ export class OrdersRegistry {
     const prevKey = normalizeClOrdId(prev);
     if (prevKey && this.#byClOrdId.get(prevKey) === order) {
       this.#byClOrdId.delete(prevKey);
+      this.#inflightByClOrdId.delete(prevKey);
     }
 
     const nextKey = normalizeClOrdId(next);
     if (nextKey) {
       this.#byClOrdId.set(nextKey, order);
+      this.#inflightByClOrdId.delete(nextKey);
     }
   }
 
