@@ -1,12 +1,15 @@
 import { Position } from '../../../domain/position.js';
 import type { PositionSnapshot, PositionUpdate, PositionUpdateReason } from '../../../domain/position.js';
 import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
-import { isNewerByTimestamp, normalizeWsTs } from '../../../infra/time.js';
+import { observeHistogram } from '../../../infra/metrics.js';
+import { METRICS } from '../../../infra/metrics-private.js';
+import { isNewerByTimestamp, normalizeWsTs, parseIsoTs } from '../../../infra/time.js';
 
 import type { AccountId, Symbol as TradingSymbol, TimestampISO } from '../../types.js';
 import type { BitMex } from '../index.js';
 import type { BitMexChannelMessage } from '../types.js';
 import type { BitMexPosition } from '../types.js';
+import type { PrivateLabels } from '../../../infra/metrics-private.js';
 
 const log = createLogger('bitmex:position').withTags([
   LOG_TAGS.ws,
@@ -142,6 +145,7 @@ export function handlePositionPartial(core: BitMex, rows: BitMexPosition[]): voi
             accountId,
             symbol,
           });
+          recordPositionLatency(core, symbol, snapshot.timestamp);
         }
       }
 
@@ -325,6 +329,10 @@ function applyIncrementalUpdates(core: BitMex, rows: BitMexPosition[], reason: P
       symbol,
       reason,
     });
+
+    if (update.timestamp) {
+      recordPositionLatency(core, symbol, update.timestamp);
+    }
 
     if (snapshot.size === 0) {
       registry.remove(position);
@@ -668,6 +676,31 @@ function hashSnapshot(snapshot: PositionSnapshot): string {
 
 function hashUpdate(update: PositionUpdate): string {
   return stableSerialize(update as Record<string, unknown>);
+}
+
+function recordPositionLatency(
+  core: BitMex,
+  symbol: TradingSymbol,
+  timestamp: TimestampISO | null | undefined,
+): void {
+  if (!timestamp) {
+    return;
+  }
+
+  const parsed = parseIsoTs(timestamp);
+  if (!Number.isFinite(parsed)) {
+    return;
+  }
+
+  const latency = Date.now() - parsed;
+  if (!Number.isFinite(latency)) {
+    return;
+  }
+
+  const env: PrivateLabels['env'] = core.isTest ? 'testnet' : 'mainnet';
+  const labels: PrivateLabels = { env, table: 'position', symbol };
+
+  observeHistogram(METRICS.privateLatencyMs, Math.max(0, latency), labels);
 }
 
 const NUMBER_FIELDS = [

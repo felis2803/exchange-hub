@@ -312,6 +312,7 @@ function recordMetrics(core: BitMex, updatedAt?: string): void {
 
   const ageSec = Math.max(0, ageMs / 1000);
   observeHistogram(METRICS.snapshotAgeSec, ageSec, labels);
+  observeHistogram(METRICS.privateLatencyMs, Math.max(0, ageMs), labels);
 }
 
 type LogContext = {

@@ -1,7 +1,17 @@
 import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
+import { incrementCounter, observeHistogram } from '../../../infra/metrics.js';
+import { METRICS } from '../../../infra/metrics-private.js';
 import { mapBitmexOrderStatus } from '../mappers/order.js';
 
-import { OrderStatus, type OrderUpdate, type OrderUpdateReason } from '../../../domain/order.js';
+import {
+  OrderStatus,
+  type OrderSnapshot,
+  type OrderUpdate,
+  type OrderUpdateReason,
+} from '../../../domain/order.js';
+
+import type { PrivateLabels } from '../../../infra/metrics-private.js';
+import type { DomainUpdate } from '../../types.js';
 
 import type { BitMex } from '../index.js';
 import type { BitMexChannelMessage, BitMexOrder } from '../types.js';
@@ -226,7 +236,11 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
 
   const updateReason = resolveReason(reason, row.execType, row.ordStatus, status ?? update.status);
 
-  order.applyUpdate(update, { reason: updateReason });
+  const diff = order.applyUpdate(update, { reason: updateReason });
+
+  if (diff) {
+    recordOrderMetrics(core, diff, row);
+  }
 }
 
 type UpdateReason = 'snapshot' | 'insert' | 'update';
@@ -330,4 +344,31 @@ function mapLiquidity(value: BitMexOrder['lastLiquidityInd']): 'maker' | 'taker'
     default:
       return undefined;
   }
+}
+
+function recordOrderMetrics(
+  core: BitMex,
+  diff: DomainUpdate<OrderSnapshot>,
+  row: BitMexOrder,
+): void {
+  const env: PrivateLabels['env'] = core.isTest ? 'testnet' : 'mainnet';
+  const labels: PrivateLabels = {
+    env,
+    table: 'order',
+    symbol: diff.next.symbol ?? undefined,
+  };
+
+  incrementCounter(METRICS.orderUpdateCount, 1, labels);
+
+  const timestamp = normalizeTimestamp(row.transactTime ?? row.timestamp);
+  if (timestamp === null || timestamp === undefined) {
+    return;
+  }
+
+  const latency = Date.now() - timestamp;
+  if (!Number.isFinite(latency)) {
+    return;
+  }
+
+  observeHistogram(METRICS.privateLatencyMs, Math.max(0, latency), labels);
 }
