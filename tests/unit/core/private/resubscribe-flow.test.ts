@@ -1,6 +1,4 @@
-import {
-  DefaultPrivateResubscribeFlow,
-} from '../../../../src/core/private/resubscribe-flow.js';
+import { DefaultPrivateResubscribeFlow } from '../../../../src/core/private/resubscribe-flow.js';
 
 describe('DefaultPrivateResubscribeFlow', () => {
   test('DefaultPrivateResubscribeFlow вызывает doResubscribe() ровно один раз на вызов onAuthedResubscribe()', async () => {

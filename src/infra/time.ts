@@ -1,4 +1,4 @@
-import { TimestampISO } from '../core/types.js';
+import type { TimestampISO } from '../core/types.js';
 
 export function toIso(input: number | Date): TimestampISO {
   const date = typeof input === 'number' ? new Date(input) : new Date(input);

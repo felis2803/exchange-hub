@@ -1,9 +1,4 @@
-import {
-  toIso,
-  parseIsoTs,
-  isNewerByTimestamp,
-  normalizeWsTs,
-} from '../../../src/infra/time.js';
+import { isNewerByTimestamp, normalizeWsTs, parseIsoTs, toIso } from '../../../src/infra/time.js';
 
 describe('time utils', () => {
   test('toIso/parseIsoTs обратимы в пределах миллисекунд', () => {
