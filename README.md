@@ -79,3 +79,35 @@ console.log(networkIssue.code); // "NETWORK_ERROR"
 ```
 
 Коды ошибок: `NETWORK_ERROR`, `AUTH_ERROR`, `RATE_LIMIT`, `VALIDATION_ERROR`, `ORDER_REJECTED`, `EXCHANGE_DOWN`, `TIMEOUT`, `UNKNOWN_ERROR`.
+
+## Domain events & types
+
+ExchangeHub фиксирует единый контракт обновлений приватных доменных сущностей.
+
+### BaseEntity
+
+Каждая сущность (кошелек, позиции, ордера) реализует интерфейс `BaseEntity<TSnapshot>`.
+Метод `getSnapshot()` возвращает актуальное представление в удобном формате, а события
+`on('update', handler)` и `off('update', handler)` позволяют подписываться на изменения.
+Обработчик всегда получает актуальный снимок и структуру `DomainUpdate<TSnapshot>` с diff,
+а также опциональную строку `reason`, указывающую источник обновления (например, `"ws"`).
+
+```ts
+entity.on('update', (snapshot, { prev, next, changed }, reason) => {
+  console.log('Wallet changed fields', changed, 'due to', reason);
+});
+```
+
+### DomainUpdate<T>
+
+`DomainUpdate<T>` содержит предыдущий снимок (`prev`), новый снимок (`next`) и список
+измененных полей (`changed`). Это гарантированный контракт для всех приватных сущностей,
+что позволяет переиспользовать обработчики обновлений без ветвления по типам.
+
+### Правила эмита событий
+
+- Все timestamps нормализуются в ISO (`TimestampISO`).
+- Апдейты с устаревшими таймстампами игнорируются (используйте `isNewerByTimestamp`).
+- Дубликаты устраняются через `dedupeByKey` для повторяющихся событий.
+- События `update` эмитятся только если `changed.length > 0` (используйте `diffKeys`).
+- При необходимости преобразовывайте сырой WS timestamp через `normalizeWsTs`.
