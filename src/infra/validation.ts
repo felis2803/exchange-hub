@@ -109,33 +109,60 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
   const { symbol, side, size, price, type, opts } = params;
 
   if (side !== 'buy' && side !== 'sell') {
-    throw new ValidationError('Order side must be "buy" or "sell"', { details: { side } });
+    throw new ValidationError('order side must be "buy" or "sell"', { details: { side } });
   }
 
   const normalizedSymbol = normalizeSymbol(symbol);
   const normalizedSize = normalizeSize(size);
   const normalizedPrice = normalizePrice(price);
 
-  if (type === 'Market') {
-    if (normalizedPrice !== null) {
-      throw new ValidationError('Market orders cannot have a price', { details: { price } });
-    }
-  } else {
-    if (normalizedPrice === null) {
-      throw new ValidationError(`${type} orders require a price`, { details: { price } });
-    }
+  if (type === 'Stop') {
+    throw new ValidationError('stop orders are not supported yet', { details: { type } });
+  }
+
+  if (type !== 'Market' && type !== 'Limit') {
+    throw new ValidationError('order type is not supported', { details: { type } });
   }
 
   const postOnly = Boolean(opts?.postOnly);
+  const reduceOnly = Boolean(opts?.reduceOnly);
+  const timeInForce = normalizeTimeInForce(opts?.timeInForce);
+  const clOrdId = normalizeClOrdId(opts?.clOrdID);
+
+  if (type === 'Market') {
+    if (normalizedPrice !== null) {
+      throw new ValidationError('market orders cannot include price', { details: { price } });
+    }
+    if (postOnly) {
+      throw new ValidationError('market orders cannot be post only', {
+        details: { type, postOnly },
+      });
+    }
+  }
+
+  if (type === 'Limit') {
+    if (normalizedPrice === null) {
+      throw new ValidationError('limit orders require price', { details: { price } });
+    }
+
+    if (!(normalizedPrice > 0)) {
+      throw new ValidationError('limit order price must be positive', {
+        details: { price: normalizedPrice },
+      });
+    }
+  }
+
   if (postOnly && type !== 'Limit') {
-    throw new ValidationError('postOnly flag is allowed only for limit orders', {
+    throw new ValidationError('post only flag is allowed only for limit orders', {
       details: { type, postOnly },
     });
   }
 
-  const reduceOnly = Boolean(opts?.reduceOnly);
-  const timeInForce = normalizeTimeInForce(opts?.timeInForce);
-  const clOrdId = normalizeClOrdId(opts?.clOrdID);
+  if (postOnly && timeInForce && isImmediateOrCancel(timeInForce)) {
+    throw new ValidationError('post only cannot be combined with ioc or fok', {
+      details: { postOnly, timeInForce },
+    });
+  }
 
   return {
     symbol: normalizedSymbol,
@@ -143,7 +170,7 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
     size: normalizedSize,
     type,
     price: type === 'Limit' ? normalizedPrice : null,
-    stopPrice: type === 'Stop' ? normalizedPrice : null,
+    stopPrice: null,
     options: {
       postOnly,
       reduceOnly,
@@ -151,4 +178,15 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
       ...(clOrdId ? { clOrdId } : {}),
     },
   };
+}
+
+function isImmediateOrCancel(timeInForce: string): boolean {
+  const normalized = timeInForce.trim().toLowerCase();
+
+  return (
+    normalized === 'immediateorcancel' ||
+    normalized === 'ioc' ||
+    normalized === 'fillorkill' ||
+    normalized === 'fok'
+  );
 }

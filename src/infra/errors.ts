@@ -273,6 +273,7 @@ export function fromHttpResponse(params: HttpResponseErrorParams): BaseError {
     normalizedHeaders?.['x-request-id'] ??
     normalizedHeaders?.['x-correlation-id'];
   const retryAfterMs = extractRetryAfter(normalizedHeaders);
+  const exchangeMessage = extractExchangeMessage(body);
 
   const details: Record<string, unknown> = { status };
   if (url) details.url = url;
@@ -282,7 +283,7 @@ export function fromHttpResponse(params: HttpResponseErrorParams): BaseError {
   if (retryAfterMs !== undefined) details.retryAfterMs = retryAfterMs;
 
   if (status === 401 || status === 403) {
-    return AuthError.badCredentials('Unauthorized', {
+    return AuthError.badCredentials(exchangeMessage ?? 'Unauthorized', {
       httpStatus: status,
       exchange,
       requestId,
@@ -310,7 +311,7 @@ export function fromHttpResponse(params: HttpResponseErrorParams): BaseError {
   }
 
   if (status === 409 || status === 422) {
-    return new OrderRejectedError('Order rejected by exchange', {
+    return new OrderRejectedError(exchangeMessage ?? 'Order rejected by exchange', {
       httpStatus: status,
       exchange,
       requestId,
@@ -319,7 +320,7 @@ export function fromHttpResponse(params: HttpResponseErrorParams): BaseError {
   }
 
   if (status >= 400 && status < 500) {
-    return new ValidationError('Request validation failed', {
+    return new ValidationError(exchangeMessage ?? 'Request validation failed', {
       httpStatus: status,
       exchange,
       requestId,
@@ -361,7 +362,8 @@ export function fromFetchError(err: unknown, extra: ErrorOverrides = {}): BaseEr
   const message = overrideMessage ?? baseMessage;
 
   if (isAbortError(err)) {
-    return new TimeoutError(message || 'Aborted', { ...context, cause });
+    const finalMessage = message || 'Request aborted';
+    return new NetworkError(finalMessage, { ...context, cause });
   }
 
   if (err instanceof Error && RETRYABLE_ERRNO_CODES.has((err as ErrnoException).code ?? '')) {
@@ -501,6 +503,38 @@ function extractRetryAfter(headers?: Record<string, string>): number | undefined
   const reset = parseRateLimitReset(headers['x-rate-limit-reset']);
   if (reset !== undefined) {
     return reset;
+  }
+
+  return undefined;
+}
+
+function extractExchangeMessage(body: unknown): string | undefined {
+  if (body === undefined || body === null) {
+    return undefined;
+  }
+
+  if (typeof body === 'string') {
+    const trimmed = body.trim();
+    return trimmed || undefined;
+  }
+
+  if (typeof body === 'object') {
+    const record = body as Record<string, unknown>;
+
+    const nested = record.error;
+    if (nested && typeof (nested as { message?: unknown }).message === 'string') {
+      const trimmed = (nested as { message?: string }).message?.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
+
+    if (typeof record.message === 'string') {
+      const trimmed = record.message.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+    }
   }
 
   return undefined;

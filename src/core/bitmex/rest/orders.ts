@@ -29,6 +29,7 @@ export interface CreateOrderOptions {
 
 const RETRYABLE_CODES = new Set<BaseError['code']>(['NETWORK_ERROR', 'EXCHANGE_DOWN']);
 const MAX_RETRIES = 1; // retry attempts on top of the initial try
+const RETRY_DELAY_MS = 150;
 
 export async function createOrder(
   payload: CreateOrderPayload,
@@ -36,13 +37,16 @@ export async function createOrder(
 ): Promise<BitMexOrder> {
   validatePayload(payload);
 
+  const sanitizedPayload = stripUndefined({ ...payload });
+
   const logger = options.logger ?? createLogger('bitmex:rest:orders').withTags([LOG_TAGS.order]);
   const context = {
-    symbol: payload.symbol,
-    side: payload.side,
-    ordType: payload.ordType,
-    orderQty: payload.orderQty,
-    clOrdId: payload.clOrdID,
+    symbol: sanitizedPayload.symbol,
+    side: sanitizedPayload.side,
+    ordType: sanitizedPayload.ordType,
+    clOrdID: sanitizedPayload.clOrdID,
+    timeInForce: sanitizedPayload.timeInForce ?? null,
+    execInstPresent: Boolean(sanitizedPayload.execInst),
   } as const;
 
   let attempt = 0;
@@ -58,7 +62,7 @@ export async function createOrder(
       const response = await options.client.request<BitMexOrder>('POST', '/api/v1/order', {
         auth: true,
         timeoutMs: options.timeoutMs,
-        body: payload,
+        body: sanitizedPayload,
       });
 
       logger.info('BitMEX REST create order success', { ...context, attempt: attempt + 1 });
@@ -72,6 +76,7 @@ export async function createOrder(
           code: baseError.code,
         });
         attempt += 1;
+        await delay(RETRY_DELAY_MS);
         continue;
       }
 
@@ -150,11 +155,8 @@ function validatePayload(payload: CreateOrderPayload): void {
     });
   }
 
-  if (
-    payload.stopPx !== undefined &&
-    (typeof payload.stopPx !== 'number' || !Number.isFinite(payload.stopPx) || payload.stopPx <= 0)
-  ) {
-    throw new ValidationError('stopPx must be a finite number when provided', {
+  if (payload.stopPx !== undefined) {
+    throw new ValidationError('stop orders are not supported yet', {
       details: { stopPx: payload.stopPx },
     });
   }
@@ -186,4 +188,31 @@ function shouldRetry(error: unknown, attempt: number): error is BaseError {
   }
 
   return RETRYABLE_CODES.has(error.code);
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function stripUndefined<T extends Record<string, unknown>>(object: T): T {
+  const result: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(object)) {
+    if (value === undefined) {
+      continue;
+    }
+
+    if (key === 'execInst' && typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        continue;
+      }
+      result[key] = trimmed;
+      continue;
+    }
+
+    result[key] = value;
+  }
+
+  return result as T;
 }

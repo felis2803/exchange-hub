@@ -33,20 +33,17 @@ describe('validatePlaceInput', () => {
     });
   });
 
-  test('normalizes a stop order and ignores postOnly flag', () => {
-    const result = validatePlaceInput({
-      symbol: 'XBTUSD',
-      side: 'sell',
-      size: 2,
-      price: 63_500,
-      type: 'Stop',
-      opts: { reduceOnly: true },
-    });
-
-    expect(result.price).toBeNull();
-    expect(result.stopPrice).toBe(63_500);
-    expect(result.options.postOnly).toBe(false);
-    expect(result.options.reduceOnly).toBe(true);
+  test('rejects stop orders until supported', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'sell',
+        size: 2,
+        price: 63_500,
+        type: 'Stop',
+        opts: { reduceOnly: true },
+      }),
+    ).toThrow(ValidationError);
   });
 
   test('throws when market order carries price', () => {

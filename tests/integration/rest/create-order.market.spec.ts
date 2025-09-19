@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+
 import { jest } from '@jest/globals';
 
 import { ExchangeHub } from '../../../src/ExchangeHub.js';
@@ -48,33 +50,59 @@ describe('BitMEX REST create order – market orders', () => {
     return { hub, core };
   }
 
-  test('submits a market buy order with expected payload', async () => {
+  test('submits a market buy order with expected payload and signature', async () => {
     const fetchMock = jest.fn(async () =>
       new Response(JSON.stringify({ orderID: 'order-1', symbol: 'XBTUSD' }), { status: 200 }),
     );
     global.fetch = fetchMock as unknown as typeof fetch;
 
+    const fixedNow = Date.UTC(2024, 0, 1, 0, 0, 0);
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(fixedNow);
+
     const { core } = createCore();
     const instrument = new Instrument({ symbolNative: 'XBTUSD', symbolUni: 'btcusdt' });
     const prepared = instrument.buy(100, undefined, { clOrdID: 'client-1' });
 
-    const response = await core.buy(prepared);
+    try {
+      const response = await core.buy(prepared);
 
-    expect(response).toMatchObject({ orderID: 'order-1', symbol: 'XBTUSD' });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(response).toMatchObject({ orderID: 'order-1', symbol: 'XBTUSD' });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    const [url, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
-    expect(String(url)).toBe('https://testnet.bitmex.com/api/v1/order');
-    expect(init?.method).toBe('POST');
-    expect(init?.headers).toMatchObject({ 'content-type': 'application/json', accept: 'application/json' });
-    const body = JSON.parse(init?.body as string);
-    expect(body).toEqual({
-      symbol: 'XBTUSD',
-      side: 'Buy',
-      orderQty: 100,
-      ordType: 'Market',
-      clOrdID: 'client-1',
-    });
+      const [url, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
+      expect(String(url)).toBe('https://testnet.bitmex.com/api/v1/order');
+      expect(init?.method).toBe('POST');
+
+      const headers = init?.headers as Record<string, string>;
+      expect(headers).toMatchObject({
+        accept: 'application/json',
+        'content-type': 'application/json',
+        'api-key': 'key',
+      });
+
+      const bodyString = init?.body as string;
+      const body = JSON.parse(bodyString);
+      expect(body).toEqual({
+        symbol: 'XBTUSD',
+        side: 'Buy',
+        orderQty: 100,
+        ordType: 'Market',
+        clOrdID: 'client-1',
+      });
+      expect(body).not.toHaveProperty('price');
+      expect(body).not.toHaveProperty('execInst');
+      expect(body).not.toHaveProperty('timeInForce');
+
+      const expiresHeader = Number(headers['api-expires']);
+      expect(expiresHeader).toBe(Math.floor(fixedNow / 1000) + 60);
+
+      const expectedSignature = createHmac('sha256', 'secret')
+        .update(`POST/api/v1/order${expiresHeader}${bodyString}`)
+        .digest('hex');
+      expect(headers['api-signature']).toBe(expectedSignature);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   test('retries once when fetch rejects with a network error', async () => {

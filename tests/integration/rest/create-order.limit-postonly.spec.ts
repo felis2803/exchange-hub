@@ -80,6 +80,30 @@ describe('BitMEX REST create order – limit & postOnly orders', () => {
     });
   });
 
+  test('maps reduceOnly flag to execInst without postOnly', async () => {
+    const fetchMock = jest.fn(async () =>
+      new Response(JSON.stringify({ orderID: 'limit-2', symbol: 'XBTUSD' }), { status: 200 }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const { core } = createCore();
+    const instrument = new Instrument({ symbolNative: 'XBTUSD', symbolUni: 'btcusdt' });
+    const prepared = instrument.sell(10, 64_000, {
+      clOrdID: 'limit-002',
+      reduceOnly: true,
+    });
+
+    const response = await core.sell(prepared);
+
+    expect(response.orderID).toBe('limit-2');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const [, init] = fetchMock.mock.calls[0] as [RequestInfo | URL, RequestInit];
+    const body = JSON.parse(init?.body as string);
+    expect(body.execInst).toBe('ReduceOnly');
+    expect(body).not.toHaveProperty('timeInForce');
+  });
+
   test('throws ValidationError when sell() input carries buy side', async () => {
     const fetchMock = jest.fn();
     global.fetch = fetchMock as unknown as typeof fetch;

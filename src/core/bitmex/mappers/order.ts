@@ -11,6 +11,27 @@ const SIDE_TO_BITMEX: Record<Side, 'Buy' | 'Sell'> = {
   sell: 'Sell',
 };
 
+export function buildExecInst(opts: {
+  postOnly?: boolean;
+  reduceOnly?: boolean;
+}): string | undefined {
+  const parts: string[] = [];
+
+  if (opts.postOnly) {
+    parts.push('ParticipateDoNotInitiate');
+  }
+
+  if (opts.reduceOnly) {
+    parts.push('ReduceOnly');
+  }
+
+  if (parts.length === 0) {
+    return undefined;
+  }
+
+  return parts.join(',');
+}
+
 export type BitmexOrderStatusInput = {
   ordStatus?: BitMexOrderStatus | null;
   execType?: BitMexExecType | null;
@@ -81,7 +102,27 @@ export function mapPreparedPlaceInputToCreateOrderPayload(
     });
   }
 
+  if (input.stopPrice !== null && input.stopPrice !== undefined) {
+    throw new ValidationError('stop orders are not supported yet', {
+      details: { stopPrice: input.stopPrice },
+    });
+  }
+
   const ordType = normalizeRestOrderType(input.type);
+
+  if (ordType === 'Market' && input.options.postOnly) {
+    throw new ValidationError('post only flag is allowed only for limit orders', {
+      details: { type: ordType, postOnly: input.options.postOnly },
+    });
+  }
+
+  if (ordType === 'Limit' && input.options.postOnly && input.options.timeInForce) {
+    if (isImmediateOrCancel(input.options.timeInForce)) {
+      throw new ValidationError('post only cannot be combined with ioc or fok', {
+        details: { postOnly: input.options.postOnly, timeInForce: input.options.timeInForce },
+      });
+    }
+  }
 
   const clOrdId = input.options.clOrdId;
   if (typeof clOrdId !== 'string' || clOrdId.trim().length === 0) {
@@ -119,20 +160,27 @@ export function mapPreparedPlaceInputToCreateOrderPayload(
     payload.timeInForce = input.options.timeInForce;
   }
 
-  const execInstructions: string[] = [];
-  if (input.options.postOnly) {
-    execInstructions.push('ParticipateDoNotInitiate');
-  }
+  const execInst = buildExecInst({
+    postOnly: input.options.postOnly,
+    reduceOnly: input.options.reduceOnly,
+  });
 
-  if (input.options.reduceOnly) {
-    execInstructions.push('ReduceOnly');
-  }
-
-  if (execInstructions.length > 0) {
-    payload.execInst = execInstructions.join(',');
+  if (execInst) {
+    payload.execInst = execInst;
   }
 
   return payload;
+}
+
+function isImmediateOrCancel(timeInForce: string): boolean {
+  const normalized = timeInForce.trim().toLowerCase();
+
+  return (
+    normalized === 'ioc' ||
+    normalized === 'immediateorcancel' ||
+    normalized === 'fok' ||
+    normalized === 'fillorkill'
+  );
 }
 
 function normalizeFinite(value: number | null | undefined): number | null {
