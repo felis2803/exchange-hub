@@ -314,11 +314,13 @@ function resolveQuantity(
   const hasSize = hasOwn(update, 'size');
   const hasSide = hasOwn(update, 'side');
 
-  let currentQty = hasQty ? normalizeQty(update.currentQty) ?? 0 : prev.currentQty;
-  let size = hasSize ? normalizeSize(update.size) ?? (hasQty ? Math.abs(currentQty) : prev.size) : prev.size;
+  let currentQty = hasQty ? (normalizeQty(update.currentQty) ?? 0) : prev.currentQty;
+  let size = hasSize
+    ? (normalizeSize(update.size) ?? (hasQty ? Math.abs(currentQty) : prev.size))
+    : prev.size;
   size = Math.max(0, Math.abs(size));
 
-  let side: Side = hasSide ? normalizeSide(update.side) ?? prev.side : prev.side;
+  let side: Side = hasSide ? (normalizeSide(update.side) ?? prev.side) : prev.side;
 
   if (hasQty) {
     if (!Number.isFinite(currentQty)) {
@@ -700,11 +702,14 @@ export class PositionsRegistry {
   #bySymbol = new Map<string, Set<Position>>();
   #byAccount = new Map<AccountId, Set<Position>>();
   #active = new Set<Position>();
-  #listeners = new WeakMap<Position, (
-    snapshot: PositionSnapshot,
-    diff: DomainUpdate<PositionSnapshot>,
-    reason?: PositionUpdateReason,
-  ) => void>();
+  #listeners = new WeakMap<
+    Position,
+    (
+      snapshot: PositionSnapshot,
+      diff: DomainUpdate<PositionSnapshot>,
+      reason?: PositionUpdateReason,
+    ) => void
+  >();
   #onUpdate?: PositionUpdateListener;
   #view: PositionsView;
 
@@ -810,9 +815,8 @@ export class PositionsRegistry {
   }
 
   #keysIterator(): IterableIterator<PositionsViewKey> {
-    const self = this;
-    return (function* (): IterableIterator<PositionsViewKey> {
-      for (const key of self.#byKey.keys()) {
+    const iterate = function* (this: PositionsRegistry): IterableIterator<PositionsViewKey> {
+      for (const key of this.#byKey.keys()) {
         const [accountId, symbol] = key.split('::');
         yield {
           key,
@@ -820,13 +824,14 @@ export class PositionsRegistry {
           symbol: symbol as TradingSymbol,
         };
       }
-    })();
+    };
+
+    return iterate.call(this);
   }
 
   #entriesIterator(): IterableIterator<PositionsViewEntry> {
-    const self = this;
-    return (function* (): IterableIterator<PositionsViewEntry> {
-      for (const [key, position] of self.#byKey.entries()) {
+    const iterate = function* (this: PositionsRegistry): IterableIterator<PositionsViewEntry> {
+      for (const [key, position] of this.#byKey.entries()) {
         const [accountId, symbol] = key.split('::');
         yield {
           key,
@@ -835,7 +840,9 @@ export class PositionsRegistry {
           position,
         };
       }
-    })();
+    };
+
+    return iterate.call(this);
   }
 
   #createView(): PositionsView {
@@ -846,9 +853,7 @@ export class PositionsRegistry {
       keys: () => this.#keysIterator(),
       entries: () => this.#entriesIterator(),
       byAccount: (accountId) =>
-        this.#positionsIterator(
-          this.#byAccount.get(normalizeAccountId(accountId)) ?? [],
-        ),
+        this.#positionsIterator(this.#byAccount.get(normalizeAccountId(accountId)) ?? []),
       bySymbol: (symbol) =>
         this.#positionsIterator(this.#bySymbol.get(normalizeSymbol(symbol)) ?? []),
       active: () => this.#positionsIterator(this.#active),
@@ -928,4 +933,3 @@ export class PositionsRegistry {
     this.#active.clear();
   }
 }
-

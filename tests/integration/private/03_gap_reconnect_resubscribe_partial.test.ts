@@ -108,8 +108,16 @@ describe('BitMEX private integration – reconnect and resubscribe', () => {
     expect(order.getSnapshot().filledQty).toBe(30);
 
     expectCounter(METRICS.walletUpdateCount, 4, { env: 'testnet', table: 'wallet' });
-    expectCounter(METRICS.positionUpdateCount, 3, { env: 'testnet', table: 'position', symbol: 'XBTUSD' });
-    expectCounter(METRICS.orderUpdateCount, 3, { env: 'testnet', table: 'order', symbol: 'XBTUSD' });
+    expectCounter(METRICS.positionUpdateCount, 3, {
+      env: 'testnet',
+      table: 'position',
+      symbol: 'XBTUSD',
+    });
+    expectCounter(METRICS.orderUpdateCount, 3, {
+      env: 'testnet',
+      table: 'order',
+      symbol: 'XBTUSD',
+    });
 
     await harness.cleanup();
   });

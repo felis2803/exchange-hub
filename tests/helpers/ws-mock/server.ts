@@ -44,7 +44,9 @@ class SessionContext {
 
   async expectAuth(): Promise<void> {
     const request = await this.#nextMessage((message) => {
-      return typeof message === 'object' && message !== null && (message as any).op === 'authKeyExpires';
+      return (
+        typeof message === 'object' && message !== null && (message as any).op === 'authKeyExpires'
+      );
     });
 
     const { mode } = this;
@@ -87,7 +89,11 @@ class SessionContext {
     }
   }
 
-  sendChannel(table: PrivateTable, action: 'partial' | 'insert' | 'update' | 'delete', data: unknown[]): void {
+  sendChannel(
+    table: PrivateTable,
+    action: 'partial' | 'insert' | 'update' | 'delete',
+    data: unknown[],
+  ): void {
     const payload = { table, action, data };
     this.socket.send(JSON.stringify(payload));
   }
@@ -111,20 +117,23 @@ class SessionContext {
   async #nextMessage(predicate: MessagePredicate, timeoutMs = 5_000): Promise<any> {
     let result: unknown;
 
-    await this.#clock.waitFor(() => {
-      for (let index = 0; index < this.#messages.length; index += 1) {
-        const message = this.#messages[index];
-        if (!predicate(message)) {
-          continue;
+    await this.#clock.waitFor(
+      () => {
+        for (let index = 0; index < this.#messages.length; index += 1) {
+          const message = this.#messages[index];
+          if (!predicate(message)) {
+            continue;
+          }
+
+          result = message;
+          this.#messages.splice(index, 1);
+          return true;
         }
 
-        result = message;
-        this.#messages.splice(index, 1);
-        return true;
-      }
-
-      return false;
-    }, { timeoutMs, intervalMs: 5 });
+        return false;
+      },
+      { timeoutMs, intervalMs: 5 },
+    );
 
     return result;
   }
@@ -299,4 +308,3 @@ export class ScenarioServer {
     }
   }
 }
-

@@ -43,11 +43,7 @@ export function expectNoChanges<T extends Record<string, unknown>>(
   expect(diff.changed).toHaveLength(0);
 }
 
-export function expectCounter(
-  name: string,
-  expected: number,
-  labels?: MetricLabels,
-): void {
+export function expectCounter(name: string, expected: number, labels?: MetricLabels): void {
   expect(getCounterValue(name, labels)).toBe(expected);
 }
 
@@ -68,4 +64,3 @@ export function expectHistogramValues(
 ): void {
   expect(getHistogramValues(name, labels)).toEqual(expected);
 }
-

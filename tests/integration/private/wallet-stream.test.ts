@@ -84,7 +84,11 @@ describe('BitMEX wallet stream', () => {
     expect(getHistogramValues(METRICS.snapshotAgeSec, labels)).toEqual([5]);
 
     const events: WalletUpdateEvent[] = [];
-    const handler = (snapshot: WalletSnapshot, diff: DomainUpdate<WalletSnapshot>, reason?: string) => {
+    const handler = (
+      snapshot: WalletSnapshot,
+      diff: DomainUpdate<WalletSnapshot>,
+      reason?: string,
+    ) => {
       events.push({ snapshot, diff, reason });
     };
     wallet!.on('update', handler);
@@ -258,7 +262,11 @@ describe('BitMEX wallet stream', () => {
     expect(wallet).toBeDefined();
 
     const events: WalletUpdateEvent[] = [];
-    const handler = (snapshot: WalletSnapshot, diff: DomainUpdate<WalletSnapshot>, reason?: string) => {
+    const handler = (
+      snapshot: WalletSnapshot,
+      diff: DomainUpdate<WalletSnapshot>,
+      reason?: string,
+    ) => {
       events.push({ snapshot, diff, reason });
     };
     wallet!.on('update', handler);
@@ -397,9 +405,7 @@ async function createConnectedHub(): Promise<{
   socket: ControlledWebSocket;
 }> {
   const hub = new ExchangeHub('BitMex', { isTest: true });
-  const socket = ControlledWebSocket.instances[
-    ControlledWebSocket.instances.length - 1
-  ];
+  const socket = ControlledWebSocket.instances[ControlledWebSocket.instances.length - 1];
 
   if (!socket) {
     throw new Error('ControlledWebSocket instance was not created');

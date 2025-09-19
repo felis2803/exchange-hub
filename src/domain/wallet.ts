@@ -59,7 +59,10 @@ export class Wallet extends EventEmitter implements BaseEntity<WalletSnapshot> {
     return this.#buildSnapshot(this.#balances, this.#updatedAt);
   }
 
-  apply(updates: WalletBalanceInput[], options: WalletApplyOptions = {}): DomainUpdate<WalletSnapshot> | null {
+  apply(
+    updates: WalletBalanceInput[],
+    options: WalletApplyOptions = {},
+  ): DomainUpdate<WalletSnapshot> | null {
     const { reset = false, reason } = options;
 
     if (!Array.isArray(updates) || (updates.length === 0 && !reset)) {

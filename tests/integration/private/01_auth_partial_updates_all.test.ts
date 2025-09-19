@@ -1,7 +1,11 @@
 import { METRICS } from '../../../src/infra/metrics-private.js';
 import { getHistogramValues } from '../../../src/infra/metrics.js';
 
-import { expectChangedKeys, expectHistogramIncludes, expectCounter } from '../../helpers/asserts.js';
+import {
+  expectChangedKeys,
+  expectHistogramIncludes,
+  expectCounter,
+} from '../../helpers/asserts.js';
 import { createScenario } from '../../helpers/ws-mock/scenario.js';
 import { setupPrivateHarness } from '../../helpers/privateHarness.js';
 
@@ -129,10 +133,23 @@ describe('BitMEX private integration – auth → partial → updates', () => {
     ]);
 
     expectCounter(METRICS.walletUpdateCount, 2, { env: 'testnet', table: 'wallet' });
-    expectCounter(METRICS.positionUpdateCount, 2, { env: 'testnet', table: 'position', symbol: 'XBTUSD' });
-    expectCounter(METRICS.orderUpdateCount, 2, { env: 'testnet', table: 'order', symbol: 'XBTUSD' });
+    expectCounter(METRICS.positionUpdateCount, 2, {
+      env: 'testnet',
+      table: 'position',
+      symbol: 'XBTUSD',
+    });
+    expectCounter(METRICS.orderUpdateCount, 2, {
+      env: 'testnet',
+      table: 'order',
+      symbol: 'XBTUSD',
+    });
 
-    expectHistogramIncludes(METRICS.privateLatencyMs, 11_000, { env: 'testnet', table: 'wallet' }, 100);
+    expectHistogramIncludes(
+      METRICS.privateLatencyMs,
+      11_000,
+      { env: 'testnet', table: 'wallet' },
+      100,
+    );
     expectHistogramIncludes(
       METRICS.privateLatencyMs,
       9_000,
@@ -154,7 +171,9 @@ describe('BitMEX private integration – auth → partial → updates', () => {
       150,
     );
 
-    expect(getHistogramValues(METRICS.privateLatencyMs, { env: 'testnet', table: 'wallet' }).length).toBeGreaterThanOrEqual(2);
+    expect(
+      getHistogramValues(METRICS.privateLatencyMs, { env: 'testnet', table: 'wallet' }).length,
+    ).toBeGreaterThanOrEqual(2);
 
     await harness.cleanup();
   });

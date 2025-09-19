@@ -1,5 +1,8 @@
 import { ExchangeHub } from '../../../src/ExchangeHub.js';
-import { handleOrderMessage, markOrderChannelAwaitingSnapshot } from '../../../src/core/bitmex/channels/order.js';
+import {
+  handleOrderMessage,
+  markOrderChannelAwaitingSnapshot,
+} from '../../../src/core/bitmex/channels/order.js';
 import { OrderStatus } from '../../../src/domain/order.js';
 
 import type { BitMex } from '../../../src/core/bitmex/index.js';
@@ -264,9 +267,11 @@ describe('BitMEX private order stream', () => {
     expect(resynced.avgFillPrice).toBeCloseTo(50_020, 6);
 
     expect(store.getByClOrdId('cli-1')).toBe(order1);
-    expect(store.getBySymbol('XBTUSD').map((order) => order.orderId).sort()).toEqual([
-      'ord-1',
-      'ord-2',
-    ]);
+    expect(
+      store
+        .getBySymbol('XBTUSD')
+        .map((order) => order.orderId)
+        .sort(),
+    ).toEqual(['ord-1', 'ord-2']);
   });
 });

@@ -7,7 +7,10 @@ type ScenarioEventBase = {
 
 type RequireAuthEvent = ScenarioEventBase & { type: 'require-auth' };
 type ExpectAuthEvent = ScenarioEventBase & { type: 'expect-auth' };
-type SetAuthModeEvent = ScenarioEventBase & { type: 'set-auth-mode'; mode: 'success' | 'already-authed' };
+type SetAuthModeEvent = ScenarioEventBase & {
+  type: 'set-auth-mode';
+  mode: 'success' | 'already-authed';
+};
 type SendEvent = ScenarioEventBase & {
   type: 'send';
   table: PrivateTable;
@@ -37,9 +40,7 @@ class ScenarioTimeline {
   #events: ScenarioEvent[] = [];
   #order = 0;
 
-  add<EventType extends Omit<ScenarioEvent, 'order'>>(
-    event: EventType,
-  ): ScenarioEvent {
+  add<EventType extends Omit<ScenarioEvent, 'order'>>(event: EventType): ScenarioEvent {
     const enriched = { ...event, order: this.#order++ } as ScenarioEvent;
     this.#events.push(enriched);
     return enriched;
@@ -82,17 +83,29 @@ export class ScenarioBuilder {
   }
 
   signalAlreadyAuthed(): this {
-    this.#timeline.add({ type: 'set-auth-mode', at: this.#cursor, mode: 'already-authed' } as SetAuthModeEvent);
+    this.#timeline.add({
+      type: 'set-auth-mode',
+      at: this.#cursor,
+      mode: 'already-authed',
+    } as SetAuthModeEvent);
     return this;
   }
 
   expectSubscribe(channels: string[]): this {
-    this.#timeline.add({ type: 'expect-subscribe', at: this.#cursor, channels: [...channels] } as ExpectSubscribeEvent);
+    this.#timeline.add({
+      type: 'expect-subscribe',
+      at: this.#cursor,
+      channels: [...channels],
+    } as ExpectSubscribeEvent);
     return this;
   }
 
   sendSubscribeAck(channels: string[]): this {
-    this.#timeline.add({ type: 'send-subscribe-ack', at: this.#cursor, channels: [...channels] } as SendSubscribeAckEvent);
+    this.#timeline.add({
+      type: 'send-subscribe-ack',
+      at: this.#cursor,
+      channels: [...channels],
+    } as SendSubscribeAckEvent);
     return this;
   }
 
@@ -156,7 +169,13 @@ export class ScenarioBuilder {
   }
 
   #addSendEvent(table: PrivateTable, action: SendEvent['action'], rows: unknown[]): void {
-    this.#timeline.add({ type: 'send', at: this.#cursor, table, action, data: [...rows] } as SendEvent);
+    this.#timeline.add({
+      type: 'send',
+      at: this.#cursor,
+      table,
+      action,
+      data: [...rows],
+    } as SendEvent);
   }
 }
 
@@ -171,4 +190,3 @@ export class ScenarioScript {
 export function createScenario(): ScenarioBuilder {
   return new ScenarioBuilder();
 }
-
