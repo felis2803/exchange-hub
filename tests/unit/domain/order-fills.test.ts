@@ -73,6 +73,39 @@ describe('Order fills', () => {
     expect(afterDuplicate.avgFillPrice).toBe(200);
   });
 
+  test('handles out-of-order executions deterministically', () => {
+    const order = new Order({ orderId: 'ord-out-of-order', symbol: 'XBTUSD', status: OrderStatus.Placed, qty: 40 });
+
+    order.applyUpdate(
+      {
+        execution: { execId: 'exec-2', qty: 30, price: 120, ts: 2 },
+        cumQty: 30,
+        avgPx: 120,
+        leavesQty: 10,
+        status: OrderStatus.PartiallyFilled,
+      },
+      { reason: 'fill' },
+    );
+
+    order.applyUpdate(
+      {
+        execution: { execId: 'exec-1', qty: 10, price: 100, ts: 1 },
+        cumQty: 40,
+        avgPx: 115,
+        leavesQty: 0,
+        status: OrderStatus.Filled,
+      },
+      { reason: 'fill' },
+    );
+
+    const snapshot = order.getSnapshot();
+    expect(snapshot.filledQty).toBe(40);
+    expect(snapshot.avgFillPrice).toBeCloseTo(115, 10);
+    expect(snapshot.executions).toHaveLength(2);
+    expect(snapshot.executions[0]?.execId).toBe('exec-2');
+    expect(snapshot.executions[1]?.execId).toBe('exec-1');
+  });
+
   test('execution updates override local canceling state', () => {
     const order = new Order({ orderId: 'ord-cancel', symbol: 'XBTUSD', status: OrderStatus.Placed, qty: 10 });
 
@@ -85,7 +118,6 @@ describe('Order fills', () => {
         cumQty: 10,
         avgPx: 105,
         leavesQty: 0,
-        status: OrderStatus.Filled,
       },
       { reason: 'fill' },
     );

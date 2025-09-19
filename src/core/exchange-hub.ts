@@ -1,4 +1,4 @@
-import { Order, OrderStatus, type OrderInit } from '../domain/order.js';
+import { Order, OrderStatus, type OrderInit, type OrderUpdateReason } from '../domain/order.js';
 
 import type { ClOrdID, OrderID, Symbol } from './types.js';
 import type { DomainUpdate } from './types.js';
@@ -6,7 +6,7 @@ import type { DomainUpdate } from './types.js';
 type OrderListener = (
   snapshot: ReturnType<Order['getSnapshot']>,
   diff: DomainUpdate<ReturnType<Order['getSnapshot']>>,
-  reason?: string,
+  reason?: OrderUpdateReason,
 ) => void;
 
 export class OrdersRegistry {
@@ -62,11 +62,16 @@ export class OrdersRegistry {
 
   resolve(orderId: OrderID | null | undefined, clOrdId: ClOrdID | null | undefined): Order | undefined {
     const byId = this.getByOrderId(orderId);
-    if (byId) {
+    if (byId && isActiveStatus(byId.status)) {
       return byId;
     }
 
-    return this.getByClOrdId(clOrdId);
+    const byCl = this.getByClOrdId(clOrdId);
+    if (byCl && isActiveStatus(byCl.status)) {
+      return byCl;
+    }
+
+    return byId ?? byCl;
   }
 
   create(orderId: OrderID, init: Omit<OrderInit, 'orderId'> = {}): Order {

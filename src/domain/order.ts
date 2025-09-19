@@ -56,6 +56,15 @@ export type OrderSnapshot = {
   executions: Execution[];
 };
 
+export type OrderUpdateReason =
+  | 'fill'
+  | 'replace'
+  | 'cancel-requested'
+  | 'canceled'
+  | 'rejected'
+  | 'expired'
+  | 'triggered';
+
 export type OrderInit = Partial<
   Omit<OrderSnapshot, 'orderId' | 'executions' | 'filledQty' | 'avgFillPrice'>
 > & {
@@ -75,7 +84,7 @@ export type OrderUpdate = Partial<
 };
 
 export type OrderUpdateContext = {
-  reason?: string;
+  reason?: OrderUpdateReason;
   silent?: boolean;
 };
 
@@ -405,6 +414,14 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
       }
     }
 
+    if (reason === 'fill' && this.#status === OrderStatus.Canceling && !changed.has('status')) {
+      const derivedStatus = this.#deriveStatusAfterFill();
+      if (derivedStatus && !Object.is(this.#status, derivedStatus)) {
+        this.#status = derivedStatus;
+        changed.add('status');
+      }
+    }
+
     if (changed.size === 0) {
       return null;
     }
@@ -423,12 +440,12 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
     return diff;
   }
 
-  markCanceling(reason?: string): DomainUpdate<OrderSnapshot> | null {
+  markCanceling(reason?: OrderUpdateReason): DomainUpdate<OrderSnapshot> | null {
     if (this.#status === OrderStatus.Canceling) {
       return null;
     }
 
-    return this.applyUpdate({ status: OrderStatus.Canceling }, { reason: reason ?? 'canceling' });
+    return this.applyUpdate({ status: OrderStatus.Canceling }, { reason: reason ?? 'cancel-requested' });
   }
 
   #recordExecution(update: OrderUpdate): { added: boolean; qtyDelta: number; valueDelta: number } {
@@ -502,7 +519,11 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
 
   public override on(
     event: 'update',
-    listener: (snapshot: OrderSnapshot, diff: DomainUpdate<OrderSnapshot>, reason?: string) => void,
+    listener: (
+      snapshot: OrderSnapshot,
+      diff: DomainUpdate<OrderSnapshot>,
+      reason?: OrderUpdateReason,
+    ) => void,
   ): this;
   public override on(event: string | symbol, listener: (...args: any[]) => void): this;
   public override on(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -511,7 +532,11 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
 
   public override once(
     event: 'update',
-    listener: (snapshot: OrderSnapshot, diff: DomainUpdate<OrderSnapshot>, reason?: string) => void,
+    listener: (
+      snapshot: OrderSnapshot,
+      diff: DomainUpdate<OrderSnapshot>,
+      reason?: OrderUpdateReason,
+    ) => void,
   ): this;
   public override once(event: string | symbol, listener: (...args: any[]) => void): this;
   public override once(event: string | symbol, listener: (...args: any[]) => void): this {
@@ -520,11 +545,31 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
 
   public override off(
     event: 'update',
-    listener: (snapshot: OrderSnapshot, diff: DomainUpdate<OrderSnapshot>, reason?: string) => void,
+    listener: (
+      snapshot: OrderSnapshot,
+      diff: DomainUpdate<OrderSnapshot>,
+      reason?: OrderUpdateReason,
+    ) => void,
   ): this;
   public override off(event: string | symbol, listener: (...args: any[]) => void): this;
   public override off(event: string | symbol, listener: (...args: any[]) => void): this {
     return super.off(event, listener);
+  }
+
+  #deriveStatusAfterFill(): OrderStatus | null {
+    if (this.#filledQty <= 0) {
+      return null;
+    }
+
+    if (this.#leavesQty !== null) {
+      return this.#leavesQty <= 0 ? OrderStatus.Filled : OrderStatus.PartiallyFilled;
+    }
+
+    if (this.#qty !== null && this.#filledQty >= this.#qty) {
+      return OrderStatus.Filled;
+    }
+
+    return OrderStatus.PartiallyFilled;
   }
 }
 

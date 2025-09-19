@@ -1,5 +1,5 @@
 import { ExchangeHub } from '../../../src/ExchangeHub.js';
-import { handleOrderMessage } from '../../../src/core/bitmex/channels/order.js';
+import { handleOrderMessage, markOrderChannelAwaitingSnapshot } from '../../../src/core/bitmex/channels/order.js';
 import { OrderStatus } from '../../../src/domain/order.js';
 
 import type { BitMex } from '../../../src/core/bitmex/index.js';
@@ -197,6 +197,30 @@ describe('BitMEX private order stream', () => {
     expect(afterDuplicate.filledQty).toBe(100);
     expect(afterDuplicate.executions).toHaveLength(2);
 
+    markOrderChannelAwaitingSnapshot(core);
+
+    const ignoredUpdate: BitMexOrder[] = [
+      {
+        orderID: 'ord-1',
+        symbol: 'XBTUSD',
+        leavesQty: 0,
+        cumQty: 110,
+        avgPx: 50_025,
+        execID: 'exec-ignored',
+        execType: 'Trade',
+        ordStatus: 'PartiallyFilled',
+        lastQty: 10,
+        lastPx: 50_040,
+        transactTime: '2024-01-01T00:00:50.000Z',
+      },
+    ];
+
+    handleOrderMessage(core, { table: 'order', action: 'update', data: ignoredUpdate });
+
+    snapshot1 = order1!.getSnapshot();
+    expect(snapshot1.filledQty).toBe(100);
+    expect(snapshot1.executions).toHaveLength(2);
+
     const resync: BitMexOrder[] = [
       {
         orderID: 'ord-1',
@@ -214,11 +238,30 @@ describe('BitMEX private order stream', () => {
 
     handleOrderMessage(core, { table: 'order', action: 'partial', data: resync });
 
-    const resynced = order1!.getSnapshot();
+    let resynced = order1!.getSnapshot();
     expect(resynced.status).toBe(OrderStatus.Filled);
     expect(resynced.filledQty).toBe(100);
     expect(resynced.avgFillPrice).toBeCloseTo(50_020, 6);
     expect(resynced.executions).toHaveLength(2);
+
+    const postResyncUpdate: BitMexOrder[] = [
+      {
+        orderID: 'ord-1',
+        symbol: 'XBTUSD',
+        leavesQty: 0,
+        cumQty: 100,
+        avgPx: 50_020,
+        ordStatus: 'Filled',
+        execType: 'Restated',
+        transactTime: '2024-01-01T00:01:05.000Z',
+      },
+    ];
+
+    handleOrderMessage(core, { table: 'order', action: 'update', data: postResyncUpdate });
+
+    resynced = order1!.getSnapshot();
+    expect(resynced.filledQty).toBe(100);
+    expect(resynced.avgFillPrice).toBeCloseTo(50_020, 6);
 
     expect(store.getByClOrdId('cli-1')).toBe(order1);
     expect(store.getBySymbol('XBTUSD').map((order) => order.orderId).sort()).toEqual([

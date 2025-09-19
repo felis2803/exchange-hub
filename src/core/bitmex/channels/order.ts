@@ -1,7 +1,7 @@
 import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
 import { mapBitmexOrderStatus } from '../mappers/order.js';
 
-import { OrderStatus, type OrderUpdate } from '../../../domain/order.js';
+import { OrderStatus, type OrderUpdate, type OrderUpdateReason } from '../../../domain/order.js';
 
 import type { BitMex } from '../index.js';
 import type { BitMexChannelMessage, BitMexOrder } from '../types.js';
@@ -12,8 +12,35 @@ const log = createLogger('bitmex:order').withTags([
   LOG_TAGS.order,
 ]);
 
+type OrderChannelState = {
+  awaitingSnapshot: boolean;
+};
+
+const channelState = new WeakMap<BitMex, OrderChannelState>();
+
+function getChannelState(core: BitMex): OrderChannelState {
+  let state = channelState.get(core);
+
+  if (!state) {
+    state = { awaitingSnapshot: true };
+    channelState.set(core, state);
+  }
+
+  return state;
+}
+
+export function markOrderChannelAwaitingSnapshot(core: BitMex): void {
+  getChannelState(core).awaitingSnapshot = true;
+}
+
 export function handleOrderMessage(core: BitMex, message: BitMexChannelMessage<'order'>): void {
+  const state = getChannelState(core);
   const { action, data } = message;
+
+  if (action === 'partial' && (!Array.isArray(data) || data.length === 0)) {
+    state.awaitingSnapshot = false;
+    return;
+  }
 
   if (!Array.isArray(data) || data.length === 0) {
     return;
@@ -22,11 +49,20 @@ export function handleOrderMessage(core: BitMex, message: BitMexChannelMessage<'
   switch (action) {
     case 'partial':
       processBatch(core, data, 'snapshot');
+      state.awaitingSnapshot = false;
       break;
     case 'insert':
+      if (state.awaitingSnapshot) {
+        log.debug('BitMEX order insert ignored until snapshot', { action });
+        break;
+      }
       processBatch(core, data, 'insert');
       break;
     case 'update':
+      if (state.awaitingSnapshot) {
+        log.debug('BitMEX order update ignored until snapshot', { action });
+        break;
+      }
       processBatch(core, data, 'update');
       break;
     default:
@@ -64,8 +100,18 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
 
   const symbol = normalizeSymbol(row.symbol);
 
+  const leavesQtyValue = isFiniteNumber(row.leavesQty) ? row.leavesQty : undefined;
+  const cumQtyValue = isFiniteNumber(row.cumQty) ? row.cumQty : undefined;
+
   if (!order && orderId) {
-    const initStatus = mapBitmexOrderStatus(row.ordStatus, row.execType) ?? OrderStatus.Placed;
+    const initStatus =
+      mapBitmexOrderStatus({
+        ordStatus: row.ordStatus,
+        execType: row.execType,
+        leavesQty: leavesQtyValue ?? null,
+        cumQty: cumQtyValue ?? null,
+        previousStatus: null,
+      }) ?? OrderStatus.Placed;
     order = store.create(orderId, {
       clOrdId,
       symbol: symbol ?? undefined,
@@ -73,8 +119,8 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
       side: normalizeSide(row.side),
       qty: isFiniteNumber(row.orderQty) ? row.orderQty : undefined,
       price: isFiniteNumber(row.price) ? row.price : undefined,
-      leavesQty: isFiniteNumber(row.leavesQty) ? row.leavesQty : undefined,
-      filledQty: isFiniteNumber(row.cumQty) ? row.cumQty : undefined,
+      leavesQty: leavesQtyValue,
+      filledQty: cumQtyValue,
       avgFillPrice: isFiniteNumber(row.avgPx) ? row.avgPx : undefined,
     });
   }
@@ -84,6 +130,7 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
     return;
   }
 
+  const previousStatus = order.status;
   const update: OrderUpdate = {};
 
   if (clOrdId) {
@@ -126,19 +173,25 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
     update.qty = row.orderQty;
   }
 
-  if (isFiniteNumber(row.leavesQty)) {
-    update.leavesQty = row.leavesQty;
+  if (leavesQtyValue !== undefined) {
+    update.leavesQty = leavesQtyValue;
   }
 
-  if (isFiniteNumber(row.cumQty)) {
-    update.cumQty = row.cumQty;
+  if (cumQtyValue !== undefined) {
+    update.cumQty = cumQtyValue;
   }
 
   if (isFiniteNumber(row.avgPx)) {
     update.avgPx = row.avgPx;
   }
 
-  const status = mapBitmexOrderStatus(row.ordStatus, row.execType);
+  const status = mapBitmexOrderStatus({
+    ordStatus: row.ordStatus,
+    execType: row.execType,
+    leavesQty: leavesQtyValue ?? null,
+    cumQty: cumQtyValue ?? null,
+    previousStatus,
+  });
   if (status) {
     update.status = status;
   } else if (reason === 'insert' || reason === 'snapshot') {
@@ -171,7 +224,7 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
     update.text = text;
   }
 
-  const updateReason = resolveReason(reason, row.execType, status ?? update.status);
+  const updateReason = resolveReason(reason, row.execType, row.ordStatus, status ?? update.status);
 
   order.applyUpdate(update, { reason: updateReason });
 }
@@ -181,25 +234,34 @@ type UpdateReason = 'snapshot' | 'insert' | 'update';
 function resolveReason(
   base: UpdateReason,
   execType: BitMexOrder['execType'],
+  ordStatus: BitMexOrder['ordStatus'],
   status: OrderStatus | undefined,
-): string {
+): OrderUpdateReason | undefined {
   if (execType === 'Trade') {
     return 'fill';
   }
 
   if (execType === 'Canceled') {
-    return 'cancel';
+    return 'canceled';
   }
 
   if (execType === 'Expired') {
-    return 'expire';
+    return 'expired';
   }
 
   if (status === OrderStatus.Rejected) {
     return 'rejected';
   }
 
-  return base;
+  if (ordStatus === 'Triggered') {
+    return 'triggered';
+  }
+
+  if (execType === 'New' && base === 'update') {
+    return 'replace';
+  }
+
+  return undefined;
 }
 
 function normalizeId(value: unknown): string | null {
