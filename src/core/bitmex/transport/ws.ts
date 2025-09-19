@@ -105,7 +105,6 @@ interface PendingAuth {
   timeout: NodeJS.Timeout;
   resolve: (result: LoginResult) => void;
   source: AuthAttemptSource;
-  now: () => number;
 }
 
 interface PendingMessage {
@@ -441,10 +440,11 @@ export class BitmexWsClient extends EventEmitter {
 
     const now = opts.now ?? Date.now;
     const requestId = randomUUID();
-    const startedAt = now();
-    const expires = this.computeAuthExpires(now);
+    const startedAt = Date.now();
+    const nowValue = now();
+    const expires = this.computeAuthExpires(nowValue);
     const signature = createHmac('sha256', this.credentials.apiSecret)
-      .update(`GET/realtime${expires}`)
+      .update('GET/realtime' + String(expires))
       .digest('hex');
 
     const payload = JSON.stringify({
@@ -468,7 +468,6 @@ export class BitmexWsClient extends EventEmitter {
         timeout,
         resolve,
         source,
-        now,
       } satisfies PendingAuth;
 
       try {
@@ -487,8 +486,8 @@ export class BitmexWsClient extends EventEmitter {
     });
   }
 
-  private computeAuthExpires(now: () => number): number {
-    return Math.floor(now() / 1000) + this.authExpiresSkewSec;
+  private computeAuthExpires(timestampMs: number): number {
+    return Math.floor(timestampMs / 1000) + this.authExpiresSkewSec;
   }
 
   private normalizeCredentials(apiKey?: string, apiSecret?: string): BitmexCredentials {

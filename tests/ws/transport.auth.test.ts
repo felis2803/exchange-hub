@@ -52,7 +52,7 @@ describe('BitmexWsClient auth flows', () => {
           expect(expires).toBe(expectedExpires);
 
           const expectedSignature = createHmac('sha256', apiSecret)
-            .update(`GET/realtime${expires}`)
+            .update('GET/realtime' + String(expires))
             .digest('hex');
           expect(signature).toBe(expectedSignature);
 
