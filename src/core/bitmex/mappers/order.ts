@@ -38,7 +38,7 @@ export function inferOrderType(
   const normalizedAsk = normalizeFinite(bestAsk);
 
   if (side === 'buy') {
-    if (normalizedAsk !== null && normalizedPrice > normalizedAsk) {
+    if (normalizedAsk !== null && normalizedPrice >= normalizedAsk) {
       return 'Stop';
     }
 
@@ -46,7 +46,7 @@ export function inferOrderType(
   }
 
   if (side === 'sell') {
-    if (normalizedBid !== null && normalizedPrice < normalizedBid) {
+    if (normalizedBid !== null && normalizedPrice <= normalizedBid) {
       return 'Stop';
     }
 

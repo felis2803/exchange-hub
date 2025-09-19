@@ -3,13 +3,14 @@ import { ValidationError } from './errors.js';
 import type { ClOrdID, Symbol } from '../core/types.js';
 import type { Side } from '../types.js';
 
-export type OrderType = 'Market' | 'Limit' | 'Stop';
+export type OrderType = 'Market' | 'Limit' | 'Stop' | 'StopLimit';
 
 export interface PlaceOpts {
   postOnly?: boolean;
   clOrdID?: ClOrdID;
   timeInForce?: string;
   reduceOnly?: boolean;
+  stopLimitPrice?: number;
 }
 
 export interface PlaceValidationParams {
@@ -19,6 +20,8 @@ export interface PlaceValidationParams {
   price?: number;
   type: OrderType;
   opts?: PlaceOpts;
+  bestBid?: number | null;
+  bestAsk?: number | null;
 }
 
 export interface NormalizedPlaceOptions {
@@ -105,8 +108,16 @@ function normalizeClOrdId(clOrdID: ClOrdID | undefined): ClOrdID | undefined {
   return trimmed as ClOrdID;
 }
 
+function normalizeContextPrice(value: number | null | undefined): number | null {
+  if (typeof value !== 'number') {
+    return null;
+  }
+
+  return Number.isFinite(value) ? value : null;
+}
+
 export function validatePlaceInput(params: PlaceValidationParams): NormalizedPlaceInput {
-  const { symbol, side, size, price, type, opts } = params;
+  const { symbol, side, size, price, type, opts, bestBid, bestAsk } = params;
 
   if (side !== 'buy' && side !== 'sell') {
     throw new ValidationError('Order side must be "buy" or "sell"', { details: { side } });
@@ -114,22 +125,24 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
 
   const normalizedSymbol = normalizeSymbol(symbol);
   const normalizedSize = normalizeSize(size);
-  const normalizedPrice = normalizePrice(price);
+  const normalizedInputPrice = normalizePrice(price);
+  const normalizedStopLimitPrice = normalizePrice(opts?.stopLimitPrice);
 
-  if (type === 'Market') {
-    if (normalizedPrice !== null) {
-      throw new ValidationError('Market orders cannot have a price', { details: { price } });
-    }
-  } else {
-    if (normalizedPrice === null) {
-      throw new ValidationError(`${type} orders require a price`, { details: { price } });
-    }
+  let normalizedType: OrderType = type;
+  if (normalizedType === 'Stop' && normalizedStopLimitPrice !== null) {
+    normalizedType = 'StopLimit';
+  }
+
+  if (normalizedType === 'StopLimit' && normalizedStopLimitPrice === null) {
+    throw new ValidationError('Stop-limit orders require a limit price', {
+      details: { stopLimitPrice: opts?.stopLimitPrice },
+    });
   }
 
   const postOnly = Boolean(opts?.postOnly);
-  if (postOnly && type !== 'Limit') {
+  if (postOnly && normalizedType !== 'Limit') {
     throw new ValidationError('postOnly flag is allowed only for limit orders', {
-      details: { type, postOnly },
+      details: { type: normalizedType, postOnly },
     });
   }
 
@@ -137,13 +150,84 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
   const timeInForce = normalizeTimeInForce(opts?.timeInForce);
   const clOrdId = normalizeClOrdId(opts?.clOrdID);
 
+  const normalizedBestBid = normalizeContextPrice(bestBid);
+  const normalizedBestAsk = normalizeContextPrice(bestAsk);
+
+  let limitPrice: number | null = null;
+  let stopPrice: number | null = null;
+
+  switch (normalizedType) {
+    case 'Market':
+      if (normalizedInputPrice !== null) {
+        throw new ValidationError('Market orders cannot have a price', { details: { price } });
+      }
+
+      if (normalizedStopLimitPrice !== null) {
+        throw new ValidationError('stopLimitPrice is not supported for market orders', {
+          details: { stopLimitPrice: opts?.stopLimitPrice },
+        });
+      }
+      break;
+    case 'Limit':
+      if (normalizedInputPrice === null) {
+        throw new ValidationError('Limit orders require a price', { details: { price } });
+      }
+
+      if (normalizedStopLimitPrice !== null) {
+        throw new ValidationError('stopLimitPrice is only valid for stop orders', {
+          details: { stopLimitPrice: opts?.stopLimitPrice },
+        });
+      }
+
+      limitPrice = normalizedInputPrice;
+      break;
+    case 'Stop':
+      if (normalizedInputPrice === null) {
+        throw new ValidationError('Stop orders require a stop price', { details: { price } });
+      }
+
+      if (normalizedStopLimitPrice !== null) {
+        throw new ValidationError('stopLimitPrice requires stop-limit order type', {
+          details: { stopLimitPrice: opts?.stopLimitPrice },
+        });
+      }
+
+      stopPrice = normalizedInputPrice;
+      break;
+    case 'StopLimit':
+      if (normalizedInputPrice === null) {
+        throw new ValidationError('Stop-limit orders require a stop price', { details: { price } });
+      }
+
+      // normalizedStopLimitPrice is guaranteed not to be null above.
+      stopPrice = normalizedInputPrice;
+      limitPrice = normalizedStopLimitPrice;
+      break;
+    default:
+      break;
+  }
+
+  if ((normalizedType === 'Stop' || normalizedType === 'StopLimit') && stopPrice !== null) {
+    if (side === 'buy' && normalizedBestAsk !== null && stopPrice < normalizedBestAsk) {
+      throw new ValidationError('Buy stop price must be greater than or equal to best ask', {
+        details: { side, stopPrice, bestAsk: normalizedBestAsk },
+      });
+    }
+
+    if (side === 'sell' && normalizedBestBid !== null && stopPrice > normalizedBestBid) {
+      throw new ValidationError('Sell stop price must be less than or equal to best bid', {
+        details: { side, stopPrice, bestBid: normalizedBestBid },
+      });
+    }
+  }
+
   return {
     symbol: normalizedSymbol,
     side,
     size: normalizedSize,
-    type,
-    price: type === 'Limit' ? normalizedPrice : null,
-    stopPrice: type === 'Stop' ? normalizedPrice : null,
+    type: normalizedType,
+    price: limitPrice,
+    stopPrice,
     options: {
       postOnly,
       reduceOnly,

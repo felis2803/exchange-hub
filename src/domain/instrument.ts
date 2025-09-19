@@ -333,6 +333,8 @@ export class Instrument extends EventEmitter {
       price,
       type,
       opts,
+      bestBid,
+      bestAsk,
     });
 
     const clOrdId = validated.options.clOrdId ?? genClOrdID();

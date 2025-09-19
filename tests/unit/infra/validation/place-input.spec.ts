@@ -49,6 +49,35 @@ describe('validatePlaceInput', () => {
     expect(result.options.reduceOnly).toBe(true);
   });
 
+  test('promotes stop order with stop-limit flag to StopLimit type', () => {
+    const result = validatePlaceInput({
+      symbol: 'XBTUSD',
+      side: 'buy',
+      size: 3,
+      price: 30_100,
+      type: 'Stop',
+      opts: { stopLimitPrice: 30_150 },
+      bestAsk: 30_000,
+    });
+
+    expect(result.type).toBe('StopLimit');
+    expect(result.stopPrice).toBe(30_100);
+    expect(result.price).toBe(30_150);
+  });
+
+  test('throws when buy stop price is below best ask', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'buy',
+        size: 1,
+        price: 29_900,
+        type: 'Stop',
+        bestAsk: 30_000,
+      }),
+    ).toThrow(ValidationError);
+  });
+
   test('throws when market order carries price', () => {
     expect(() =>
       validatePlaceInput({
