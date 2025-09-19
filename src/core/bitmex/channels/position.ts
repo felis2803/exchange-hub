@@ -786,7 +786,6 @@ const STRING_FIELDS = [
   'underlying',
 ] as const satisfies readonly (keyof PositionUpdate & keyof BitMexPosition)[];
 
-const BOOLEAN_FIELDS = [
-  'crossMargin',
-] as const satisfies readonly (keyof PositionUpdate & keyof BitMexPosition)[];
-
+const BOOLEAN_FIELDS = ['crossMargin'] as const satisfies readonly (
+  keyof PositionUpdate & keyof BitMexPosition
+)[];

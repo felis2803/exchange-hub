@@ -65,7 +65,6 @@ export function mapBitmexOrderStatus({
   return next;
 }
 
-
 function mapOrdStatus(status?: BitMexOrderStatus | null): OrderStatus | undefined {
   switch (status) {
     case 'New':
@@ -116,7 +115,10 @@ function mapExecStatus(
     case 'Expired':
       return OrderStatus.Expired;
     case 'New':
-      if (context.ordStatus === OrderStatus.PartiallyFilled || context.qtyStatus === OrderStatus.PartiallyFilled) {
+      if (
+        context.ordStatus === OrderStatus.PartiallyFilled ||
+        context.qtyStatus === OrderStatus.PartiallyFilled
+      ) {
         return OrderStatus.PartiallyFilled;
       }
 
