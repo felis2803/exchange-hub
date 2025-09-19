@@ -262,7 +262,11 @@ export function handlePositionDelete(core: BitMex, rows: BitMexPosition[]): void
   }
 }
 
-function applyIncrementalUpdates(core: BitMex, rows: BitMexPosition[], reason: PositionUpdateReason): void {
+function applyIncrementalUpdates(
+  core: BitMex,
+  rows: BitMexPosition[],
+  reason: PositionUpdateReason,
+): void {
   if (!Array.isArray(rows) || rows.length === 0) {
     return;
   }
@@ -288,7 +292,11 @@ function applyIncrementalUpdates(core: BitMex, rows: BitMexPosition[], reason: P
     }
 
     if (!rowState) {
-      rowState = { lastTimestamp: timestamp ?? null, lastSnapshotHash: undefined, lastUpdateHash: undefined };
+      rowState = {
+        lastTimestamp: timestamp ?? null,
+        lastSnapshotHash: undefined,
+        lastUpdateHash: undefined,
+      };
     }
 
     if (rowState.lastTimestamp && timestamp) {
@@ -427,7 +435,10 @@ function groupUpdates(rows: BitMexPosition[]): Map<string, NormalizedUpdateEntry
   return grouped;
 }
 
-function chooseSnapshot(prev: NormalizedSnapshotEntry, next: NormalizedSnapshotEntry): NormalizedSnapshotEntry {
+function chooseSnapshot(
+  prev: NormalizedSnapshotEntry,
+  next: NormalizedSnapshotEntry,
+): NormalizedSnapshotEntry {
   const prevTs = prev.snapshot.timestamp ?? undefined;
   const nextTs = next.snapshot.timestamp ?? undefined;
 
@@ -446,7 +457,10 @@ function chooseSnapshot(prev: NormalizedSnapshotEntry, next: NormalizedSnapshotE
   return next;
 }
 
-function chooseUpdate(prev: NormalizedUpdateEntry, next: NormalizedUpdateEntry): NormalizedUpdateEntry {
+function chooseUpdate(
+  prev: NormalizedUpdateEntry,
+  next: NormalizedUpdateEntry,
+): NormalizedUpdateEntry {
   const prevTs = prev.update.timestamp ?? undefined;
   const nextTs = next.update.timestamp ?? undefined;
 
@@ -465,7 +479,11 @@ function chooseUpdate(prev: NormalizedUpdateEntry, next: NormalizedUpdateEntry):
   return next;
 }
 
-function buildSnapshot(raw: BitMexPosition, accountId: AccountId, symbol: TradingSymbol): PositionSnapshot | null {
+function buildSnapshot(
+  raw: BitMexPosition,
+  accountId: AccountId,
+  symbol: TradingSymbol,
+): PositionSnapshot | null {
   const quantity = normalizeQuantity(raw.currentQty) ?? 0;
   const snapshot: PositionSnapshot = {
     accountId,
@@ -768,5 +786,7 @@ const STRING_FIELDS = [
   'underlying',
 ] as const satisfies readonly (keyof PositionUpdate & keyof BitMexPosition)[];
 
-const BOOLEAN_FIELDS = ['crossMargin'] as const satisfies readonly (keyof PositionUpdate & keyof BitMexPosition)[];
+const BOOLEAN_FIELDS = [
+  'crossMargin',
+] as const satisfies readonly (keyof PositionUpdate & keyof BitMexPosition)[];
 

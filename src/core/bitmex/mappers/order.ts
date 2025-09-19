@@ -42,8 +42,7 @@ export function mapBitmexOrderStatus({
   const candidates = [statusFromExec, statusFromOrd, statusFromQty].filter(
     (status): status is OrderStatus => Boolean(status),
   );
-
-  let next = pickHighestPriority(candidates);
+  const next = pickHighestPriority(candidates);
 
   if (previousStatus && isTerminal(previousStatus)) {
     if (!next) {

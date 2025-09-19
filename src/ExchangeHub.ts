@@ -49,7 +49,7 @@ export class ExchangeHub<ExName extends ExchangeName> {
   get orders(): OrdersRegistry {
     return this.#orders;
   }
-  
+
   get positions(): PositionsView {
     return this.#positionsView;
   }

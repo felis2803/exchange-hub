@@ -1,8 +1,9 @@
 import type { ExchangeHub as ExchangeHubClass } from '../../../src/ExchangeHub.js';
 import type { BitMex } from '../../../src/core/bitmex/index.js';
 import type { BitMexPosition } from '../../../src/core/bitmex/types.js';
-import type { PositionSnapshot } from '../../../src/domain/position.js';
 import type { DomainUpdate } from '../../../src/core/types.js';
+import type { PositionSnapshot } from '../../../src/domain/position.js';
+import type * as MetricsModule from '../../../src/infra/metrics.js';
 
 import {
   handlePositionInsert,
@@ -10,9 +11,7 @@ import {
   handlePositionUpdate,
   markPositionsAwaitingResync,
 } from '../../../src/core/bitmex/channels/position.js';
-import { METRICS as PRIVATE_METRICS } from '../../../src/infra/metrics-private.js';
-
-let metrics!: typeof import('../../../src/infra/metrics.js');
+let metrics!: MetricsModule;
 
 class ControlledWebSocket {
   static instances: ControlledWebSocket[] = [];
