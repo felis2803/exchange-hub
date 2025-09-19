@@ -1,6 +1,6 @@
 import type { ExchangeName } from './types.js';
 
-declare module './cores/BaseCore' {
+declare module './core/BaseCore' {
   interface BaseCore<ExName extends ExchangeName> {
     readonly instruments: Map<string, unknown>;
   }

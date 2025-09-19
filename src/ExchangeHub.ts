@@ -1,7 +1,7 @@
-import { Cores } from './cores/index.js';
+import { Cores } from './core/index.js';
 import { createEntities } from './entities/index.js';
 
-import type { BaseCore } from './cores/BaseCore.js';
+import type { BaseCore } from './core/BaseCore.js';
 import type { ExchangeName, Settings } from './types.js';
 
 export class ExchangeHub<ExName extends ExchangeName> {

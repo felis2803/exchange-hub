@@ -1,4 +1,4 @@
-import type { Cores } from './cores/index.js';
+import type { Cores } from './core/index.js';
 
 export type ExchangeName = keyof typeof Cores;
 

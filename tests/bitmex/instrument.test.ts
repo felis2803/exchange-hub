@@ -4,12 +4,12 @@ import {
   handleInstrumentInsert,
   handleInstrumentPartial,
   handleInstrumentUpdate,
-} from '../../src/cores/bitmex/channels/instrument.js';
+} from '../../src/core/bitmex/channels/instrument.js';
 import { Instrument } from '../../src/domain/instrument.js';
 import { mapSymbolNativeToUni, mapSymbolUniToNative } from '../../src/utils/symbolMapping.js';
 
-import type { BitMex } from '../../src/cores/bitmex/index.js';
-import type { BitMexInstrument } from '../../src/cores/bitmex/types.js';
+import type { BitMex } from '../../src/core/bitmex/index.js';
+import type { BitMexInstrument } from '../../src/core/bitmex/types.js';
 import type { Settings } from '../../src/types.js';
 
 class FakeWebSocket {
