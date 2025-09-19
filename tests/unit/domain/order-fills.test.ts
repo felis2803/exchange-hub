@@ -2,7 +2,12 @@ import { Order, OrderStatus } from '../../../src/domain/order.js';
 
 describe('Order fills', () => {
   test('computes VWAP across executions', () => {
-    const order = new Order({ orderId: 'ord-1', symbol: 'XBTUSD', status: OrderStatus.Placed, qty: 100 });
+    const order = new Order({
+      orderId: 'ord-1',
+      symbol: 'XBTUSD',
+      status: OrderStatus.Placed,
+      qty: 100,
+    });
 
     order.applyUpdate(
       {
@@ -39,7 +44,12 @@ describe('Order fills', () => {
   });
 
   test('ignores duplicate executions with the same execId', () => {
-    const order = new Order({ orderId: 'ord-dup', symbol: 'XBTUSD', status: OrderStatus.Placed, qty: 10 });
+    const order = new Order({
+      orderId: 'ord-dup',
+      symbol: 'XBTUSD',
+      status: OrderStatus.Placed,
+      qty: 10,
+    });
 
     order.applyUpdate(
       {
@@ -74,7 +84,12 @@ describe('Order fills', () => {
   });
 
   test('handles out-of-order executions deterministically', () => {
-    const order = new Order({ orderId: 'ord-out-of-order', symbol: 'XBTUSD', status: OrderStatus.Placed, qty: 40 });
+    const order = new Order({
+      orderId: 'ord-out-of-order',
+      symbol: 'XBTUSD',
+      status: OrderStatus.Placed,
+      qty: 40,
+    });
 
     order.applyUpdate(
       {
@@ -107,7 +122,12 @@ describe('Order fills', () => {
   });
 
   test('execution updates override local canceling state', () => {
-    const order = new Order({ orderId: 'ord-cancel', symbol: 'XBTUSD', status: OrderStatus.Placed, qty: 10 });
+    const order = new Order({
+      orderId: 'ord-cancel',
+      symbol: 'XBTUSD',
+      status: OrderStatus.Placed,
+      qty: 10,
+    });
 
     order.markCanceling();
     expect(order.getSnapshot().status).toBe(OrderStatus.Canceling);

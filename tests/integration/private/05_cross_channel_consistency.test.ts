@@ -82,7 +82,14 @@ describe('BitMEX private integration – cross-channel consistency', () => {
     expect(wallet!.getSnapshot().balances.xbt.amount).toBe(805_000);
 
     expect(orderDiffs).toHaveLength(1);
-    expectChangedKeys(orderDiffs[0], ['leavesQty', 'filledQty', 'avgFillPrice', 'status', 'executions', 'lastUpdateTs']);
+    expectChangedKeys(orderDiffs[0], [
+      'leavesQty',
+      'filledQty',
+      'avgFillPrice',
+      'status',
+      'executions',
+      'lastUpdateTs',
+    ]);
 
     expect(positionDiffs).toHaveLength(1);
     expectChangedKeys(positionDiffs[0], ['currentQty', 'size', 'timestamp']);

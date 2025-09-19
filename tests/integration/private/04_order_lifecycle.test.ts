@@ -107,15 +107,27 @@ describe('BitMEX private integration – order lifecycle', () => {
     expect(diffs.length).toBeGreaterThanOrEqual(3);
 
     const fillDiff = diffs.find(
-      (diff) => diff && diff.changed.includes('executions') && diff.next.status === OrderStatus.Filled,
+      (diff) =>
+        diff && diff.changed.includes('executions') && diff.next.status === OrderStatus.Filled,
     );
     expect(fillDiff).toBeDefined();
-    expectChangedKeys(fillDiff!, ['leavesQty', 'filledQty', 'avgFillPrice', 'status', 'executions', 'lastUpdateTs']);
+    expectChangedKeys(fillDiff!, [
+      'leavesQty',
+      'filledQty',
+      'avgFillPrice',
+      'status',
+      'executions',
+      'lastUpdateTs',
+    ]);
 
     const duplicateDiff = diffs[diffs.length - 1];
     expectChangedKeys(duplicateDiff, ['lastUpdateTs']);
 
-    expectCounter(METRICS.orderUpdateCount, 4, { env: 'testnet', table: 'order', symbol: 'XBTUSD' });
+    expectCounter(METRICS.orderUpdateCount, 4, {
+      env: 'testnet',
+      table: 'order',
+      symbol: 'XBTUSD',
+    });
 
     await harness.cleanup();
   });

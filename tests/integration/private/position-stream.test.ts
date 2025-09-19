@@ -414,4 +414,3 @@ describe('BitMEX position stream', () => {
     }
   });
 });
-

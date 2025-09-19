@@ -152,8 +152,16 @@ describe('BitMEX private integration – out-of-order and duplicate handling', (
     expect(order!.getSnapshot().filledQty).toBe(60);
 
     expectCounter(METRICS.walletUpdateCount, 2, { env: 'testnet', table: 'wallet' });
-    expectCounter(METRICS.positionUpdateCount, 2, { env: 'testnet', table: 'position', symbol: 'XBTUSD' });
-    expectCounter(METRICS.orderUpdateCount, 3, { env: 'testnet', table: 'order', symbol: 'XBTUSD' });
+    expectCounter(METRICS.positionUpdateCount, 2, {
+      env: 'testnet',
+      table: 'position',
+      symbol: 'XBTUSD',
+    });
+    expectCounter(METRICS.orderUpdateCount, 3, {
+      env: 'testnet',
+      table: 'order',
+      symbol: 'XBTUSD',
+    });
 
     await harness.cleanup();
   });

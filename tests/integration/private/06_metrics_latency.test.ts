@@ -82,8 +82,16 @@ describe('BitMEX private integration – metrics latency', () => {
     expect(orderLatencies).toHaveLength(2);
 
     expectCounter(METRICS.walletUpdateCount, 2, { env: 'testnet', table: 'wallet' });
-    expectCounter(METRICS.positionUpdateCount, 2, { env: 'testnet', table: 'position', symbol: 'XBTUSD' });
-    expectCounter(METRICS.orderUpdateCount, 2, { env: 'testnet', table: 'order', symbol: 'XBTUSD' });
+    expectCounter(METRICS.positionUpdateCount, 2, {
+      env: 'testnet',
+      table: 'position',
+      symbol: 'XBTUSD',
+    });
+    expectCounter(METRICS.orderUpdateCount, 2, {
+      env: 'testnet',
+      table: 'order',
+      symbol: 'XBTUSD',
+    });
 
     expectHistogramValues(METRICS.privateLatencyMs, walletLatencies, {
       env: 'testnet',

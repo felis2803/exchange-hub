@@ -99,7 +99,10 @@ class JestClock implements TestClock {
     await this.advance(ms);
   }
 
-  async waitFor(condition: () => boolean | Promise<boolean>, options: WaitForOptions = {}): Promise<void> {
+  async waitFor(
+    condition: () => boolean | Promise<boolean>,
+    options: WaitForOptions = {},
+  ): Promise<void> {
     const { timeoutMs = 5_000, intervalMs = 10 } = options;
     const startedAt = this.now();
     let lastError: unknown;
@@ -148,4 +151,3 @@ class JestClock implements TestClock {
 export function createTestClock(options: TestClockOptions = {}): TestClock {
   return new JestClock(options);
 }
-

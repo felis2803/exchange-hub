@@ -13,7 +13,7 @@ import type { ScenarioScript } from './ws-mock/scenario.js';
 import { ScenarioServer } from './ws-mock/server.js';
 import { createTestClock, type TestClock, type TestClockOptions } from './clock.js';
 
-export interface PrivateHarnessOptions extends TestClockOptions {}
+export type PrivateHarnessOptions = TestClockOptions;
 
 export interface PrivateHarness {
   clock: TestClock;
@@ -166,4 +166,3 @@ function createNoopWebSocket(): {
     },
   };
 }
-
