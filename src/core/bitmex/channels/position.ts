@@ -1,5 +1,9 @@
 import { Position } from '../../../domain/position.js';
-import type { PositionSnapshot, PositionUpdate, PositionUpdateReason } from '../../../domain/position.js';
+import type {
+  PositionSnapshot,
+  PositionUpdate,
+  PositionUpdateReason,
+} from '../../../domain/position.js';
 import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
 import { observeHistogram } from '../../../infra/metrics.js';
 import { METRICS } from '../../../infra/metrics-private.js';

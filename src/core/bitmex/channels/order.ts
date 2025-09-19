@@ -1,6 +1,7 @@
 import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
 import { incrementCounter, observeHistogram } from '../../../infra/metrics.js';
 import { METRICS } from '../../../infra/metrics-private.js';
+import { normalizeWsTs as normalizeTimestamp, parseIsoTs } from '../../../infra/time.js';
 import { mapBitmexOrderStatus } from '../mappers/order.js';
 
 import {
@@ -16,11 +17,7 @@ import type { DomainUpdate } from '../../types.js';
 import type { BitMex } from '../index.js';
 import type { BitMexChannelMessage, BitMexOrder } from '../types.js';
 
-const log = createLogger('bitmex:order').withTags([
-  LOG_TAGS.ws,
-  LOG_TAGS.private,
-  LOG_TAGS.order,
-]);
+const log = createLogger('bitmex:order').withTags([LOG_TAGS.ws, LOG_TAGS.private, LOG_TAGS.order]);
 
 type OrderChannelState = {
   awaitingSnapshot: boolean;
@@ -212,7 +209,7 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
   const execId = normalizeId(row.execID);
   const lastQty = isFiniteNumber(row.lastQty) ? row.lastQty : undefined;
   const lastPx = isFiniteNumber(row.lastPx) ? row.lastPx : undefined;
-  const execTs = normalizeTimestamp(row.transactTime ?? row.timestamp);
+  const execTs = normalizeTimestampMs(row.transactTime ?? row.timestamp);
 
   if (execId || lastQty !== undefined) {
     update.execution = {
@@ -224,7 +221,7 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
     };
   }
 
-  const lastUpdateTs = normalizeTimestamp(row.transactTime ?? row.timestamp);
+  const lastUpdateTs = normalizeTimestampMs(row.transactTime ?? row.timestamp);
   if (lastUpdateTs !== null) {
     update.lastUpdateTs = lastUpdateTs;
   }
@@ -322,17 +319,18 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function normalizeTimestamp(value: unknown): number | null {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
+function normalizeTimestampMs(value: unknown): number | null {
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    return null;
   }
 
-  if (typeof value === 'string') {
-    const ts = Date.parse(value);
-    return Number.isFinite(ts) ? ts : null;
+  const normalized = normalizeTimestamp(value);
+  if (!normalized) {
+    return null;
   }
 
-  return null;
+  const parsed = parseIsoTs(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function mapLiquidity(value: BitMexOrder['lastLiquidityInd']): 'maker' | 'taker' | undefined {
@@ -360,12 +358,17 @@ function recordOrderMetrics(
 
   incrementCounter(METRICS.orderUpdateCount, 1, labels);
 
-  const timestamp = normalizeTimestamp(row.transactTime ?? row.timestamp);
-  if (timestamp === null || timestamp === undefined) {
+  const normalizedTimestamp = normalizeTimestamp(row.transactTime ?? row.timestamp);
+  if (!normalizedTimestamp) {
     return;
   }
 
-  const latency = Date.now() - timestamp;
+  const timestampMs = parseIsoTs(normalizedTimestamp);
+  if (!Number.isFinite(timestampMs)) {
+    return;
+  }
+
+  const latency = Date.now() - timestampMs;
   if (!Number.isFinite(latency)) {
     return;
   }
