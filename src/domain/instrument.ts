@@ -320,6 +320,14 @@ export class Instrument extends EventEmitter {
     return this.#preparePlace('sell', size, price, opts);
   }
 
+  /**
+   * Prepares a normalized payload for placing orders.
+   *
+   * We rely on the latest top-of-book snapshot to pick the safest default. If
+   * quotes are not yet available we stick to a limit order instead of risking a
+   * stop order. Prices that match the current best bid/ask are also considered
+   * passive limits to avoid crossing the spread due to rounding noise.
+   */
   #preparePlace(side: Side, size: number, price?: number, opts?: PlaceOpts): PreparedPlaceInput {
     const book = this.#orderBook ?? this.orderBook;
     const bestBid = book.bestBid?.price ?? undefined;

@@ -11,6 +11,11 @@ describe('inferOrderType', () => {
     expect(inferOrderType('buy', 104, 95, 105)).toBe('Limit');
   });
 
+  test('treats equality with best ask or bid as limit', () => {
+    expect(inferOrderType('buy', 105, 95, 105)).toBe('Limit');
+    expect(inferOrderType('sell', 100, 100, 110)).toBe('Limit');
+  });
+
   test('classifies buy stop zone above best ask', () => {
     expect(inferOrderType('buy', 106, 95, 105)).toBe('Stop');
     expect(inferOrderType('buy', 120, undefined, 110)).toBe('Stop');
@@ -29,5 +34,10 @@ describe('inferOrderType', () => {
   test('defaults to limit when no book context is available', () => {
     expect(inferOrderType('buy', 10, undefined, undefined)).toBe('Limit');
     expect(inferOrderType('sell', 10, undefined, undefined)).toBe('Limit');
+  });
+
+  test('falls back to limit when only one side of the book is known', () => {
+    expect(inferOrderType('buy', 10, 8, undefined)).toBe('Limit');
+    expect(inferOrderType('sell', 12, undefined, 13)).toBe('Limit');
   });
 });

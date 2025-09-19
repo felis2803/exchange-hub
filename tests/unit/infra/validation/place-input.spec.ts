@@ -58,7 +58,7 @@ describe('validatePlaceInput', () => {
         price: 60_000,
         type: 'Market',
       }),
-    ).toThrow(ValidationError);
+    ).toThrowErrorMatchingInlineSnapshot('"market order cannot include price"');
   });
 
   test('throws when limit order is missing price', () => {
@@ -69,7 +69,35 @@ describe('validatePlaceInput', () => {
         size: 1,
         type: 'Limit',
       }),
-    ).toThrow(ValidationError);
+    ).toThrowErrorMatchingInlineSnapshot('"limit order requires a finite positive price"');
+  });
+
+  test('throws when stop order omits price', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'sell',
+        size: 1,
+        type: 'Stop',
+      }),
+    ).toThrowErrorMatchingInlineSnapshot('"stop orders require a price"');
+  });
+
+  test.each([
+    ['NaN', Number.NaN],
+    ['Infinity', Number.POSITIVE_INFINITY],
+    ['zero', 0],
+    ['negative', -1],
+  ])('throws when limit price is %s', (_, invalidPrice) => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'buy',
+        size: 1,
+        price: invalidPrice,
+        type: 'Limit',
+      }),
+    ).toThrowErrorMatchingInlineSnapshot('"limit order requires a finite positive price"');
   });
 
   test('throws when postOnly is used for non-limit orders', () => {
@@ -82,7 +110,7 @@ describe('validatePlaceInput', () => {
         type: 'Stop',
         opts: { postOnly: true },
       }),
-    ).toThrow(ValidationError);
+    ).toThrowErrorMatchingInlineSnapshot('"postOnly is allowed for limit orders only"');
   });
 
   test('throws when size is not positive', () => {

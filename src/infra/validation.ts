@@ -71,7 +71,7 @@ function normalizeSize(size: number): number {
   return size;
 }
 
-function normalizePrice(price: number | undefined): number | null {
+function normalizePrice(price: number | null | undefined): number | null {
   if (price === undefined || price === null) {
     return null;
   }
@@ -114,21 +114,41 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
 
   const normalizedSymbol = normalizeSymbol(symbol);
   const normalizedSize = normalizeSize(size);
-  const normalizedPrice = normalizePrice(price);
+  const rawPrice = price ?? null;
+
+  let normalizedPrice: number | null = null;
+  let normalizedStopPrice: number | null = null;
 
   if (type === 'Market') {
-    if (normalizedPrice !== null) {
-      throw new ValidationError('Market orders cannot have a price', { details: { price } });
+    if (rawPrice !== null) {
+      throw new ValidationError('market order cannot include price', { details: { price } });
     }
-  } else {
-    if (normalizedPrice === null) {
-      throw new ValidationError(`${type} orders require a price`, { details: { price } });
+  } else if (type === 'Limit') {
+    if (
+      rawPrice === null ||
+      typeof rawPrice !== 'number' ||
+      !Number.isFinite(rawPrice) ||
+      rawPrice <= 0
+    ) {
+      throw new ValidationError('limit order requires a finite positive price', {
+        details: { price },
+      });
     }
+
+    normalizedPrice = rawPrice;
+  } else if (type === 'Stop') {
+    const stopPrice = normalizePrice(rawPrice);
+
+    if (stopPrice === null) {
+      throw new ValidationError('stop orders require a price', { details: { price } });
+    }
+
+    normalizedStopPrice = stopPrice;
   }
 
   const postOnly = Boolean(opts?.postOnly);
   if (postOnly && type !== 'Limit') {
-    throw new ValidationError('postOnly flag is allowed only for limit orders', {
+    throw new ValidationError('postOnly is allowed for limit orders only', {
       details: { type, postOnly },
     });
   }
@@ -143,7 +163,7 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
     size: normalizedSize,
     type,
     price: type === 'Limit' ? normalizedPrice : null,
-    stopPrice: type === 'Stop' ? normalizedPrice : null,
+    stopPrice: type === 'Stop' ? normalizedStopPrice : null,
     options: {
       postOnly,
       reduceOnly,

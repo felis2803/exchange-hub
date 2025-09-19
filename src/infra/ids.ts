@@ -34,6 +34,13 @@ function randomSuffix(): string {
   return randomBytes(2).toString('hex');
 }
 
+/**
+ * Generates a BitMEX-compatible `clOrdID`.
+ *
+ * Provide a stable, unique prefix for every worker or process (for example
+ * `EH-${podId}`) so the generated IDs are easy to trace in logs and do not
+ * collide across instances. The optional `seed` argument controls this prefix.
+ */
 export function genClOrdID(seed?: string): string {
   const prefix = sanitizeSeed(seed);
   const counter = nextCounter(prefix);
