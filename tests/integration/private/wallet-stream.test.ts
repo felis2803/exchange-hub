@@ -36,14 +36,7 @@ describe('BitMEX wallet stream', () => {
     jest.useFakeTimers();
     jest.setSystemTime(new Date('2024-01-01T00:00:05.000Z'));
 
-    const hub = new ExchangeHub('BitMex', { isTest: true });
-    const socket = ControlledWebSocket.instances[0];
-    expect(socket).toBeDefined();
-
-    const connectPromise = hub.connect();
-    socket!.simulateOpen();
-    await connectPromise;
-
+    const { hub, socket } = await createConnectedHub();
     const labels = { env: 'testnet', table: 'wallet' } as const;
 
     const partialData: BitMexWallet[] = [
@@ -62,7 +55,7 @@ describe('BitMEX wallet stream', () => {
       },
     ];
 
-    socket!.simulateMessage(buildMessage('partial', partialData));
+    socket.simulateMessage(buildMessage('partial', partialData));
 
     const wallet = hub.wallets.get('12345');
     expect(wallet).toBeDefined();
@@ -109,7 +102,7 @@ describe('BitMEX wallet stream', () => {
         },
       ];
 
-      socket!.simulateMessage(buildMessage('update', updateData));
+      socket.simulateMessage(buildMessage('update', updateData));
 
       expect(events).toHaveLength(1);
       const firstUpdate = events[0];
@@ -138,7 +131,7 @@ describe('BitMEX wallet stream', () => {
         },
       ];
 
-      socket!.simulateMessage(buildMessage('update', duplicateData));
+      socket.simulateMessage(buildMessage('update', duplicateData));
 
       const staleData: BitMexWallet[] = [
         {
@@ -149,7 +142,7 @@ describe('BitMEX wallet stream', () => {
         },
       ];
 
-      socket!.simulateMessage(buildMessage('update', staleData));
+      socket.simulateMessage(buildMessage('update', staleData));
 
       expect(events).toHaveLength(0);
       expect(getCounterValue(METRICS.walletUpdateCount, labels)).toBe(2);
@@ -174,7 +167,7 @@ describe('BitMEX wallet stream', () => {
         },
       ];
 
-      socket!.simulateMessage(buildMessage('partial', resyncPartial));
+      socket.simulateMessage(buildMessage('partial', resyncPartial));
 
       expect(events).toHaveLength(1);
       const resyncEvent = events[0];
@@ -215,7 +208,7 @@ describe('BitMEX wallet stream', () => {
         },
       ];
 
-      socket!.simulateMessage(buildMessage('update', postResyncUpdate));
+      socket.simulateMessage(buildMessage('update', postResyncUpdate));
 
       expect(events).toHaveLength(1);
       const finalEvent = events[0];
@@ -229,6 +222,102 @@ describe('BitMEX wallet stream', () => {
       const histogramFinal = getHistogramValues(METRICS.snapshotAgeSec, labels);
       expect(histogramFinal).toHaveLength(4);
       expect(histogramFinal[3]).toBeCloseTo(1);
+    } finally {
+      wallet?.off('update', handler);
+      await hub.disconnect();
+    }
+  });
+
+  test('dedupes wallet rows within a batch and applies the newest state once', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2024-01-01T00:00:02.000Z'));
+
+    const { hub, socket } = await createConnectedHub();
+    const labels = { env: 'testnet', table: 'wallet' } as const;
+
+    const partialData: BitMexWallet[] = [
+      {
+        account: 12345,
+        currency: 'XBt',
+        amount: 750_000,
+        deposited: 50,
+        timestamp: '2024-01-01T00:00:00.000Z',
+      },
+      {
+        account: 12345,
+        currency: 'USDT',
+        amount: 1_000,
+        pendingCredit: 5,
+        timestamp: '2024-01-01T00:00:00.000Z',
+      },
+    ];
+
+    socket.simulateMessage(buildMessage('partial', partialData));
+
+    const wallet = hub.wallets.get('12345');
+    expect(wallet).toBeDefined();
+
+    const events: WalletUpdateEvent[] = [];
+    const handler = (snapshot: WalletSnapshot, diff: DomainUpdate<WalletSnapshot>, reason?: string) => {
+      events.push({ snapshot, diff, reason });
+    };
+    wallet!.on('update', handler);
+
+    try {
+      jest.setSystemTime(new Date('2024-01-01T00:00:12.000Z'));
+
+      const batchedUpdate: BitMexWallet[] = [
+        {
+          account: 12345,
+          currency: 'XBt',
+          amount: 1_500_000,
+          deposited: 200,
+          timestamp: '2024-01-01T00:00:10.000Z',
+        },
+        {
+          account: 12345,
+          currency: 'USDT',
+          pendingCredit: 15,
+          timestamp: '2024-01-01T00:00:08.500Z',
+        },
+        {
+          account: 12345,
+          currency: 'XBt',
+          amount: 1_200_000,
+          timestamp: '2024-01-01T00:00:09.000Z',
+        },
+        {
+          account: 12345,
+          currency: 'USDT',
+          pendingCredit: 55,
+          pendingDebit: 5,
+          timestamp: '2024-01-01T00:00:08.600Z',
+        },
+        {
+          account: 12345,
+          currency: 'USDT',
+          pendingCredit: 55,
+          pendingDebit: 5,
+          timestamp: '2024-01-01T00:00:08.600Z',
+        },
+      ];
+
+      socket.simulateMessage(buildMessage('update', batchedUpdate));
+
+      expect(events).toHaveLength(1);
+      const [batchEvent] = events;
+      expect(batchEvent.reason).toBe('ws:update');
+      expect(new Set(batchEvent.diff.changed)).toEqual(new Set(['balances', 'updatedAt']));
+      expect(batchEvent.snapshot.balances.xbt.amount).toBe(1_500_000);
+      expect(batchEvent.snapshot.balances.xbt.deposited).toBe(200);
+      expect(batchEvent.snapshot.balances.usdt.pendingCredit).toBe(55);
+      expect(batchEvent.snapshot.balances.usdt.pendingDebit).toBe(5);
+      expect(batchEvent.snapshot.updatedAt).toBe('2024-01-01T00:00:10.000Z');
+
+      expect(getCounterValue(METRICS.walletUpdateCount, labels)).toBe(2);
+      const histogramAfterBatch = getHistogramValues(METRICS.snapshotAgeSec, labels);
+      expect(histogramAfterBatch).toHaveLength(2);
+      expect(histogramAfterBatch[1]).toBeCloseTo(2);
     } finally {
       wallet?.off('update', handler);
       await hub.disconnect();
@@ -301,4 +390,24 @@ function buildMessage(
     action,
     data,
   };
+}
+
+async function createConnectedHub(): Promise<{
+  hub: ExchangeHub<'BitMex'>;
+  socket: ControlledWebSocket;
+}> {
+  const hub = new ExchangeHub('BitMex', { isTest: true });
+  const socket = ControlledWebSocket.instances[
+    ControlledWebSocket.instances.length - 1
+  ];
+
+  if (!socket) {
+    throw new Error('ControlledWebSocket instance was not created');
+  }
+
+  const connectPromise = hub.connect();
+  socket.simulateOpen();
+  await connectPromise;
+
+  return { hub, socket };
 }

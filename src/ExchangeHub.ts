@@ -28,7 +28,14 @@ export class ExchangeHub<ExName extends ExchangeName> {
     return this.#entities;
   }
 
-  get wallets(): Map<AccountId, Wallet> {
+  /**
+   * Read-only collection of wallets keyed by account id.
+   *
+   * The underlying map is owned by the hub and should only be mutated
+   * internally via `ensureWallet` or wallet stream updates to keep the cache
+   * consistent.
+   */
+  get wallets(): ReadonlyMap<AccountId, Wallet> {
     return this.#wallets;
   }
 

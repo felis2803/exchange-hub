@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 
 import { diffKeys } from '../infra/diff.js';
-import { isNewerByTimestamp } from '../infra/time.js';
+import { isNewerByTimestamp, normalizeWsTs } from '../infra/time.js';
 
 import type { AccountId, BaseEntity, DomainUpdate, TimestampISO } from '../core/types.js';
 
@@ -36,13 +36,19 @@ export type WalletApplyOptions = {
 };
 
 export class Wallet extends EventEmitter implements BaseEntity<WalletSnapshot> {
-  #accountId: AccountId;
+  readonly #accountId: AccountId;
   #balances: Map<string, WalletBalanceSnapshot> = new Map();
   #updatedAt?: TimestampISO;
 
   constructor(accountId: AccountId) {
     super();
-    this.#accountId = accountId;
+
+    const normalizedAccountId = Wallet.#normalizeAccountId(accountId);
+    if (!normalizedAccountId) {
+      throw new TypeError('AccountId must be a non-empty string');
+    }
+
+    this.#accountId = normalizedAccountId;
   }
 
   get accountId(): AccountId {
@@ -79,15 +85,23 @@ export class Wallet extends EventEmitter implements BaseEntity<WalletSnapshot> {
 
       let entryChanged = reset || !prevEntry || prevEntry.currency !== update.currency;
 
-      const nextTimestamp = fields.timestamp;
+      const normalizedTimestamp = Wallet.#normalizeTimestamp(fields.timestamp);
       const prevTimestamp = prevEntry?.timestamp;
+
+      if (fields.timestamp !== undefined) {
+        if (normalizedTimestamp) {
+          fields.timestamp = normalizedTimestamp;
+        } else {
+          delete fields.timestamp;
+        }
+      }
 
       if (
         !reset &&
         prevEntry &&
         prevTimestamp &&
-        nextTimestamp &&
-        !isNewerByTimestamp(prevTimestamp, nextTimestamp)
+        normalizedTimestamp &&
+        !isNewerByTimestamp(prevTimestamp, normalizedTimestamp)
       ) {
         continue;
       }
@@ -204,9 +218,35 @@ export class Wallet extends EventEmitter implements BaseEntity<WalletSnapshot> {
     return trimmed.toLowerCase();
   }
 
+  static #normalizeTimestamp(timestamp: unknown): TimestampISO | undefined {
+    if (timestamp === undefined || timestamp === null) {
+      return undefined;
+    }
+
+    if (timestamp instanceof Date) {
+      const iso = timestamp.toISOString();
+      return Number.isNaN(Date.parse(iso)) ? undefined : iso;
+    }
+
+    if (typeof timestamp === 'number' || typeof timestamp === 'string') {
+      return normalizeWsTs(timestamp) ?? undefined;
+    }
+
+    return undefined;
+  }
+
   static #omitCurrency(update: WalletBalanceInput): WalletBalanceUpdate {
     const { currency: _currency, ...rest } = update;
     return rest;
+  }
+
+  static #normalizeAccountId(accountId: AccountId): AccountId | undefined {
+    if (typeof accountId !== 'string') {
+      return undefined;
+    }
+
+    const normalized = accountId.trim();
+    return normalized ? normalized : undefined;
   }
 
   #calculateUpdatedAt(balances: Map<string, WalletBalanceSnapshot>): TimestampISO | undefined {
