@@ -1,5 +1,6 @@
 import { Cores } from './core/index.js';
 import { createEntities } from './entities/index.js';
+import { OrdersRegistry } from './core/exchange-hub.js';
 import { PositionsRegistry, type PositionsView } from './domain/position.js';
 import { incrementCounter } from './infra/metrics.js';
 import { METRICS as PRIVATE_METRICS } from './infra/metrics-private.js';
@@ -14,6 +15,7 @@ export class ExchangeHub<ExName extends ExchangeName> {
   #entities = createEntities(this);
   #core: BaseCore<ExName>;
   #isTest: boolean;
+  #orders = new OrdersRegistry();
   #positions: PositionsRegistry;
   #positionsView: PositionsView;
   #wallets: Map<AccountId, Wallet> = new Map();
@@ -44,6 +46,10 @@ export class ExchangeHub<ExName extends ExchangeName> {
     return this.#entities;
   }
 
+  get orders(): OrdersRegistry {
+    return this.#orders;
+  }
+  
   get positions(): PositionsView {
     return this.#positionsView;
   }

@@ -2,6 +2,7 @@ import { BitMexTransport } from './transport.js';
 import { channelMessageHandlers } from './channelMessageHandlers/index.js';
 import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.js';
 import { L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants.js';
+import { markOrderChannelAwaitingSnapshot } from './channels/order.js';
 
 import { BaseCore } from '../BaseCore.js';
 import { getUnifiedSymbolAliases, mapSymbolNativeToUni } from '../../utils/symbolMapping.js';
@@ -211,7 +212,17 @@ export class BitMex extends BaseCore<'BitMex'> {
 
   #handleWelcomeMessage(_message: BitMexWelcomeMessage) {}
 
-  #handleSubscribeMessage(_message: BitMexSubscribeMessage) {}
+  #handleSubscribeMessage(message: BitMexSubscribeMessage) {
+    if (!message.success) {
+      return;
+    }
+
+    const requested = new Set(message.request?.args ?? []);
+
+    if (message.subscribe === 'order' || requested.has('order')) {
+      markOrderChannelAwaitingSnapshot(this);
+    }
+  }
 
   #handleChannelMessage<Channel extends BitMexChannel>(message: BitMexChannelMessage<Channel>) {
     const { table, action, data } = message;

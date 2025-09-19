@@ -334,6 +334,7 @@ export type BitMexExecution = {
 
 export type BitMexOrder = {
   orderID: string;
+  execID?: string;
   clOrdID?: string;
   clOrdLinkID?: string;
   account?: number;
@@ -352,6 +353,7 @@ export type BitMexOrder = {
   timeInForce?: BitMexTimeInForce;
   execInst?: BitMexExecInst;
   contingencyType?: BitMexContingencyType;
+  execType?: BitMexExecType;
   ordStatus?: BitMexOrderStatus;
   triggered?: string;
   workingIndicator?: boolean;
@@ -359,12 +361,17 @@ export type BitMexOrder = {
   leavesQty?: number;
   cumQty?: number;
   avgPx?: number;
+  lastPx?: number;
+  lastQty?: number;
+  lastLiquidityInd?: BitMexLastLiquidityInd;
+  commission?: number;
   multiLegReportingType?: string;
   text?: string;
   transactTime?: string;
   timestamp?: string;
   simpleLeavesQty?: number;
   simpleCumQty?: number;
+  trdMatchID?: string;
 };
 
 export type BitMexMargin = {
