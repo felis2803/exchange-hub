@@ -3,16 +3,23 @@ import { channelMessageHandlers } from './channelMessageHandlers/index.js';
 import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.js';
 import { L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants.js';
 import { markOrderChannelAwaitingSnapshot } from './channels/order.js';
+import { createBitmexRestOrders, type BitmexRestOrders } from './rest/orders.js';
+import { BitmexRestClient } from './rest/request.js';
+import { mapBitmexOrderStatus, mapToBitmexCreateOrderPayload } from './mappers/order.js';
 
 import { BaseCore } from '../BaseCore.js';
 import { getUnifiedSymbolAliases, mapSymbolNativeToUni } from '../../utils/symbolMapping.js';
 import { Instrument } from '../../domain/instrument.js';
+import { OrderStatus } from '../../domain/order.js';
+import type { OrderInit } from '../../domain/order.js';
 import { createLogger } from '../../infra/logger.js';
-import type { Settings } from '../../types.js';
+import type { Settings, Side } from '../../types.js';
 import type { ExchangeHub } from '../../ExchangeHub.js';
+import type { CreateOrderParams, CreateOrderParamsBase } from '../exchange-hub.js';
 import type {
   BitMexChannel,
   BitMexChannelMessage,
+  BitMexOrder,
   BitMexSubscribeMessage,
   BitMexWelcomeMessage,
 } from './types.js';
@@ -21,6 +28,8 @@ export class BitMex extends BaseCore<'BitMex'> {
   #log = createLogger('bitmex:core');
   #settings: Settings;
   #transport: BitMexTransport;
+  #restClient: BitmexRestClient;
+  #restOrders: BitmexRestOrders;
   #symbolMappingEnabled: boolean;
   #instruments = new Map<string, Instrument>();
   #instrumentsByNative = new Map<string, Instrument>();
@@ -34,6 +43,12 @@ export class BitMex extends BaseCore<'BitMex'> {
     this.#transport = new BitMexTransport(settings.isTest ?? false, (message) =>
       this.#handleMessage(message),
     );
+    this.#restClient = new BitmexRestClient({
+      isTest: this.isTest,
+      apiKey: settings.apiKey,
+      apiSecret: settings.apiSec,
+    });
+    this.#restOrders = createBitmexRestOrders(this.#restClient);
   }
 
   override get instruments(): Map<string, Instrument> {
@@ -169,6 +184,85 @@ export class BitMex extends BaseCore<'BitMex'> {
     this.#instrumentKeys.delete(instrument);
   }
 
+  buy(params: CreateOrderParamsBase): Promise<BitMexOrder> {
+    return this.#placeOrder({ ...params, side: 'buy' });
+  }
+
+  sell(params: CreateOrderParamsBase): Promise<BitMexOrder> {
+    return this.#placeOrder({ ...params, side: 'sell' });
+  }
+
+  async #placeOrder(params: CreateOrderParams): Promise<BitMexOrder> {
+    const payload = mapToBitmexCreateOrderPayload(params);
+    const response = await this.#restOrders.createOrder(payload);
+    this.#syncRestOrder(response, params.side, params.clientOrderId);
+    return response;
+  }
+
+  #syncRestOrder(order: BitMexOrder, side: Side, clientOrderId?: string): void {
+    const orderId = typeof order.orderID === 'string' ? order.orderID : undefined;
+    const symbol = typeof order.symbol === 'string' ? order.symbol.trim() : '';
+
+    if (!orderId || !symbol) {
+      return;
+    }
+
+    const store = this.shell.orders;
+    const existing = store.getByOrderId(orderId);
+
+    const leavesQty = isFiniteNumber(order.leavesQty) ? order.leavesQty : null;
+    const cumQty = isFiniteNumber(order.cumQty) ? order.cumQty : null;
+
+    const status =
+      mapBitmexOrderStatus({
+        ordStatus: order.ordStatus,
+        execType: order.execType,
+        leavesQty,
+        cumQty,
+        previousStatus: existing?.status ?? null,
+      }) ?? OrderStatus.Placed;
+
+    const init = {
+      clOrdId: normalizeClOrdId(order.clOrdID ?? clientOrderId),
+      symbol,
+      status,
+      side,
+      type: order.ordType,
+      timeInForce: order.timeInForce,
+      execInst: order.execInst,
+      price: isFiniteNumber(order.price) ? order.price : undefined,
+      stopPrice: isFiniteNumber(order.stopPx) ? order.stopPx : undefined,
+      qty: isFiniteNumber(order.orderQty) ? order.orderQty : undefined,
+      leavesQty: leavesQty ?? undefined,
+      filledQty: cumQty ?? undefined,
+      avgFillPrice: isFiniteNumber(order.avgPx) ? order.avgPx : undefined,
+    } satisfies Omit<OrderInit, 'orderId'>;
+
+    if (!existing) {
+      store.create(orderId, init);
+      return;
+    }
+
+    existing.applyUpdate(
+      {
+        clOrdId: init.clOrdId,
+        symbol,
+        side,
+        type: init.type,
+        timeInForce: init.timeInForce,
+        execInst: init.execInst,
+        price: init.price,
+        stopPrice: init.stopPrice,
+        qty: init.qty,
+        leavesQty: init.leavesQty,
+        cumQty: init.filledQty,
+        avgPx: init.avgFillPrice,
+        status,
+      },
+      { reason: 'replace' },
+    );
+  }
+
   async connect(): Promise<void> {
     await this.#transport.connect(this.#settings.apiKey, this.#settings.apiSec);
   }
@@ -229,4 +323,17 @@ export class BitMex extends BaseCore<'BitMex'> {
 
     channelMessageHandlers[table][action](this, data);
   }
+}
+
+function normalizeClOrdId(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
 }

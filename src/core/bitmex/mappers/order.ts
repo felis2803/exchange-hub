@@ -1,4 +1,8 @@
 import { OrderStatus } from '../../../domain/order.js';
+import { ValidationError } from '../../../infra/errors.js';
+
+import type { CreateOrderParams } from '../../exchange-hub.js';
+import type { CreateOrderPayload } from '../rest/orders.js';
 
 import type { BitMexExecType, BitMexOrderStatus } from '../types.js';
 
@@ -9,6 +13,154 @@ export type BitmexOrderStatusInput = {
   cumQty?: number | null;
   previousStatus?: OrderStatus | null;
 };
+
+const SIDE_MAP = {
+  buy: 'Buy',
+  sell: 'Sell',
+} as const;
+
+const ORDER_TYPE_MAP = {
+  market: 'Market',
+  limit: 'Limit',
+} as const;
+
+const TIME_IN_FORCE_MAP = {
+  GTC: 'GoodTillCancel',
+  IOC: 'ImmediateOrCancel',
+  FOK: 'FillOrKill',
+  DAY: 'Day',
+} as const;
+
+export function mapToBitmexCreateOrderPayload(params: CreateOrderParams): CreateOrderPayload {
+  const symbol = normalizeSymbol(params.symbol);
+  if (!symbol) {
+    throw new ValidationError('BitMEX create order requires symbol', {
+      details: { symbol: params.symbol },
+    });
+  }
+
+  const side = SIDE_MAP[params.side];
+  if (!side) {
+    throw new ValidationError('Unsupported order side', { details: { side: params.side } });
+  }
+
+  const ordTypeKey = String(params.type ?? '').toLowerCase();
+  const ordType = ORDER_TYPE_MAP[ordTypeKey as keyof typeof ORDER_TYPE_MAP];
+  if (!ordType) {
+    throw new ValidationError('Unsupported order type', { details: { type: params.type } });
+  }
+
+  const orderQty = ensurePositiveNumber(params.quantity, 'quantity');
+
+  let price: number | undefined;
+  if (ordType === 'Limit') {
+    price = ensurePositiveNumber(params.price, 'price');
+  } else if (params.price !== undefined) {
+    throw new ValidationError('Price is only allowed for limit orders', {
+      details: { type: params.type, price: params.price },
+    });
+  }
+
+  if (params.postOnly && ordType !== 'Limit') {
+    throw new ValidationError('Post-only flag is only valid for limit orders', {
+      details: { type: params.type, postOnly: params.postOnly },
+    });
+  }
+
+  const instructions: string[] = [];
+  if (params.postOnly) {
+    instructions.push('ParticipateDoNotInitiate');
+  }
+  if (params.reduceOnly) {
+    instructions.push('ReduceOnly');
+  }
+
+  const stopPx = params.stopPrice === undefined ? undefined : ensurePositiveNumber(params.stopPrice, 'stopPrice');
+  const timeInForce = mapTimeInForce(params.timeInForce);
+  const clOrdID = normalizeClOrdId(params.clientOrderId);
+  const execInst = instructions.length > 0 ? instructions.join(',') : undefined;
+
+  const payload: CreateOrderPayload = {
+    symbol,
+    side,
+    orderQty,
+    ordType,
+  };
+
+  if (price !== undefined) {
+    payload.price = price;
+  }
+
+  if (clOrdID) {
+    payload.clOrdID = clOrdID;
+  }
+
+  if (stopPx !== undefined) {
+    payload.stopPx = stopPx;
+  }
+
+  if (execInst) {
+    payload.execInst = execInst;
+  }
+
+  if (timeInForce) {
+    payload.timeInForce = timeInForce;
+  }
+
+  return payload;
+}
+
+function normalizeSymbol(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeClOrdId(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function ensurePositiveNumber(value: unknown, field: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    throw new ValidationError(`Invalid ${field}`, { details: { [field]: value } });
+  }
+
+  if (value <= 0) {
+    throw new ValidationError(`${field} must be greater than zero`, {
+      details: { [field]: value },
+    });
+  }
+
+  return value;
+}
+
+function mapTimeInForce(value: unknown): CreateOrderPayload['timeInForce'] | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+
+  const normalized = String(value).trim().toUpperCase();
+  if (!normalized) {
+    return undefined;
+  }
+
+  const mapped = TIME_IN_FORCE_MAP[normalized as keyof typeof TIME_IN_FORCE_MAP];
+  if (!mapped) {
+    throw new ValidationError('Unsupported timeInForce', {
+      details: { timeInForce: value },
+    });
+  }
+
+  return mapped;
+}
 
 const STATUS_PRIORITY: Record<OrderStatus, number> = {
   [OrderStatus.Filled]: 6,

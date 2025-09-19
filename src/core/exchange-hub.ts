@@ -2,6 +2,21 @@ import { Order, OrderStatus, type OrderInit, type OrderUpdateReason } from '../d
 
 import type { ClOrdID, OrderID, Symbol } from './types.js';
 import type { DomainUpdate } from './types.js';
+import type { Side } from '../types.js';
+
+export type CreateOrderParamsBase = {
+  symbol: Symbol;
+  quantity: number;
+  type: 'market' | 'limit';
+  price?: number;
+  stopPrice?: number;
+  timeInForce?: 'GTC' | 'IOC' | 'FOK' | 'DAY';
+  clientOrderId?: string;
+  postOnly?: boolean;
+  reduceOnly?: boolean;
+};
+
+export type CreateOrderParams = CreateOrderParamsBase & { side: Side };
 
 type OrderListener = (
   snapshot: ReturnType<Order['getSnapshot']>,
