@@ -1,13 +1,18 @@
 import { BitMexTransport } from './transport.js';
 import { channelMessageHandlers } from './channelMessageHandlers/index.js';
 import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.js';
-import { L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants.js';
+import { BITMEX_REST_ORDER_TIMEOUT_MS, L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants.js';
 import { markOrderChannelAwaitingSnapshot } from './channels/order.js';
+import { createOrder } from './rest/orders.js';
+import { BitmexRestClient } from './rest/request.js';
+import { mapPreparedPlaceInputToCreateOrderPayload } from './mappers/order.js';
 
 import { BaseCore } from '../BaseCore.js';
 import { getUnifiedSymbolAliases, mapSymbolNativeToUni } from '../../utils/symbolMapping.js';
 import { Instrument } from '../../domain/instrument.js';
-import { createLogger } from '../../infra/logger.js';
+import { createLogger, LOG_TAGS, type Logger } from '../../infra/logger.js';
+import { ValidationError } from '../../infra/errors.js';
+import type { PreparedPlaceInput } from '../../infra/validation.js';
 import type { Settings } from '../../types.js';
 import type { ExchangeHub } from '../../ExchangeHub.js';
 import type {
@@ -15,12 +20,15 @@ import type {
   BitMexChannelMessage,
   BitMexSubscribeMessage,
   BitMexWelcomeMessage,
+  BitMexOrder,
 } from './types.js';
 
 export class BitMex extends BaseCore<'BitMex'> {
   #log = createLogger('bitmex:core');
+  #restLog: Logger;
   #settings: Settings;
   #transport: BitMexTransport;
+  #restClient: BitmexRestClient;
   #symbolMappingEnabled: boolean;
   #instruments = new Map<string, Instrument>();
   #instrumentsByNative = new Map<string, Instrument>();
@@ -31,6 +39,12 @@ export class BitMex extends BaseCore<'BitMex'> {
 
     this.#settings = settings;
     this.#symbolMappingEnabled = settings.symbolMappingEnabled ?? true;
+    this.#restLog = this.#log.withTags([LOG_TAGS.order]);
+    this.#restClient = new BitmexRestClient({
+      isTest: settings.isTest ?? false,
+      apiKey: settings.apiKey,
+      apiSecret: settings.apiSec,
+    });
     this.#transport = new BitMexTransport(settings.isTest ?? false, (message) =>
       this.#handleMessage(message),
     );
@@ -48,6 +62,26 @@ export class BitMex extends BaseCore<'BitMex'> {
     this.#instruments.clear();
     this.#instrumentsByNative.clear();
     this.#instrumentKeys = new WeakMap();
+  }
+
+  async buy(input: PreparedPlaceInput): Promise<BitMexOrder> {
+    if (input.side !== 'buy') {
+      throw new ValidationError('BitMEX buy requires input.side to equal "buy"', {
+        details: { side: input.side },
+      });
+    }
+
+    return this.#submitRestOrder(input);
+  }
+
+  async sell(input: PreparedPlaceInput): Promise<BitMexOrder> {
+    if (input.side !== 'sell') {
+      throw new ValidationError('BitMEX sell requires input.side to equal "sell"', {
+        details: { side: input.side },
+      });
+    }
+
+    return this.#submitRestOrder(input);
   }
 
   registerInstrument(instrument: Instrument): void {
@@ -228,5 +262,14 @@ export class BitMex extends BaseCore<'BitMex'> {
     const { table, action, data } = message;
 
     channelMessageHandlers[table][action](this, data);
+  }
+
+  async #submitRestOrder(input: PreparedPlaceInput): Promise<BitMexOrder> {
+    const payload = mapPreparedPlaceInputToCreateOrderPayload(input);
+    return createOrder(payload, {
+      client: this.#restClient,
+      timeoutMs: BITMEX_REST_ORDER_TIMEOUT_MS,
+      logger: this.#restLog,
+    });
   }
 }

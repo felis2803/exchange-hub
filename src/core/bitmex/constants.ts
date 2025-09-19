@@ -47,3 +47,5 @@ export const BITMEX_REST_HOSTS = {
 } as const;
 
 export const BITMEX_REST_DEFAULT_TIMEOUT_MS = 30_000;
+
+export const BITMEX_REST_ORDER_TIMEOUT_MS = 8_000;

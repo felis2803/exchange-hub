@@ -1,8 +1,15 @@
 import { OrderStatus } from '../../../domain/order.js';
+import { ValidationError } from '../../../infra/errors.js';
 
 import type { BitMexExecType, BitMexOrderStatus } from '../types.js';
 import type { Side } from '../../../types.js';
-import type { OrderType } from '../../../infra/validation.js';
+import type { OrderType, PreparedPlaceInput } from '../../../infra/validation.js';
+import type { CreateOrderPayload } from '../rest/orders.js';
+
+const SIDE_TO_BITMEX: Record<Side, 'Buy' | 'Sell'> = {
+  buy: 'Buy',
+  sell: 'Sell',
+};
 
 export type BitmexOrderStatusInput = {
   ordStatus?: BitMexOrderStatus | null;
@@ -56,12 +63,94 @@ export function inferOrderType(
   return 'Limit';
 }
 
+export function mapPreparedPlaceInputToCreateOrderPayload(
+  input: PreparedPlaceInput,
+): CreateOrderPayload {
+  const side = SIDE_TO_BITMEX[input.side];
+  if (!side) {
+    throw new ValidationError('Unsupported order side', { details: { side: input.side } });
+  }
+
+  if (typeof input.symbol !== 'string' || input.symbol.trim().length === 0) {
+    throw new ValidationError('Instrument symbol is required', { details: { symbol: input.symbol } });
+  }
+
+  if (typeof input.size !== 'number' || !Number.isFinite(input.size) || input.size <= 0) {
+    throw new ValidationError('Order size must be a positive number', {
+      details: { size: input.size },
+    });
+  }
+
+  const ordType = normalizeRestOrderType(input.type);
+
+  const clOrdId = input.options.clOrdId;
+  if (typeof clOrdId !== 'string' || clOrdId.trim().length === 0) {
+    throw new ValidationError('clOrdID is required for order placement', {
+      details: { clOrdId },
+    });
+  }
+
+  const payload: CreateOrderPayload = {
+    symbol: input.symbol,
+    side,
+    orderQty: input.size,
+    ordType,
+    clOrdID: clOrdId,
+  };
+
+  if (ordType === 'Limit') {
+    if (typeof input.price !== 'number' || !Number.isFinite(input.price) || input.price <= 0) {
+      throw new ValidationError('Limit orders require a positive price', {
+        details: { price: input.price },
+      });
+    }
+    payload.price = input.price;
+  } else if (input.price !== null && input.price !== undefined) {
+    throw new ValidationError('Market orders must not include price', {
+      details: { price: input.price },
+    });
+  }
+
+  if (typeof input.stopPrice === 'number' && Number.isFinite(input.stopPrice) && input.stopPrice > 0) {
+    payload.stopPx = input.stopPrice;
+  }
+
+  if (input.options.timeInForce) {
+    payload.timeInForce = input.options.timeInForce;
+  }
+
+  const execInstructions: string[] = [];
+  if (input.options.postOnly) {
+    execInstructions.push('ParticipateDoNotInitiate');
+  }
+
+  if (input.options.reduceOnly) {
+    execInstructions.push('ReduceOnly');
+  }
+
+  if (execInstructions.length > 0) {
+    payload.execInst = execInstructions.join(',');
+  }
+
+  return payload;
+}
+
 function normalizeFinite(value: number | null | undefined): number | null {
   if (typeof value !== 'number') {
     return null;
   }
 
   return Number.isFinite(value) ? value : null;
+}
+
+function normalizeRestOrderType(type: OrderType): 'Market' | 'Limit' {
+  if (type === 'Market' || type === 'Limit') {
+    return type;
+  }
+
+  throw new ValidationError('Order type is not supported for REST placement', {
+    details: { type },
+  });
 }
 
 export function mapBitmexOrderStatus({
