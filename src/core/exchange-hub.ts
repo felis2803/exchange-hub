@@ -60,7 +60,10 @@ export class OrdersRegistry {
     return Array.from(this.#activeBySymbol.get(key) ?? []);
   }
 
-  resolve(orderId: OrderID | null | undefined, clOrdId: ClOrdID | null | undefined): Order | undefined {
+  resolve(
+    orderId: OrderID | null | undefined,
+    clOrdId: ClOrdID | null | undefined,
+  ): Order | undefined {
     const byId = this.getByOrderId(orderId);
     if (byId && isActiveStatus(byId.status)) {
       return byId;
@@ -191,7 +194,13 @@ export class OrdersRegistry {
     }
 
     if (diff.changed.includes('status') || diff.changed.includes('symbol')) {
-      this.#reindexActive(order, diff.prev.symbol, diff.prev.status, snapshot.symbol, snapshot.status);
+      this.#reindexActive(
+        order,
+        diff.prev.symbol,
+        diff.prev.status,
+        snapshot.symbol,
+        snapshot.status,
+      );
     }
   }
 

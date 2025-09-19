@@ -1,16 +1,23 @@
 import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
+import { incrementCounter, observeHistogram } from '../../../infra/metrics.js';
+import { METRICS } from '../../../infra/metrics-private.js';
+import { normalizeWsTs as normalizeTimestamp, parseIsoTs } from '../../../infra/time.js';
 import { mapBitmexOrderStatus } from '../mappers/order.js';
 
-import { OrderStatus, type OrderUpdate, type OrderUpdateReason } from '../../../domain/order.js';
+import {
+  OrderStatus,
+  type OrderSnapshot,
+  type OrderUpdate,
+  type OrderUpdateReason,
+} from '../../../domain/order.js';
+
+import type { PrivateLabels } from '../../../infra/metrics-private.js';
+import type { DomainUpdate } from '../../types.js';
 
 import type { BitMex } from '../index.js';
 import type { BitMexChannelMessage, BitMexOrder } from '../types.js';
 
-const log = createLogger('bitmex:order').withTags([
-  LOG_TAGS.ws,
-  LOG_TAGS.private,
-  LOG_TAGS.order,
-]);
+const log = createLogger('bitmex:order').withTags([LOG_TAGS.ws, LOG_TAGS.private, LOG_TAGS.order]);
 
 type OrderChannelState = {
   awaitingSnapshot: boolean;
@@ -202,7 +209,7 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
   const execId = normalizeId(row.execID);
   const lastQty = isFiniteNumber(row.lastQty) ? row.lastQty : undefined;
   const lastPx = isFiniteNumber(row.lastPx) ? row.lastPx : undefined;
-  const execTs = normalizeTimestamp(row.transactTime ?? row.timestamp);
+  const execTs = normalizeTimestampMs(row.transactTime ?? row.timestamp);
 
   if (execId || lastQty !== undefined) {
     update.execution = {
@@ -214,7 +221,7 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
     };
   }
 
-  const lastUpdateTs = normalizeTimestamp(row.transactTime ?? row.timestamp);
+  const lastUpdateTs = normalizeTimestampMs(row.transactTime ?? row.timestamp);
   if (lastUpdateTs !== null) {
     update.lastUpdateTs = lastUpdateTs;
   }
@@ -226,7 +233,11 @@ function processRow(core: BitMex, row: BitMexOrder, reason: UpdateReason): void 
 
   const updateReason = resolveReason(reason, row.execType, row.ordStatus, status ?? update.status);
 
-  order.applyUpdate(update, { reason: updateReason });
+  const diff = order.applyUpdate(update, { reason: updateReason });
+
+  if (diff) {
+    recordOrderMetrics(core, diff, row);
+  }
 }
 
 type UpdateReason = 'snapshot' | 'insert' | 'update';
@@ -308,17 +319,18 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
-function normalizeTimestamp(value: unknown): number | null {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
+function normalizeTimestampMs(value: unknown): number | null {
+  if (typeof value !== 'string' && typeof value !== 'number') {
+    return null;
   }
 
-  if (typeof value === 'string') {
-    const ts = Date.parse(value);
-    return Number.isFinite(ts) ? ts : null;
+  const normalized = normalizeTimestamp(value);
+  if (!normalized) {
+    return null;
   }
 
-  return null;
+  const parsed = parseIsoTs(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function mapLiquidity(value: BitMexOrder['lastLiquidityInd']): 'maker' | 'taker' | undefined {
@@ -330,4 +342,36 @@ function mapLiquidity(value: BitMexOrder['lastLiquidityInd']): 'maker' | 'taker'
     default:
       return undefined;
   }
+}
+
+function recordOrderMetrics(
+  core: BitMex,
+  diff: DomainUpdate<OrderSnapshot>,
+  row: BitMexOrder,
+): void {
+  const env: PrivateLabels['env'] = core.isTest ? 'testnet' : 'mainnet';
+  const labels: PrivateLabels = {
+    env,
+    table: 'order',
+    symbol: diff.next.symbol ?? undefined,
+  };
+
+  incrementCounter(METRICS.orderUpdateCount, 1, labels);
+
+  const normalizedTimestamp = normalizeTimestamp(row.transactTime ?? row.timestamp);
+  if (!normalizedTimestamp) {
+    return;
+  }
+
+  const timestampMs = parseIsoTs(normalizedTimestamp);
+  if (!Number.isFinite(timestampMs)) {
+    return;
+  }
+
+  const latency = Date.now() - timestampMs;
+  if (!Number.isFinite(latency)) {
+    return;
+  }
+
+  observeHistogram(METRICS.privateLatencyMs, Math.max(0, latency), labels);
 }

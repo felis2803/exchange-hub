@@ -42,8 +42,7 @@ export function mapBitmexOrderStatus({
   const candidates = [statusFromExec, statusFromOrd, statusFromQty].filter(
     (status): status is OrderStatus => Boolean(status),
   );
-
-  let next = pickHighestPriority(candidates);
+  const next = pickHighestPriority(candidates);
 
   if (previousStatus && isTerminal(previousStatus)) {
     if (!next) {
@@ -65,7 +64,6 @@ export function mapBitmexOrderStatus({
 
   return next;
 }
-
 
 function mapOrdStatus(status?: BitMexOrderStatus | null): OrderStatus | undefined {
   switch (status) {
@@ -117,7 +115,10 @@ function mapExecStatus(
     case 'Expired':
       return OrderStatus.Expired;
     case 'New':
-      if (context.ordStatus === OrderStatus.PartiallyFilled || context.qtyStatus === OrderStatus.PartiallyFilled) {
+      if (
+        context.ordStatus === OrderStatus.PartiallyFilled ||
+        context.qtyStatus === OrderStatus.PartiallyFilled
+      ) {
         return OrderStatus.PartiallyFilled;
       }
 

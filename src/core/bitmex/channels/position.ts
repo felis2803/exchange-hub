@@ -1,12 +1,19 @@
 import { Position } from '../../../domain/position.js';
-import type { PositionSnapshot, PositionUpdate, PositionUpdateReason } from '../../../domain/position.js';
+import type {
+  PositionSnapshot,
+  PositionUpdate,
+  PositionUpdateReason,
+} from '../../../domain/position.js';
 import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
-import { isNewerByTimestamp, normalizeWsTs } from '../../../infra/time.js';
+import { observeHistogram } from '../../../infra/metrics.js';
+import { METRICS } from '../../../infra/metrics-private.js';
+import { isNewerByTimestamp, normalizeWsTs, parseIsoTs } from '../../../infra/time.js';
 
 import type { AccountId, Symbol as TradingSymbol, TimestampISO } from '../../types.js';
 import type { BitMex } from '../index.js';
 import type { BitMexChannelMessage } from '../types.js';
 import type { BitMexPosition } from '../types.js';
+import type { PrivateLabels } from '../../../infra/metrics-private.js';
 
 const log = createLogger('bitmex:position').withTags([
   LOG_TAGS.ws,
@@ -142,6 +149,7 @@ export function handlePositionPartial(core: BitMex, rows: BitMexPosition[]): voi
             accountId,
             symbol,
           });
+          recordPositionLatency(core, symbol, snapshot.timestamp);
         }
       }
 
@@ -254,7 +262,11 @@ export function handlePositionDelete(core: BitMex, rows: BitMexPosition[]): void
   }
 }
 
-function applyIncrementalUpdates(core: BitMex, rows: BitMexPosition[], reason: PositionUpdateReason): void {
+function applyIncrementalUpdates(
+  core: BitMex,
+  rows: BitMexPosition[],
+  reason: PositionUpdateReason,
+): void {
   if (!Array.isArray(rows) || rows.length === 0) {
     return;
   }
@@ -280,7 +292,11 @@ function applyIncrementalUpdates(core: BitMex, rows: BitMexPosition[], reason: P
     }
 
     if (!rowState) {
-      rowState = { lastTimestamp: timestamp ?? null, lastSnapshotHash: undefined, lastUpdateHash: undefined };
+      rowState = {
+        lastTimestamp: timestamp ?? null,
+        lastSnapshotHash: undefined,
+        lastUpdateHash: undefined,
+      };
     }
 
     if (rowState.lastTimestamp && timestamp) {
@@ -325,6 +341,10 @@ function applyIncrementalUpdates(core: BitMex, rows: BitMexPosition[], reason: P
       symbol,
       reason,
     });
+
+    if (update.timestamp) {
+      recordPositionLatency(core, symbol, update.timestamp);
+    }
 
     if (snapshot.size === 0) {
       registry.remove(position);
@@ -415,7 +435,10 @@ function groupUpdates(rows: BitMexPosition[]): Map<string, NormalizedUpdateEntry
   return grouped;
 }
 
-function chooseSnapshot(prev: NormalizedSnapshotEntry, next: NormalizedSnapshotEntry): NormalizedSnapshotEntry {
+function chooseSnapshot(
+  prev: NormalizedSnapshotEntry,
+  next: NormalizedSnapshotEntry,
+): NormalizedSnapshotEntry {
   const prevTs = prev.snapshot.timestamp ?? undefined;
   const nextTs = next.snapshot.timestamp ?? undefined;
 
@@ -434,7 +457,10 @@ function chooseSnapshot(prev: NormalizedSnapshotEntry, next: NormalizedSnapshotE
   return next;
 }
 
-function chooseUpdate(prev: NormalizedUpdateEntry, next: NormalizedUpdateEntry): NormalizedUpdateEntry {
+function chooseUpdate(
+  prev: NormalizedUpdateEntry,
+  next: NormalizedUpdateEntry,
+): NormalizedUpdateEntry {
   const prevTs = prev.update.timestamp ?? undefined;
   const nextTs = next.update.timestamp ?? undefined;
 
@@ -453,7 +479,11 @@ function chooseUpdate(prev: NormalizedUpdateEntry, next: NormalizedUpdateEntry):
   return next;
 }
 
-function buildSnapshot(raw: BitMexPosition, accountId: AccountId, symbol: TradingSymbol): PositionSnapshot | null {
+function buildSnapshot(
+  raw: BitMexPosition,
+  accountId: AccountId,
+  symbol: TradingSymbol,
+): PositionSnapshot | null {
   const quantity = normalizeQuantity(raw.currentQty) ?? 0;
   const snapshot: PositionSnapshot = {
     accountId,
@@ -670,6 +700,31 @@ function hashUpdate(update: PositionUpdate): string {
   return stableSerialize(update as Record<string, unknown>);
 }
 
+function recordPositionLatency(
+  core: BitMex,
+  symbol: TradingSymbol,
+  timestamp: TimestampISO | null | undefined,
+): void {
+  if (!timestamp) {
+    return;
+  }
+
+  const parsed = parseIsoTs(timestamp);
+  if (!Number.isFinite(parsed)) {
+    return;
+  }
+
+  const latency = Date.now() - parsed;
+  if (!Number.isFinite(latency)) {
+    return;
+  }
+
+  const env: PrivateLabels['env'] = core.isTest ? 'testnet' : 'mainnet';
+  const labels: PrivateLabels = { env, table: 'position', symbol };
+
+  observeHistogram(METRICS.privateLatencyMs, Math.max(0, latency), labels);
+}
+
 const NUMBER_FIELDS = [
   'avgEntryPrice',
   'avgCostPrice',
@@ -731,5 +786,6 @@ const STRING_FIELDS = [
   'underlying',
 ] as const satisfies readonly (keyof PositionUpdate & keyof BitMexPosition)[];
 
-const BOOLEAN_FIELDS = ['crossMargin'] as const satisfies readonly (keyof PositionUpdate & keyof BitMexPosition)[];
-
+const BOOLEAN_FIELDS = ['crossMargin'] as const satisfies readonly (
+  keyof PositionUpdate & keyof BitMexPosition
+)[];

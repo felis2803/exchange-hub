@@ -209,7 +209,10 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
     };
   }
 
-  applyUpdate(update: OrderUpdate = {}, context: OrderUpdateContext = {}): DomainUpdate<OrderSnapshot> | null {
+  applyUpdate(
+    update: OrderUpdate = {},
+    context: OrderUpdateContext = {},
+  ): DomainUpdate<OrderSnapshot> | null {
     const { reason, silent = false } = context;
     const prevSnapshot = this.getSnapshot();
     const changed = new Set<keyof OrderSnapshot>();
@@ -445,7 +448,10 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
       return null;
     }
 
-    return this.applyUpdate({ status: OrderStatus.Canceling }, { reason: reason ?? 'cancel-requested' });
+    return this.applyUpdate(
+      { status: OrderStatus.Canceling },
+      { reason: reason ?? 'cancel-requested' },
+    );
   }
 
   #recordExecution(update: OrderUpdate): { added: boolean; qtyDelta: number; valueDelta: number } {

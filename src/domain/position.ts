@@ -125,7 +125,12 @@ const NUMERIC_FIELDS: readonly NumericField[] = [
 
 const BOOLEAN_FIELDS: readonly BooleanField[] = ['crossMargin'];
 
-const STRING_FIELDS: readonly StringField[] = ['currency', 'posState', 'quoteCurrency', 'underlying'];
+const STRING_FIELDS: readonly StringField[] = [
+  'currency',
+  'posState',
+  'quoteCurrency',
+  'underlying',
+];
 
 export type PositionSnapshot = {
   accountId: AccountId;
@@ -197,7 +202,10 @@ export type PositionUpdate = Partial<Omit<PositionSnapshot, 'accountId' | 'symbo
 
 export type PositionUpdateReason = string | undefined;
 
-function hasOwn<T extends object, K extends PropertyKey>(value: T, key: K): value is T & Record<K, unknown> {
+function hasOwn<T extends object, K extends PropertyKey>(
+  value: T,
+  key: K,
+): value is T & Record<K, unknown> {
   return Object.prototype.hasOwnProperty.call(value, key);
 }
 

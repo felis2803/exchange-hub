@@ -3,9 +3,7 @@ import { incrementCounter, observeHistogram } from '../../../infra/metrics.js';
 import { METRICS } from '../../../infra/metrics-private.js';
 import { normalizeWsTs, parseIsoTs } from '../../../infra/time.js';
 
-import { Wallet } from '../../../domain/wallet.js';
-
-import type { WalletBalanceInput } from '../../../domain/wallet.js';
+import type { Wallet, WalletBalanceInput } from '../../../domain/wallet.js';
 import type { PrivateLabels } from '../../../infra/metrics-private.js';
 import type { BitMex } from '../index.js';
 import type { BitMexWallet } from '../types.js';
@@ -312,6 +310,7 @@ function recordMetrics(core: BitMex, updatedAt?: string): void {
 
   const ageSec = Math.max(0, ageMs / 1000);
   observeHistogram(METRICS.snapshotAgeSec, ageSec, labels);
+  observeHistogram(METRICS.privateLatencyMs, Math.max(0, ageMs), labels);
 }
 
 type LogContext = {

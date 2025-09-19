@@ -16,6 +16,7 @@
     "format:check": "prettier . --check",
     "pretest": "npm run type-check",
     "test": "jest --passWithNoTests",
+    "test:integration:private": "jest tests/integration/private --runInBand",
     "test:watch": "jest --watch",
     "test:ci": "jest --coverage --coverageReporters=text",
     "exp": "node ./scripts/run-example.js"
