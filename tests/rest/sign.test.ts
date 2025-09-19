@@ -1,4 +1,4 @@
-import { sign } from '../../src/cores/bitmex/rest/sign.js';
+import { sign } from '../../src/core/bitmex/rest/sign.js';
 
 describe('BitMEX REST sign()', () => {
   test('matches known signature from BitMEX docs', () => {

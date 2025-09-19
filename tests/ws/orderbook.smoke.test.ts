@@ -1,8 +1,8 @@
 import type { ExchangeHub as ExchangeHubClass } from '../../src/ExchangeHub.js';
-import type { handleInstrumentPartial as handleInstrumentPartialFn } from '../../src/cores/bitmex/channels/instrument.js';
-import type { BitMex } from '../../src/cores/bitmex/index.js';
-import type { BitMexChannelMessage } from '../../src/cores/bitmex/types.js';
-import type { BitMexInstrument } from '../../src/cores/bitmex/types.js';
+import type { handleInstrumentPartial as handleInstrumentPartialFn } from '../../src/core/bitmex/channels/instrument.js';
+import type { BitMex } from '../../src/core/bitmex/index.js';
+import type { BitMexChannelMessage } from '../../src/core/bitmex/types.js';
+import type { BitMexInstrument } from '../../src/core/bitmex/types.js';
 import type { Logger } from '../../src/infra/logger.js';
 import type { BitmexOrderBookL2Raw } from '../../src/types/bitmex.js';
 import type { L2BatchDelta } from '../../src/types/orderbook.js';
@@ -35,7 +35,7 @@ beforeAll(async () => {
   });
 
   ({ ExchangeHub } = await import('../../src/ExchangeHub.js'));
-  ({ handleInstrumentPartial } = await import('../../src/cores/bitmex/channels/instrument.js'));
+  ({ handleInstrumentPartial } = await import('../../src/core/bitmex/channels/instrument.js'));
 
   (globalThis as any).WebSocket = ControlledWebSocket;
 });

@@ -1,10 +1,10 @@
 import { ExchangeHub } from '../../src/ExchangeHub.js';
-import { handleInstrumentPartial } from '../../src/cores/bitmex/channels/instrument.js';
-import { handleTradeInsert, handleTradePartial } from '../../src/cores/bitmex/channels/trade.js';
-import { TRADE_BUFFER_DEFAULT } from '../../src/cores/bitmex/constants.js';
+import { handleInstrumentPartial } from '../../src/core/bitmex/channels/instrument.js';
+import { handleTradeInsert, handleTradePartial } from '../../src/core/bitmex/channels/trade.js';
+import { TRADE_BUFFER_DEFAULT } from '../../src/core/bitmex/constants.js';
 
-import type { BitMex } from '../../src/cores/bitmex/index.js';
-import type { BitMexInstrument } from '../../src/cores/bitmex/types.js';
+import type { BitMex } from '../../src/core/bitmex/index.js';
+import type { BitMexInstrument } from '../../src/core/bitmex/types.js';
 import type { BitmexTradeRaw } from '../../src/types/bitmex.js';
 import type { Settings } from '../../src/types.js';
 

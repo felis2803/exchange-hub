@@ -6,19 +6,12 @@ import type { RawData } from 'ws';
 
 import { createLogger } from '../../../infra/logger.js';
 import type { Logger } from '../../../infra/logger.js';
-import {
-  AuthBadCredentialsError,
-  AuthClockSkewError,
-  AuthError,
-  AuthTimeoutError,
-  NetworkError,
-  ValidationError,
-  fromWsClose,
-} from '../../../infra/errors.js';
+import { AuthError, ValidationError, fromWsClose } from '../../../infra/errors.js';
 import { incrementCounter, observeHistogram } from '../../../infra/metrics.js';
 import { getAuthExpiresSkewSec, getBitmexCredentials } from '../../../config/bitmex.js';
 import type { BitmexCredentials } from '../../../config/bitmex.js';
 import {
+  BITMEX_PRIVATE_CHANNELS,
   BITMEX_WS_ENDPOINTS,
   WS_PING_INTERVAL_MS,
   WS_PONG_TIMEOUT_MS,
@@ -29,6 +22,7 @@ import {
 } from '../constants.js';
 
 const AUTH_SUCCESS_COUNTER = 'auth_success_total';
+const AUTH_ERROR_COUNTER = 'auth_error_total';
 const AUTH_LATENCY_HISTOGRAM = 'auth_latency_ms';
 
 const BAD_CREDENTIAL_PATTERNS = [
@@ -59,6 +53,10 @@ const CLOCK_SKEW_PATTERNS = [
   'system clock',
 ] as const;
 
+const ALREADY_AUTHED_PATTERNS = ['already authenticated', 'already authed'] as const;
+
+const PRIVATE_CHANNEL_PREFIXES = new Set<string>(BITMEX_PRIVATE_CHANNELS);
+
 export type WsState = 'idle' | 'connecting' | 'open' | 'closing' | 'reconnecting';
 
 export interface BitmexWsOptions {
@@ -82,8 +80,16 @@ export interface BitmexWsEvents {
   error: (err: Error) => void;
   message: (raw: string) => void;
   authed: (info: { ts: number }) => void;
-  auth_error: (err: AuthError | NetworkError) => void;
+  auth_error: (err: AuthError) => void;
 }
+
+export interface LoginParams {
+  apiKey?: string;
+  apiSecret?: string;
+  now?: () => number;
+}
+
+export type LoginResult = { ok: true; ts: number } | { ok: false; err: AuthError };
 
 interface NormalizedReconnectOptions {
   maxAttempts: number;
@@ -97,9 +103,14 @@ interface PendingAuth {
   requestId: string;
   startedAt: number;
   timeout: NodeJS.Timeout;
-  resolve: () => void;
-  reject: (err: AuthError | NetworkError) => void;
+  resolve: (result: LoginResult) => void;
   source: AuthAttemptSource;
+  now: () => number;
+}
+
+interface PendingMessage {
+  raw: string;
+  requiresAuth: boolean;
 }
 
 export class BitmexWsClient extends EventEmitter {
@@ -110,15 +121,21 @@ export class BitmexWsClient extends EventEmitter {
   private readonly reconnectOptions: NormalizedReconnectOptions;
   private readonly authTimeoutMs: number;
   private readonly authExpiresSkewSec: number;
+  private readonly envLabel: 'testnet' | 'mainnet';
 
   private ws: WebSocket | null = null;
   private state: WsState = 'idle';
-  private sendBuffer: string[] = [];
+  private sendBuffer: PendingMessage[] = [];
+  private readonly pendingPrivateMessages = new Set<string>();
+  private readonly privateSubscriptions = new Set<string>();
   private reconnectAttempts = 0;
   private manualClose = false;
   private credentials: BitmexCredentials | null = null;
   private shouldRelogin = false;
+  private isAuthed = false;
   private pendingAuth: PendingAuth | null = null;
+  private authRetryAttempts = 0;
+  private authRetryTimer: NodeJS.Timeout | null = null;
 
   private pingTimer: NodeJS.Timeout | null = null;
   private pongTimer: NodeJS.Timeout | null = null;
@@ -200,6 +217,8 @@ export class BitmexWsClient extends EventEmitter {
         ? Math.max(1, Math.trunc(authExpiresSkewSec))
         : envAuthSkew;
 
+    const envLabel = isTest ? 'testnet' : 'mainnet';
+
     this.url = url ?? (isTest ? BITMEX_WS_ENDPOINTS.testnet : BITMEX_WS_ENDPOINTS.mainnet);
     this.pingIntervalMs = pingIntervalMs;
     this.pongTimeoutMs = pongTimeoutMs;
@@ -211,6 +230,7 @@ export class BitmexWsClient extends EventEmitter {
     } satisfies NormalizedReconnectOptions;
     this.authTimeoutMs = normalizedAuthTimeout;
     this.authExpiresSkewSec = normalizedAuthExpiresSkew;
+    this.envLabel = envLabel;
   }
 
   getState(): WsState {
@@ -246,21 +266,39 @@ export class BitmexWsClient extends EventEmitter {
     return this.connectPromise;
   }
 
-  async login(apiKey?: string, apiSecret?: string): Promise<void> {
-    const credentials = this.normalizeCredentials(apiKey, apiSecret);
+  async login(params: LoginParams = {}): Promise<LoginResult> {
+    const { apiKey, apiSecret, now } = params;
+
+    let credentials: BitmexCredentials;
+    try {
+      credentials = this.normalizeCredentials(apiKey, apiSecret);
+    } catch (err) {
+      if (err instanceof AuthError) {
+        this.credentials = null;
+        this.shouldRelogin = false;
+        this.emit('auth_error', err);
+        return { ok: false, err };
+      }
+      throw err;
+    }
+
     this.credentials = credentials;
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new NetworkError('BitMEX WS is not connected', { exchange: 'BitMEX' });
+      const error = AuthError.network('BitMEX WS is not connected', { exchange: 'BitMEX' });
+      this.emit('auth_error', error);
+      return { ok: false, err: error };
     }
 
-    await this.performAuth('manual');
+    return this.performAuth('manual', { now: typeof now === 'function' ? now : Date.now });
   }
 
   async disconnect({ graceful = true }: { graceful?: boolean } = {}): Promise<void> {
     this.manualClose = true;
     this.clearReconnectTimer();
     this.clearKeepaliveTimers();
+    this.clearAuthRetryTimer();
+    this.isAuthed = false;
 
     try {
       if (!this.ws) {
@@ -305,41 +343,106 @@ export class BitmexWsClient extends EventEmitter {
   }
 
   send(raw: string): void {
-    if (this.isOpen()) {
+    const { requiresAuth, op, privateArgs } = this.inspectMessage(raw);
+
+    if (op === 'subscribe') {
+      for (const value of privateArgs) {
+        this.privateSubscriptions.add(value);
+      }
+    } else if (op === 'unsubscribe') {
+      for (const value of privateArgs) {
+        this.privateSubscriptions.delete(value);
+      }
+    }
+
+    if (this.isOpen() && (!requiresAuth || this.isAuthed)) {
       this.ws!.send(raw);
       return;
     }
 
+    this.bufferMessage(raw, requiresAuth);
+  }
+
+  private inspectMessage(raw: string): {
+    requiresAuth: boolean;
+    op?: string;
+    privateArgs: string[];
+  } {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const op = typeof parsed.op === 'string' ? parsed.op : undefined;
+      if (!op || (op !== 'subscribe' && op !== 'unsubscribe')) {
+        return { requiresAuth: false, op, privateArgs: [] };
+      }
+
+      const args = Array.isArray(parsed.args) ? parsed.args : [];
+      const privateArgs: string[] = [];
+      for (const value of args) {
+        if (typeof value !== 'string') {
+          continue;
+        }
+        const channel = value.split(':', 1)[0];
+        if (PRIVATE_CHANNEL_PREFIXES.has(channel)) {
+          privateArgs.push(value);
+        }
+      }
+
+      return { requiresAuth: privateArgs.length > 0, op, privateArgs };
+    } catch {
+      return { requiresAuth: false, op: undefined, privateArgs: [] };
+    }
+  }
+
+  private bufferMessage(raw: string, requiresAuth: boolean): void {
     if (this.sendBuffer.length >= this.sendBufferLimit) {
       throw new ValidationError('BitMEX WS send buffer overflow', {
         details: { limit: this.sendBufferLimit },
       });
     }
 
-    this.sendBuffer.push(raw);
+    if (requiresAuth && this.pendingPrivateMessages.has(raw)) {
+      return;
+    }
+
+    this.sendBuffer.push({ raw, requiresAuth });
+    if (requiresAuth) {
+      this.pendingPrivateMessages.add(raw);
+    }
   }
 
   // region: auth -------------------------------------------------------------
 
-  private async performAuth(source: AuthAttemptSource): Promise<void> {
+  private async performAuth(
+    source: AuthAttemptSource,
+    opts: { now?: () => number } = {},
+  ): Promise<LoginResult> {
     if (!this.credentials) {
-      throw new AuthError('BitMEX API credentials are required', { exchange: 'BitMEX' });
+      const error = AuthError.badCredentials('BitMEX API credentials are required', {
+        exchange: 'BitMEX',
+      });
+      this.emit('auth_error', error);
+      return { ok: false, err: error };
     }
 
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new NetworkError('BitMEX WS is not connected', { exchange: 'BitMEX' });
+      const error = AuthError.network('BitMEX WS is not connected', { exchange: 'BitMEX' });
+      this.emit('auth_error', error);
+      return { ok: false, err: error };
     }
 
     if (this.pendingAuth) {
-      throw new AuthError('BitMEX WS authentication already in progress', {
+      const error = AuthError.network('BitMEX WS authentication already in progress', {
         exchange: 'BitMEX',
         requestId: this.pendingAuth.requestId,
       });
+      this.emit('auth_error', error);
+      return { ok: false, err: error };
     }
 
+    const now = opts.now ?? Date.now;
     const requestId = randomUUID();
-    const startedAt = Date.now();
-    const expires = this.computeAuthExpires();
+    const startedAt = now();
+    const expires = this.computeAuthExpires(now);
     const signature = createHmac('sha256', this.credentials.apiSecret)
       .update(`GET/realtime${expires}`)
       .digest('hex');
@@ -357,24 +460,24 @@ export class BitmexWsClient extends EventEmitter {
       source,
     });
 
-    await new Promise<void>((resolve, reject) => {
+    return new Promise<LoginResult>((resolve) => {
       const timeout = setTimeout(() => this.handleAuthTimeout(requestId), this.authTimeoutMs);
       this.pendingAuth = {
         requestId,
         startedAt,
         timeout,
         resolve,
-        reject,
         source,
+        now,
       } satisfies PendingAuth;
 
       try {
         this.ws!.send(payload);
       } catch (err) {
         const error =
-          err instanceof AuthError || err instanceof NetworkError
+          err instanceof AuthError
             ? err
-            : new NetworkError('BitMEX WS auth send failed', {
+            : AuthError.network('BitMEX WS auth send failed', {
                 exchange: 'BitMEX',
                 requestId,
                 cause: err,
@@ -384,8 +487,8 @@ export class BitmexWsClient extends EventEmitter {
     });
   }
 
-  private computeAuthExpires(): number {
-    return Math.round(Date.now() / 1000) + this.authExpiresSkewSec;
+  private computeAuthExpires(now: () => number): number {
+    return Math.floor(now() / 1000) + this.authExpiresSkewSec;
   }
 
   private normalizeCredentials(apiKey?: string, apiSecret?: string): BitmexCredentials {
@@ -394,14 +497,17 @@ export class BitmexWsClient extends EventEmitter {
     const resolvedSecret = apiSecret?.trim() || envCredentials?.apiSecret;
 
     if (!resolvedKey || !resolvedSecret) {
-      throw new AuthError('BitMEX API credentials are required', { exchange: 'BitMEX' });
+      throw AuthError.badCredentials('BitMEX API credentials are required', {
+        exchange: 'BitMEX',
+      });
     }
 
     return { apiKey: resolvedKey, apiSecret: resolvedSecret };
   }
 
   private tryHandleAuthResponse(raw: string): void {
-    if (!this.pendingAuth) {
+    const attempt = this.pendingAuth;
+    if (!attempt) {
       return;
     }
 
@@ -438,15 +544,16 @@ export class BitmexWsClient extends EventEmitter {
         : typeof body.message === 'string'
           ? (body.message as string)
           : undefined;
-    const attempt = this.pendingAuth;
-    if (!attempt) {
-      return;
-    }
 
     const error = this.mapAuthError(reason, {
       requestId: attempt.requestId,
       serverRequestId,
     });
+
+    if (error.code === 'ALREADY_AUTHED') {
+      this.handleAuthAlreadyAuthed(serverRequestId);
+      return;
+    }
 
     this.failAuthAttempt(error, { reason, serverRequestId });
   }
@@ -472,35 +579,72 @@ export class BitmexWsClient extends EventEmitter {
       return;
     }
 
+    this.finalizeAuthSuccess(attempt, serverRequestId, 'success');
+  }
+
+  private handleAuthAlreadyAuthed(serverRequestId?: string): void {
+    const attempt = this.consumePendingAuth();
+    if (!attempt) {
+      return;
+    }
+
+    this.finalizeAuthSuccess(attempt, serverRequestId, 'already_authed');
+  }
+
+  private finalizeAuthSuccess(
+    attempt: PendingAuth,
+    serverRequestId: string | undefined,
+    mode: 'success' | 'already_authed',
+  ): void {
+    this.isAuthed = true;
     this.shouldRelogin = true;
+    this.authRetryAttempts = 0;
+    this.clearAuthRetryTimer();
 
     const completedAt = Date.now();
-    const latency = completedAt - attempt.startedAt;
+    const latency = Math.max(0, completedAt - attempt.startedAt);
     const logger = this.getAuthLogger(attempt.source);
 
-    logger.info('BitMEX WS auth success', {
+    const logContext = {
       requestId: attempt.requestId,
       serverRequestId,
       ts: new Date(completedAt).toISOString(),
       latencyMs: latency,
       source: attempt.source,
-    });
+    } as const;
 
-    incrementCounter(AUTH_SUCCESS_COUNTER, 1, { source: attempt.source });
-    observeHistogram(AUTH_LATENCY_HISTOGRAM, latency, { source: attempt.source });
+    if (mode === 'already_authed') {
+      logger.info('BitMEX WS auth already active', logContext);
+    } else {
+      logger.info('BitMEX WS auth success', logContext);
+    }
+
+    const metricLabels = {
+      exchange: 'bitmex',
+      env: this.envLabel,
+      ws: 'realtime',
+    } as const;
+    incrementCounter(AUTH_SUCCESS_COUNTER, 1, metricLabels);
+    observeHistogram(AUTH_LATENCY_HISTOGRAM, latency, metricLabels);
 
     this.emit('authed', { ts: completedAt });
-    attempt.resolve();
+    this.flushSendBuffer();
+    if (attempt.source === 'reconnect') {
+      this.resubscribePrivateChannels();
+    }
+    attempt.resolve({ ok: true, ts: completedAt });
   }
 
   private failAuthAttempt(
-    error: AuthError | NetworkError,
+    error: AuthError,
     context: { reason?: string; serverRequestId?: string } = {},
   ): void {
     const attempt = this.consumePendingAuth();
     if (!attempt) {
       return;
     }
+
+    this.isAuthed = false;
 
     const logger = this.getAuthLogger(attempt.source);
     logger.error('BitMEX WS auth failed: %s', error.message, {
@@ -509,14 +653,29 @@ export class BitmexWsClient extends EventEmitter {
       reason: context.reason,
       ts: new Date().toISOString(),
       source: attempt.source,
+      code: error.code,
     });
 
-    if (error instanceof AuthBadCredentialsError || error instanceof AuthClockSkewError) {
+    if (error.code === 'BAD_CREDENTIALS' || error.code === 'CLOCK_SKEW') {
       this.shouldRelogin = false;
     }
 
+    const metricLabels = {
+      exchange: 'bitmex',
+      env: this.envLabel,
+      ws: 'realtime',
+      reason: error.code,
+    } as const;
+    incrementCounter(AUTH_ERROR_COUNTER, 1, metricLabels);
+
     this.emit('auth_error', error);
-    attempt.reject(error);
+    attempt.resolve({ ok: false, err: error });
+
+    if (attempt.source === 'reconnect' && this.shouldRelogin) {
+      if (error.code === 'TIMEOUT' || error.code === 'NETWORK') {
+        this.scheduleAuthRetry(error);
+      }
+    }
   }
 
   private consumePendingAuth(): PendingAuth | null {
@@ -536,7 +695,7 @@ export class BitmexWsClient extends EventEmitter {
       return;
     }
 
-    const error = new AuthTimeoutError('BitMEX WS authentication timed out', {
+    const error = AuthError.timeout('BitMEX WS authentication timed out', {
       exchange: 'BitMEX',
       requestId,
     });
@@ -563,24 +722,55 @@ export class BitmexWsClient extends EventEmitter {
     };
 
     if (!reason) {
-      return new AuthError('BitMEX authentication failed', baseOptions);
+      return new AuthError('BitMEX authentication failed', 'NETWORK', baseOptions);
     }
 
     if (BAD_CREDENTIAL_PATTERNS.some((pattern) => normalizedReason.includes(pattern))) {
-      return new AuthBadCredentialsError(
-        'BitMEX authentication failed: bad credentials',
-        baseOptions,
-      );
+      return AuthError.badCredentials('BitMEX authentication failed: bad credentials', baseOptions);
     }
 
     if (CLOCK_SKEW_PATTERNS.some((pattern) => normalizedReason.includes(pattern))) {
-      return new AuthClockSkewError(
-        'BitMEX authentication failed: clock skew detected',
-        baseOptions,
-      );
+      return AuthError.clockSkew('BitMEX authentication failed: clock skew detected', baseOptions);
     }
 
-    return new AuthError('BitMEX authentication failed', baseOptions);
+    if (ALREADY_AUTHED_PATTERNS.some((pattern) => normalizedReason.includes(pattern))) {
+      return AuthError.alreadyAuthed('BitMEX authentication already active', baseOptions);
+    }
+
+    return new AuthError('BitMEX authentication failed', 'NETWORK', baseOptions);
+  }
+
+  private scheduleAuthRetry(error: AuthError): void {
+    if (this.authRetryTimer || this.pendingAuth || !this.shouldRelogin || !this.credentials) {
+      return;
+    }
+
+    this.authRetryAttempts += 1;
+    const delay = this.computeAuthRetryDelay(this.authRetryAttempts);
+
+    this.authReconnectLog.warn('BitMEX WS auth retry in %dms after %s', delay, error.code, {
+      attempt: this.authRetryAttempts,
+      reason: error.code,
+    });
+
+    this.clearAuthRetryTimer();
+    this.authRetryTimer = setTimeout(() => {
+      this.authRetryTimer = null;
+      this.triggerAutomaticRelogin();
+    }, delay);
+  }
+
+  private computeAuthRetryDelay(attempt: number): number {
+    const exponent = Math.max(0, attempt - 1);
+    const delay = this.reconnectOptions.baseDelayMs * 2 ** exponent;
+    return Math.min(this.reconnectOptions.maxDelayMs, delay);
+  }
+
+  private clearAuthRetryTimer(): void {
+    if (this.authRetryTimer) {
+      clearTimeout(this.authRetryTimer);
+      this.authRetryTimer = null;
+    }
   }
 
   private getAuthLogger(source: AuthAttemptSource): Logger {
@@ -588,19 +778,26 @@ export class BitmexWsClient extends EventEmitter {
   }
 
   private triggerAutomaticRelogin(): void {
-    if (!this.shouldRelogin || !this.credentials || this.pendingAuth) {
+    if (!this.shouldRelogin || !this.credentials || this.pendingAuth || this.authRetryTimer) {
       return;
     }
 
     try {
-      void this.performAuth('reconnect').catch(() => {
-        // Failure is reported via failAuthAttempt / auth_error event.
+      void this.performAuth('reconnect').catch((err) => {
+        const error =
+          err instanceof AuthError
+            ? err
+            : AuthError.network(err?.message ?? 'BitMEX WS relogin failed', {
+                exchange: 'BitMEX',
+                cause: err,
+              });
+        this.failAuthAttempt(error);
       });
     } catch (err) {
       const error =
-        err instanceof AuthError || err instanceof NetworkError
+        err instanceof AuthError
           ? err
-          : new AuthError('BitMEX WS relogin failed to start', {
+          : AuthError.network('BitMEX WS relogin failed to start', {
               exchange: 'BitMEX',
               cause: err,
             });
@@ -620,6 +817,7 @@ export class BitmexWsClient extends EventEmitter {
     this.clearReconnectTimer();
     this.clearKeepaliveTimers();
     this.cleanupWebSocket();
+    this.isAuthed = false;
 
     this.transitionState(initialState);
     const attempt = this.reconnectAttempts + 1;
@@ -665,7 +863,7 @@ export class BitmexWsClient extends EventEmitter {
 
   private readonly handleError = (err: Error): void => {
     if (this.pendingAuth) {
-      const error = new NetworkError('BitMEX WS auth failed: socket error', {
+      const error = AuthError.network('BitMEX WS auth failed: socket error', {
         exchange: 'BitMEX',
         cause: err,
       });
@@ -682,9 +880,11 @@ export class BitmexWsClient extends EventEmitter {
     const context = { code, reason, manual: this.manualClose } as const;
 
     this.log.info('BitMEX WS close', context);
+    this.isAuthed = false;
+    this.clearAuthRetryTimer();
 
     if (this.pendingAuth) {
-      const error = new NetworkError('BitMEX WS auth failed: socket closed', {
+      const error = AuthError.network('BitMEX WS auth failed: socket closed', {
         exchange: 'BitMEX',
         requestId: this.pendingAuth.requestId,
         details: { code, reason },
@@ -738,11 +938,7 @@ export class BitmexWsClient extends EventEmitter {
   // region: buffering -------------------------------------------------------
 
   private flushSendBuffer(): void {
-    if (this.sendBuffer.length === 0) {
-      return;
-    }
-
-    if (!this.isOpen()) {
+    if (this.sendBuffer.length === 0 || !this.isOpen()) {
       return;
     }
 
@@ -750,19 +946,61 @@ export class BitmexWsClient extends EventEmitter {
     this.sendBuffer.length = 0;
 
     for (let i = 0; i < pending.length; i += 1) {
+      const message = pending[i];
+
+      if (message.requiresAuth && !this.isAuthed) {
+        this.sendBuffer.push(message);
+        continue;
+      }
+
       if (!this.isOpen()) {
         this.log.warn('BitMEX WS flush aborted — socket not open');
-        this.sendBuffer = pending.slice(i);
+        this.sendBuffer.push(message, ...pending.slice(i + 1));
         break;
       }
 
-      const message = pending[i];
       try {
-        this.ws!.send(message);
+        this.ws!.send(message.raw);
+        if (message.requiresAuth) {
+          this.pendingPrivateMessages.delete(message.raw);
+        }
       } catch (err) {
         this.log.error('BitMEX WS flush error: %s', (err as Error).message);
-        this.sendBuffer = pending.slice(i);
+        this.sendBuffer.push(message, ...pending.slice(i + 1));
         break;
+      }
+    }
+  }
+
+  private resubscribePrivateChannels(): void {
+    if (!this.isOpen() || !this.isAuthed || this.privateSubscriptions.size === 0) {
+      return;
+    }
+
+    const args = Array.from(this.privateSubscriptions).sort();
+    const payload = JSON.stringify({ op: 'subscribe', args });
+
+    this.authReconnectLog.info('BitMEX WS resubscribing private channels', {
+      count: args.length,
+    });
+
+    try {
+      this.ws!.send(payload);
+    } catch (err) {
+      this.authReconnectLog.error('BitMEX WS resubscribe send failed: %s', (err as Error).message, {
+        count: args.length,
+      });
+
+      try {
+        this.bufferMessage(payload, true);
+      } catch (bufferErr) {
+        this.authReconnectLog.error(
+          'BitMEX WS resubscribe buffer failed: %s',
+          (bufferErr as Error).message,
+          {
+            count: args.length,
+          },
+        );
       }
     }
   }

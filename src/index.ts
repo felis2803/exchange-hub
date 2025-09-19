@@ -22,7 +22,7 @@ export {
   fromWsClose,
   wrap,
 } from './infra/errors.js';
-export type { ErrorCode, ErrorJSON, ErrorOptions } from './infra/errors.js';
+export type { ErrorCode, AuthErrorCode, ErrorJSON, ErrorOptions } from './infra/errors.js';
 export {
   incrementCounter,
   observeHistogram,

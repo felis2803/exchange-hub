@@ -64,7 +64,7 @@ export class BitmexRestClient {
 
     if (shouldSign) {
       if (!hasCredentials) {
-        throw new AuthError('BitMEX API credentials required', { exchange: 'BitMEX' });
+        throw AuthError.badCredentials('BitMEX API credentials required', { exchange: 'BitMEX' });
       }
 
       const expires = Math.floor(Date.now() / 1000) + 60;

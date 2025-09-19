@@ -13,9 +13,17 @@ export type ErrorCode =
   | 'TIMEOUT'
   | 'UNKNOWN_ERROR';
 
+export type AuthErrorCode =
+  | 'BAD_CREDENTIALS'
+  | 'CLOCK_SKEW'
+  | 'TIMEOUT'
+  | 'ALREADY_AUTHED'
+  | 'NETWORK';
+
 export interface ErrorJSON {
   name: string;
-  code: ErrorCode;
+  code: ErrorCode | AuthErrorCode;
+  category: ErrorCode;
   message: string;
   httpStatus?: number;
   retryAfterMs?: number;
@@ -40,7 +48,7 @@ export interface ErrorOptions {
 type ErrorOverrides = Partial<Omit<ErrorOptions, 'code'>>;
 
 export class BaseError extends Error {
-  public readonly code: ErrorCode;
+  public readonly category: ErrorCode;
   public override readonly cause?: unknown;
   public readonly details?: Record<string, unknown>;
   public readonly httpStatus?: number;
@@ -53,7 +61,7 @@ export class BaseError extends Error {
     super(message);
 
     this.name = new.target.name;
-    this.code = opts.code;
+    this.category = opts.code;
     this.cause = opts.cause;
     this.details = opts.details;
     this.httpStatus = opts.httpStatus;
@@ -70,8 +78,12 @@ export class BaseError extends Error {
     Object.setPrototypeOf(this, new.target.prototype);
   }
 
+  get code(): ErrorCode | AuthErrorCode {
+    return this.category;
+  }
+
   isRetryable(): boolean {
-    switch (this.code) {
+    switch (this.category) {
       case 'NETWORK_ERROR':
       case 'RATE_LIMIT':
       case 'EXCHANGE_DOWN':
@@ -86,6 +98,7 @@ export class BaseError extends Error {
     return {
       name: this.name,
       code: this.code,
+      category: this.category,
       message: this.message,
       httpStatus: this.httpStatus,
       retryAfterMs: this.retryAfterMs,
@@ -105,8 +118,54 @@ export class NetworkError extends BaseError {
 }
 
 export class AuthError extends BaseError {
-  constructor(message = 'Authentication error', opts: Omit<ErrorOptions, 'code' | 'message'> = {}) {
+  public readonly authCode: AuthErrorCode;
+
+  constructor(
+    message = 'Authentication error',
+    code: AuthErrorCode = 'NETWORK',
+    opts: Omit<ErrorOptions, 'code' | 'message'> = {},
+  ) {
     super({ code: 'AUTH_ERROR', message, ...opts });
+    this.authCode = code;
+  }
+
+  override get code(): AuthErrorCode {
+    return this.authCode;
+  }
+
+  static badCredentials(
+    message = 'Authentication failed: bad credentials',
+    opts: Omit<ErrorOptions, 'code' | 'message'> = {},
+  ): AuthError {
+    return new AuthError(message, 'BAD_CREDENTIALS', opts);
+  }
+
+  static clockSkew(
+    message = 'Authentication failed: clock skew detected',
+    opts: Omit<ErrorOptions, 'code' | 'message'> = {},
+  ): AuthError {
+    return new AuthError(message, 'CLOCK_SKEW', opts);
+  }
+
+  static timeout(
+    message = 'Authentication timed out',
+    opts: Omit<ErrorOptions, 'code' | 'message'> = {},
+  ): AuthError {
+    return new AuthError(message, 'TIMEOUT', opts);
+  }
+
+  static alreadyAuthed(
+    message = 'Authentication already active',
+    opts: Omit<ErrorOptions, 'code' | 'message'> = {},
+  ): AuthError {
+    return new AuthError(message, 'ALREADY_AUTHED', opts);
+  }
+
+  static network(
+    message = 'Authentication failed due to network error',
+    opts: Omit<ErrorOptions, 'code' | 'message'> = {},
+  ): AuthError {
+    return new AuthError(message, 'NETWORK', opts);
   }
 }
 
@@ -115,7 +174,7 @@ export class AuthTimeoutError extends AuthError {
     message = 'Authentication timed out',
     opts: Omit<ErrorOptions, 'code' | 'message'> = {},
   ) {
-    super(message, opts);
+    super(message, 'TIMEOUT', opts);
   }
 }
 
@@ -124,7 +183,7 @@ export class AuthBadCredentialsError extends AuthError {
     message = 'Authentication failed: bad credentials',
     opts: Omit<ErrorOptions, 'code' | 'message'> = {},
   ) {
-    super(message, opts);
+    super(message, 'BAD_CREDENTIALS', opts);
   }
 }
 
@@ -133,7 +192,7 @@ export class AuthClockSkewError extends AuthError {
     message = 'Authentication failed: clock skew detected',
     opts: Omit<ErrorOptions, 'code' | 'message'> = {},
   ) {
-    super(message, opts);
+    super(message, 'CLOCK_SKEW', opts);
   }
 }
 
@@ -223,7 +282,12 @@ export function fromHttpResponse(params: HttpResponseErrorParams): BaseError {
   if (retryAfterMs !== undefined) details.retryAfterMs = retryAfterMs;
 
   if (status === 401 || status === 403) {
-    return new AuthError('Unauthorized', { httpStatus: status, exchange, requestId, details });
+    return AuthError.badCredentials('Unauthorized', {
+      httpStatus: status,
+      exchange,
+      requestId,
+      details,
+    });
   }
 
   if (status === 408) {
@@ -349,7 +413,7 @@ export function wrap(err: unknown, code?: ErrorCode, overrides: ErrorOverrides =
     const mergedDetails = mergeDetails(err.details, extraDetails);
 
     return new BaseError({
-      code: code ?? err.code,
+      code: code ?? err.category,
       message: overrideMessage ?? err.message,
       cause: overrideCause ?? err,
       details: mergedDetails,
