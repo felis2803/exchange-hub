@@ -140,7 +140,7 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
     const stopPrice = normalizePrice(rawPrice);
 
     if (stopPrice === null) {
-      throw new ValidationError('Stop orders require a price', { details: { price } });
+      throw new ValidationError('stop orders require a price', { details: { price } });
     }
 
     normalizedStopPrice = stopPrice;
