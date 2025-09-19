@@ -22,6 +22,18 @@ const STATUS_PRIORITY: Record<OrderStatus, number> = {
   [OrderStatus.Placed]: 1,
 };
 
+/**
+ * Infers the BitMEX order type from the provided context.
+ *
+ * - When price is omitted we default to a market order – this mirrors the API
+ *   contract where the caller specifies size/side only.
+ * - When the top of book is unavailable (for example right after startup) we
+ *   conservatively assume a limit order. This prevents us from accidentally
+ *   tagging the order as a stop just because the order book did not stream yet.
+ * - Prices that sit exactly on the best bid/ask are also treated as limit
+ *   orders. Staying on the passive side is safer than crossing the spread in
+ *   ambiguous boundary cases.
+ */
 export function inferOrderType(
   side: Side,
   price?: number | null,
@@ -42,6 +54,7 @@ export function inferOrderType(
       return 'Stop';
     }
 
+    // Missing ask or equality with the best ask fall back to a passive limit.
     return 'Limit';
   }
 
@@ -50,6 +63,7 @@ export function inferOrderType(
       return 'Stop';
     }
 
+    // Missing bid or equality with the best bid also map to a limit order.
     return 'Limit';
   }
 
