@@ -1,5 +1,16 @@
 import { format, inspect } from 'node:util';
 
+/** ВАЖНО: запрещено логировать секреты, ID ключей и подписи. */
+
+export const LOG_TAGS = {
+  ws: 'ws',
+  private: 'private',
+  wallet: 'wallet',
+  position: 'position',
+  order: 'order',
+  reconnect: 'reconnect',
+} as const;
+
 export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error';
 
 const LEVELS: readonly LogLevel[] = ['trace', 'debug', 'info', 'warn', 'error'];
