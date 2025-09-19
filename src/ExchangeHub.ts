@@ -1,5 +1,8 @@
 import { Cores } from './core/index.js';
 import { createEntities } from './entities/index.js';
+import { PositionsRegistry } from './domain/position.js';
+import { incrementCounter } from './infra/metrics.js';
+import { METRICS as PRIVATE_METRICS } from './infra/metrics-private.js';
 
 import type { BaseCore } from './core/BaseCore.js';
 import type { ExchangeName, Settings } from './types.js';
@@ -8,10 +11,21 @@ export class ExchangeHub<ExName extends ExchangeName> {
   #entities = createEntities(this);
   #core: BaseCore<ExName>;
   #isTest: boolean;
+  #positions: PositionsRegistry;
 
   constructor(exchangeName: ExName, settings: Settings = {}) {
     const { isTest } = settings;
+    const env: 'testnet' | 'mainnet' = isTest ? 'testnet' : 'mainnet';
 
+    this.#positions = new PositionsRegistry({
+      onUpdate: (_position, snapshot) => {
+        incrementCounter(PRIVATE_METRICS.positionUpdateCount, 1, {
+          env,
+          table: 'position',
+          symbol: snapshot.symbol,
+        });
+      },
+    });
     this.#core = new Cores[exchangeName](this, settings);
     this.#isTest = isTest || false;
   }
@@ -22,6 +36,10 @@ export class ExchangeHub<ExName extends ExchangeName> {
 
   get entities() {
     return this.#entities;
+  }
+
+  get positions(): PositionsRegistry {
+    return this.#positions;
   }
 
   get isTest(): boolean {

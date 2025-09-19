@@ -1,20 +1,27 @@
+import {
+  handlePositionDelete,
+  handlePositionInsert,
+  handlePositionPartial,
+  handlePositionUpdate,
+} from '../channels/position.js';
+
 import type { BitMex } from '../index.js';
 import type { BitMexPosition } from '../types.js';
 
 export const position = {
-  partial(_core: BitMex, _data: BitMexPosition[]) {
-    throw 'not implemented';
+  partial(core: BitMex, data: BitMexPosition[]) {
+    handlePositionPartial(core, data);
   },
 
-  insert(_core: BitMex, _data: BitMexPosition[]) {
-    throw 'not implemented';
+  insert(core: BitMex, data: BitMexPosition[]) {
+    handlePositionInsert(core, data);
   },
 
-  update(_core: BitMex, _data: BitMexPosition[]) {
-    throw 'not implemented';
+  update(core: BitMex, data: BitMexPosition[]) {
+    handlePositionUpdate(core, data);
   },
 
-  delete(_core: BitMex, _data: BitMexPosition[]) {
-    throw 'not implemented';
+  delete(core: BitMex, data: BitMexPosition[]) {
+    handlePositionDelete(core, data);
   },
 };
