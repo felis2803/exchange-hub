@@ -641,6 +641,33 @@ export class Position extends EventEmitter implements BaseEntity<PositionSnapsho
   }
 }
 
+export type PositionsViewKey = {
+  key: string;
+  accountId: AccountId;
+  symbol: TradingSymbol;
+};
+
+export type PositionsViewEntry = PositionsViewKey & {
+  position: Position;
+};
+
+export interface PositionsView {
+  readonly size: number;
+  get(accountId: AccountId, symbol: TradingSymbol): Position | undefined;
+  has(accountId: AccountId, symbol: TradingSymbol): boolean;
+  values(): IterableIterator<Position>;
+  keys(): IterableIterator<PositionsViewKey>;
+  entries(): IterableIterator<PositionsViewEntry>;
+  byAccount(accountId: AccountId): IterableIterator<Position>;
+  bySymbol(symbol: TradingSymbol): IterableIterator<Position>;
+  active(): IterableIterator<Position>;
+  toArray(): readonly Position[];
+  activeArray(): readonly Position[];
+  byAccountArray(accountId: AccountId): readonly Position[];
+  bySymbolArray(symbol: TradingSymbol): readonly Position[];
+  asMap(): ReadonlyMap<string, Position>;
+}
+
 type PositionUpdateListener = (
   position: Position,
   snapshot: PositionSnapshot,
@@ -671,9 +698,15 @@ export class PositionsRegistry {
     reason?: PositionUpdateReason,
   ) => void>();
   #onUpdate?: PositionUpdateListener;
+  #view: PositionsView;
 
   constructor(options: PositionRegistryOptions = {}) {
     this.#onUpdate = options.onUpdate;
+    this.#view = this.#createView();
+  }
+
+  get size(): number {
+    return this.#byKey.size;
   }
 
   #key(accountId: AccountId, symbol: TradingSymbol): string {
@@ -760,6 +793,71 @@ export class PositionsRegistry {
     }
   }
 
+  #positionsIterator(source: Iterable<Position>): IterableIterator<Position> {
+    return (function* (items: Iterable<Position>): IterableIterator<Position> {
+      for (const position of items) {
+        yield position;
+      }
+    })(source);
+  }
+
+  #keysIterator(): IterableIterator<PositionsViewKey> {
+    const self = this;
+    return (function* (): IterableIterator<PositionsViewKey> {
+      for (const key of self.#byKey.keys()) {
+        const [accountId, symbol] = key.split('::');
+        yield {
+          key,
+          accountId: accountId as AccountId,
+          symbol: symbol as TradingSymbol,
+        };
+      }
+    })();
+  }
+
+  #entriesIterator(): IterableIterator<PositionsViewEntry> {
+    const self = this;
+    return (function* (): IterableIterator<PositionsViewEntry> {
+      for (const [key, position] of self.#byKey.entries()) {
+        const [accountId, symbol] = key.split('::');
+        yield {
+          key,
+          accountId: accountId as AccountId,
+          symbol: symbol as TradingSymbol,
+          position,
+        };
+      }
+    })();
+  }
+
+  #createView(): PositionsView {
+    const view = {
+      get: (accountId, symbol) => this.get(accountId, symbol),
+      has: (accountId, symbol) => this.#byKey.has(this.#key(accountId, symbol)),
+      values: () => this.#positionsIterator(this.#byKey.values()),
+      keys: () => this.#keysIterator(),
+      entries: () => this.#entriesIterator(),
+      byAccount: (accountId) =>
+        this.#positionsIterator(
+          this.#byAccount.get(normalizeAccountId(accountId)) ?? [],
+        ),
+      bySymbol: (symbol) =>
+        this.#positionsIterator(this.#bySymbol.get(normalizeSymbol(symbol)) ?? []),
+      active: () => this.#positionsIterator(this.#active),
+      toArray: () => this.values(),
+      activeArray: () => this.active,
+      byAccountArray: (accountId) => this.byAccount(accountId),
+      bySymbolArray: (symbol) => this.bySymbol(symbol),
+      asMap: () => new Map(this.#byKey),
+    } satisfies Omit<PositionsView, 'size'>;
+
+    Object.defineProperty(view, 'size', {
+      get: () => this.size,
+    });
+
+    return view as unknown as PositionsView;
+  }
+
   add(position: Position): void {
     const existing = this.get(position.accountId, position.symbol);
 
@@ -789,6 +887,10 @@ export class PositionsRegistry {
 
     this.remove(existing);
     return existing;
+  }
+
+  asReadonly(): PositionsView {
+    return this.#view;
   }
 
   values(): readonly Position[] {

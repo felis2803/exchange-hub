@@ -28,6 +28,36 @@ type NormalizedUpdateEntry = {
   update: PositionUpdate;
 };
 
+type PositionRowState = {
+  lastTimestamp?: TimestampISO | null;
+  lastSnapshotHash?: string;
+  lastUpdateHash?: string;
+};
+
+type PositionChannelState = {
+  rows: Map<string, PositionRowState>;
+  awaitingPartial: boolean;
+};
+
+const channelStates = new WeakMap<BitMex, PositionChannelState>();
+
+function getChannelState(core: BitMex): PositionChannelState {
+  let state = channelStates.get(core);
+
+  if (!state) {
+    state = { rows: new Map(), awaitingPartial: true };
+    channelStates.set(core, state);
+  }
+
+  return state;
+}
+
+export function markPositionsAwaitingResync(core: BitMex): void {
+  const state = getChannelState(core);
+  state.awaitingPartial = true;
+  state.rows.clear();
+}
+
 export function handlePositionMessage(core: BitMex, message: PositionMessage): void {
   const { action, data } = message;
 
@@ -50,12 +80,17 @@ export function handlePositionMessage(core: BitMex, message: PositionMessage): v
 }
 
 export function handlePositionPartial(core: BitMex, rows: BitMexPosition[]): void {
+  const state = getChannelState(core);
+  const registry = core.shell.positionsRegistry;
+  state.awaitingPartial = false;
+
   if (!Array.isArray(rows) || rows.length === 0) {
+    registry.clear();
+    state.rows.clear();
     return;
   }
 
   const grouped = groupSnapshots(rows);
-  const positions = core.shell.positions;
 
   for (const [accountId, entries] of grouped.entries()) {
     const seen = new Set<string>();
@@ -65,34 +100,74 @@ export function handlePositionPartial(core: BitMex, rows: BitMexPosition[]): voi
       const key = makeKey(accountId, symbol);
       seen.add(key);
 
-      let position = positions.get(accountId, symbol);
+      let position = registry.get(accountId, symbol);
 
       if (!position) {
         position = new Position(createBaseSnapshot(accountId, symbol));
-        positions.add(position);
+        registry.add(position);
       }
 
-      const changed = position.reset(snapshot, 'partial');
+      const previousState = state.rows.get(key);
+      const snapshotTimestamp = snapshot.timestamp ?? null;
+      const snapshotHash = hashSnapshot(snapshot);
+      let shouldReset = true;
+
+      if (previousState?.lastTimestamp && snapshotTimestamp) {
+        const isNewer = isNewerByTimestamp(
+          previousState.lastTimestamp ?? undefined,
+          snapshotTimestamp,
+        );
+
+        if (!isNewer && snapshotTimestamp !== previousState.lastTimestamp) {
+          shouldReset = false;
+        }
+      }
+
+      if (shouldReset && previousState) {
+        if (
+          previousState.lastSnapshotHash === snapshotHash &&
+          snapshotTimestamp === previousState.lastTimestamp
+        ) {
+          shouldReset = false;
+        }
+      }
 
       const symbolLog = log.withTags(['symbol']);
 
-      if (changed) {
-        symbolLog.debug('BitMEX position partial applied for %s/%s', accountId, symbol, {
-          accountId,
-          symbol,
-        });
+      if (shouldReset) {
+        const changed = position.reset(snapshot, 'partial');
+
+        if (changed) {
+          symbolLog.debug('BitMEX position partial applied for %s/%s', accountId, symbol, {
+            accountId,
+            symbol,
+          });
+        }
       }
 
-      if (position.size === 0) {
-        positions.remove(position);
+      const currentSnapshot = position.getSnapshot();
+
+      if (currentSnapshot.size === 0) {
+        registry.remove(position);
+        state.rows.delete(key);
         symbolLog.debug('BitMEX position partial removed empty %s/%s', accountId, symbol, {
           accountId,
           symbol,
         });
+        continue;
       }
+
+      const nextState: PositionRowState = {
+        lastTimestamp:
+          currentSnapshot.timestamp ?? snapshotTimestamp ?? previousState?.lastTimestamp ?? null,
+        lastSnapshotHash: hashSnapshot(currentSnapshot),
+        lastUpdateHash: undefined,
+      };
+
+      state.rows.set(key, nextState);
     }
 
-    const existingPositions = positions.byAccount(accountId);
+    const existingPositions = registry.byAccount(accountId);
 
     for (const position of existingPositions) {
       const key = makeKey(accountId, position.symbol);
@@ -104,7 +179,8 @@ export function handlePositionPartial(core: BitMex, rows: BitMexPosition[]): voi
       position.update({ currentQty: 0, size: 0, side: 'buy' }, 'partial', {
         allowOlderTimestamp: true,
       });
-      positions.remove(position);
+      registry.remove(position);
+      state.rows.delete(key);
 
       log
         .withTags(['symbol', LOG_TAGS.reconnect])
@@ -112,6 +188,20 @@ export function handlePositionPartial(core: BitMex, rows: BitMexPosition[]): voi
           accountId,
           symbol: position.symbol,
         });
+    }
+
+    const staleKeys: string[] = [];
+
+    for (const key of state.rows.keys()) {
+      if (!key.startsWith(`${accountId}::`) || seen.has(key)) {
+        continue;
+      }
+
+      staleKeys.push(key);
+    }
+
+    for (const key of staleKeys) {
+      state.rows.delete(key);
     }
   }
 }
@@ -129,7 +219,8 @@ export function handlePositionDelete(core: BitMex, rows: BitMexPosition[]): void
     return;
   }
 
-  const positions = core.shell.positions;
+  const registry = core.shell.positionsRegistry;
+  const state = getChannelState(core);
 
   for (const raw of rows) {
     const accountId = normalizeAccount(raw.account);
@@ -139,7 +230,7 @@ export function handlePositionDelete(core: BitMex, rows: BitMexPosition[]): void
       continue;
     }
 
-    const position = positions.get(accountId, symbol);
+    const position = registry.get(accountId, symbol);
 
     if (!position) {
       continue;
@@ -153,7 +244,8 @@ export function handlePositionDelete(core: BitMex, rows: BitMexPosition[]): void
     }
 
     position.update(update, 'delete', { allowOlderTimestamp: true });
-    positions.remove(position);
+    registry.remove(position);
+    state.rows.delete(makeKey(accountId, symbol));
 
     log.withTags(['symbol']).debug('BitMEX position delete removed %s/%s', accountId, symbol, {
       accountId,
@@ -167,22 +259,61 @@ function applyIncrementalUpdates(core: BitMex, rows: BitMexPosition[], reason: P
     return;
   }
 
+  const state = getChannelState(core);
+
+  if (state.awaitingPartial) {
+    return;
+  }
+
   const updates = groupUpdates(rows);
-  const positions = core.shell.positions;
+  const registry = core.shell.positionsRegistry;
 
   for (const entry of updates.values()) {
     const { accountId, symbol, update } = entry;
+    const key = makeKey(accountId, symbol);
+    const updateHash = hashUpdate(update);
+    const timestamp = update.timestamp ?? null;
+    let rowState = state.rows.get(key);
 
-    let position = positions.get(accountId, symbol);
+    if (!rowState && reason !== 'insert') {
+      continue;
+    }
+
+    if (!rowState) {
+      rowState = { lastTimestamp: timestamp ?? null, lastSnapshotHash: undefined, lastUpdateHash: undefined };
+    }
+
+    if (rowState.lastTimestamp && timestamp) {
+      const isNewer = isNewerByTimestamp(rowState.lastTimestamp ?? undefined, timestamp);
+
+      if (!isNewer && timestamp !== rowState.lastTimestamp) {
+        continue;
+      }
+
+      if (timestamp === rowState.lastTimestamp && rowState.lastUpdateHash === updateHash) {
+        continue;
+      }
+    } else if (rowState.lastUpdateHash === updateHash) {
+      continue;
+    }
+
+    let position = registry.get(accountId, symbol);
 
     if (!position) {
       position = new Position(createBaseSnapshot(accountId, symbol));
-      positions.add(position);
+      registry.add(position);
     }
 
     const applied = position.update(update, reason, { allowOlderTimestamp: reason === 'insert' });
 
     if (!applied) {
+      rowState.lastUpdateHash = updateHash;
+
+      if (!rowState.lastTimestamp && timestamp) {
+        rowState.lastTimestamp = timestamp;
+      }
+
+      state.rows.set(key, rowState);
       continue;
     }
 
@@ -196,13 +327,20 @@ function applyIncrementalUpdates(core: BitMex, rows: BitMexPosition[], reason: P
     });
 
     if (snapshot.size === 0) {
-      positions.remove(position);
+      registry.remove(position);
+      state.rows.delete(key);
       symbolLog.debug('BitMEX position %s removed empty %s/%s', reason, accountId, symbol, {
         accountId,
         symbol,
         reason,
       });
+      continue;
     }
+
+    rowState.lastTimestamp = snapshot.timestamp ?? timestamp ?? rowState.lastTimestamp ?? null;
+    rowState.lastSnapshotHash = hashSnapshot(snapshot);
+    rowState.lastUpdateHash = updateHash;
+    state.rows.set(key, rowState);
   }
 }
 
@@ -514,6 +652,22 @@ function createBaseSnapshot(accountId: AccountId, symbol: TradingSymbol): Positi
     size: 0,
     side: 'buy',
   };
+}
+
+function stableSerialize(record: Record<string, unknown>): string {
+  const entries = Object.entries(record)
+    .filter(([, value]) => value !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+  return JSON.stringify(entries);
+}
+
+function hashSnapshot(snapshot: PositionSnapshot): string {
+  return stableSerialize(snapshot as Record<string, unknown>);
+}
+
+function hashUpdate(update: PositionUpdate): string {
+  return stableSerialize(update as Record<string, unknown>);
 }
 
 const NUMBER_FIELDS = [

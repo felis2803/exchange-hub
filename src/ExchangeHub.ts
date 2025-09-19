@@ -1,6 +1,6 @@
 import { Cores } from './core/index.js';
 import { createEntities } from './entities/index.js';
-import { PositionsRegistry } from './domain/position.js';
+import { PositionsRegistry, type PositionsView } from './domain/position.js';
 import { incrementCounter } from './infra/metrics.js';
 import { METRICS as PRIVATE_METRICS } from './infra/metrics-private.js';
 
@@ -12,6 +12,7 @@ export class ExchangeHub<ExName extends ExchangeName> {
   #core: BaseCore<ExName>;
   #isTest: boolean;
   #positions: PositionsRegistry;
+  #positionsView: PositionsView;
 
   constructor(exchangeName: ExName, settings: Settings = {}) {
     const { isTest } = settings;
@@ -26,6 +27,7 @@ export class ExchangeHub<ExName extends ExchangeName> {
         });
       },
     });
+    this.#positionsView = this.#positions.asReadonly();
     this.#core = new Cores[exchangeName](this, settings);
     this.#isTest = isTest || false;
   }
@@ -38,7 +40,14 @@ export class ExchangeHub<ExName extends ExchangeName> {
     return this.#entities;
   }
 
-  get positions(): PositionsRegistry {
+  get positions(): PositionsView {
+    return this.#positionsView;
+  }
+
+  /**
+   * Internal mutable registry for core handlers. External consumers should use {@link positions}.
+   */
+  get positionsRegistry(): PositionsRegistry {
     return this.#positions;
   }
 

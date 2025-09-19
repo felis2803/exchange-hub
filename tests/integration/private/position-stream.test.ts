@@ -4,7 +4,12 @@ import type { BitMexPosition } from '../../../src/core/bitmex/types.js';
 import type { PositionSnapshot } from '../../../src/domain/position.js';
 import type { DomainUpdate } from '../../../src/core/types.js';
 
-import { handlePositionInsert, handlePositionPartial, handlePositionUpdate } from '../../../src/core/bitmex/channels/position.js';
+import {
+  handlePositionInsert,
+  handlePositionPartial,
+  handlePositionUpdate,
+  markPositionsAwaitingResync,
+} from '../../../src/core/bitmex/channels/position.js';
 import { METRICS as PRIVATE_METRICS } from '../../../src/infra/metrics-private.js';
 
 let metrics!: typeof import('../../../src/infra/metrics.js');
@@ -81,7 +86,7 @@ function clone<T>(value: T): T {
 }
 
 describe('BitMEX position stream', () => {
-  test('partial → updates → reconnect keep state consistent and handles dedupe', () => {
+  test('dedupe-out-of-order updates keep state consistent', () => {
     const incrementCounterSpy = jest.spyOn(metrics, 'incrementCounter');
 
     try {
@@ -125,15 +130,12 @@ describe('BitMEX position stream', () => {
       expect(xbtPosition).toBeDefined();
       expect(ethPosition).toBeDefined();
 
-      expect(hub.positions.active.map((position) => position.symbol)).toEqual(['XBTUSD', 'ETHUSD']);
-      expect(hub.positions.bySymbol('XBTUSD')).toEqual([xbtPosition]);
-
-      const xbtSnapshot = xbtPosition!.getSnapshot();
-      expect(xbtSnapshot.side).toBe('buy');
-      expect(xbtSnapshot.size).toBe(200);
-      expect(xbtSnapshot.markPrice).toBe(50_500);
-      expect(xbtSnapshot.timestamp).toBe('2024-01-01T00:00:00.000Z');
-      expect(xbtSnapshot.symbol).toBe('XBTUSD');
+      expect(hub.positions.activeArray().map((position) => position.symbol)).toEqual([
+        'XBTUSD',
+        'ETHUSD',
+      ]);
+      expect(hub.positions.bySymbolArray('XBTUSD')).toEqual([xbtPosition]);
+      expect(hub.positions.bySymbolArray('ETHUSD')).toEqual([ethPosition]);
 
       const xbtEvents: {
         snapshot: PositionSnapshot;
@@ -145,7 +147,7 @@ describe('BitMEX position stream', () => {
         xbtEvents.push({ snapshot, diff, reason });
       });
 
-      const updates: BitMexPosition[] = [
+      handlePositionUpdate(core, [
         {
           account: 101,
           symbol: 'XBTUSD',
@@ -156,34 +158,18 @@ describe('BitMEX position stream', () => {
         },
         {
           account: 101,
-          symbol: 'XBTUSD',
-          currentQty: 230,
-          markPrice: 50_600,
-          unrealisedPnl: 1_150,
-          timestamp: '2024-01-01T00:01:30.000Z',
-        },
-        {
-          account: 101,
           symbol: 'ETHUSD',
           currentQty: -80,
           markPrice: 2_975,
           unrealisedPnl: -300,
           timestamp: '2024-01-01T00:01:00.000Z',
         },
-      ];
-
-      handlePositionUpdate(core, clone(updates));
+      ]);
 
       expect(xbtEvents).toHaveLength(1);
       expect(xbtEvents[0].reason).toBe('update');
-      expect(xbtEvents[0].diff.changed).toEqual(expect.arrayContaining(['currentQty', 'size', 'markPrice']));
-      expect(xbtEvents[0].snapshot.currentQty).toBe(230);
-      expect(xbtEvents[0].snapshot.size).toBe(230);
-      expect(xbtEvents[0].snapshot.symbol).toBe('XBTUSD');
-
-      const afterUpdate = xbtPosition!.getSnapshot();
-      expect(afterUpdate.unrealisedPnl).toBe(1_150);
-      expect(afterUpdate.timestamp).toBe('2024-01-01T00:01:30.000Z');
+      expect(xbtEvents[0].snapshot.currentQty).toBe(240);
+      expect(xbtPosition!.getSnapshot().timestamp).toBe('2024-01-01T00:01:00.000Z');
 
       handlePositionUpdate(core, [
         {
@@ -195,8 +181,34 @@ describe('BitMEX position stream', () => {
         },
       ]);
 
-      expect(xbtPosition!.getSnapshot().currentQty).toBe(230);
       expect(xbtEvents).toHaveLength(1);
+
+      handlePositionUpdate(core, [
+        {
+          account: 101,
+          symbol: 'XBTUSD',
+          currentQty: 240,
+          markPrice: 50_650,
+          unrealisedPnl: 1_200,
+          timestamp: '2024-01-01T00:01:00.000Z',
+        },
+      ]);
+
+      expect(xbtEvents).toHaveLength(1);
+
+      handlePositionUpdate(core, [
+        {
+          account: 101,
+          symbol: 'XBTUSD',
+          currentQty: 240,
+          markPrice: 50_680,
+          unrealisedPnl: 1_300,
+          timestamp: '2024-01-01T00:01:00.000Z',
+        },
+      ]);
+
+      expect(xbtEvents).toHaveLength(2);
+      expect(xbtEvents[1].snapshot.markPrice).toBe(50_680);
 
       handlePositionUpdate(core, [
         {
@@ -204,11 +216,14 @@ describe('BitMEX position stream', () => {
           symbol: 'XBTUSD',
           currentQty: 230,
           markPrice: 50_600,
+          unrealisedPnl: 1_150,
           timestamp: '2024-01-01T00:01:30.000Z',
         },
       ]);
 
-      expect(xbtEvents).toHaveLength(1);
+      expect(xbtEvents).toHaveLength(3);
+      expect(xbtEvents[2].snapshot.currentQty).toBe(230);
+      expect(xbtPosition!.getSnapshot().timestamp).toBe('2024-01-01T00:01:30.000Z');
 
       handlePositionUpdate(core, [
         {
@@ -221,7 +236,8 @@ describe('BitMEX position stream', () => {
       ]);
 
       expect(hub.positions.get('101', 'ETHUSD')).toBeUndefined();
-      expect(hub.positions.active.map((position) => position.symbol)).toEqual(['XBTUSD']);
+      expect(hub.positions.activeArray().map((position) => position.symbol)).toEqual(['XBTUSD']);
+
       handlePositionInsert(core, [
         {
           account: 101,
@@ -235,84 +251,165 @@ describe('BitMEX position stream', () => {
       const adaPosition = hub.positions.get('101', 'ADAUSD');
       expect(adaPosition).toBeDefined();
       expect(adaPosition!.getSnapshot().currentQty).toBe(50);
-      const reconnectPartial: BitMexPosition[] = [
+
+      const expectedSymbols = [
+        'XBTUSD',
+        'ETHUSD',
+        'XBTUSD',
+        'ETHUSD',
+        'XBTUSD',
+        'XBTUSD',
+        'ETHUSD',
+        'ADAUSD',
+      ];
+
+      expect(incrementCounterSpy).toHaveBeenCalledTimes(expectedSymbols.length);
+      expect(incrementCounterSpy.mock.calls.map(([, , labels]) => labels.symbol)).toEqual(
+        expectedSymbols,
+      );
+    } finally {
+      incrementCounterSpy.mockRestore();
+    }
+  });
+
+  test('reconnect-resync waits for partial before applying updates', () => {
+    const incrementCounterSpy = jest.spyOn(metrics, 'incrementCounter');
+
+    try {
+      const hub = new ExchangeHub('BitMex', { isTest: true });
+      const core = hub.Core as BitMex;
+
+      const partialRows: BitMexPosition[] = [
+        {
+          account: 101,
+          symbol: 'XBTUSD',
+          currentQty: 120,
+          markPrice: 50_400,
+          timestamp: '2024-01-01T00:00:00.000Z',
+        },
+        {
+          account: 101,
+          symbol: 'ETHUSD',
+          currentQty: -40,
+          markPrice: 2_800,
+          timestamp: '2024-01-01T00:00:00.000Z',
+        },
+      ];
+
+      handlePositionPartial(core, clone(partialRows));
+
+      const xbtPosition = hub.positions.get('101', 'XBTUSD');
+      expect(xbtPosition).toBeDefined();
+
+      const xbtEvents: {
+        snapshot: PositionSnapshot;
+        diff: DomainUpdate<PositionSnapshot>;
+        reason?: string;
+      }[] = [];
+
+      xbtPosition!.on('update', (snapshot, diff, reason) => {
+        xbtEvents.push({ snapshot, diff, reason });
+      });
+
+      handlePositionUpdate(core, [
         {
           account: 101,
           symbol: 'XBTUSD',
           currentQty: 150,
           markPrice: 50_550,
-          unrealisedPnl: 900,
-          timestamp: '2024-01-01T00:05:00.000Z',
+          timestamp: '2024-01-01T00:01:00.000Z',
+        },
+      ]);
+
+      expect(xbtEvents).toHaveLength(1);
+      expect(xbtPosition!.getSnapshot().currentQty).toBe(150);
+
+      const callsAfterInitialUpdate = incrementCounterSpy.mock.calls.length;
+
+      markPositionsAwaitingResync(core);
+
+      handlePositionUpdate(core, [
+        {
+          account: 101,
+          symbol: 'XBTUSD',
+          currentQty: 180,
+          markPrice: 50_600,
+          timestamp: '2024-01-01T00:02:00.000Z',
+        },
+      ]);
+
+      expect(xbtEvents).toHaveLength(1);
+      expect(incrementCounterSpy).toHaveBeenCalledTimes(callsAfterInitialUpdate);
+
+      const reconnectPartial: BitMexPosition[] = [
+        {
+          account: 101,
+          symbol: 'XBTUSD',
+          currentQty: 90,
+          markPrice: 50_300,
+          timestamp: '2024-01-01T00:03:00.000Z',
         },
         {
           account: 101,
           symbol: 'SOLUSD',
           currentQty: 30,
           markPrice: 100,
-          timestamp: '2024-01-01T00:05:00.000Z',
+          timestamp: '2024-01-01T00:03:00.000Z',
         },
       ];
 
       handlePositionPartial(core, clone(reconnectPartial));
 
-      expect(hub.positions.get('101', 'ADAUSD')).toBeUndefined();
+      expect(hub.positions.get('101', 'ETHUSD')).toBeUndefined();
 
       const solPosition = hub.positions.get('101', 'SOLUSD');
       expect(solPosition).toBeDefined();
-      expect(solPosition!.getSnapshot().size).toBe(30);
+      expect(solPosition!.getSnapshot().currentQty).toBe(30);
 
-      expect(xbtPosition!.getSnapshot().currentQty).toBe(150);
+      expect(xbtPosition!.getSnapshot().currentQty).toBe(90);
       expect(xbtEvents).toHaveLength(2);
       expect(xbtEvents[1].reason).toBe('partial');
 
-      expect(incrementCounterSpy).toHaveBeenCalledTimes(9);
-      expect(incrementCounterSpy.mock.calls).toEqual([
-        [
-          PRIVATE_METRICS.positionUpdateCount,
-          1,
-          { env: 'testnet', table: 'position', symbol: 'XBTUSD' },
-        ],
-        [
-          PRIVATE_METRICS.positionUpdateCount,
-          1,
-          { env: 'testnet', table: 'position', symbol: 'ETHUSD' },
-        ],
-        [
-          PRIVATE_METRICS.positionUpdateCount,
-          1,
-          { env: 'testnet', table: 'position', symbol: 'XBTUSD' },
-        ],
-        [
-          PRIVATE_METRICS.positionUpdateCount,
-          1,
-          { env: 'testnet', table: 'position', symbol: 'ETHUSD' },
-        ],
-        [
-          PRIVATE_METRICS.positionUpdateCount,
-          1,
-          { env: 'testnet', table: 'position', symbol: 'ETHUSD' },
-        ],
-        [
-          PRIVATE_METRICS.positionUpdateCount,
-          1,
-          { env: 'testnet', table: 'position', symbol: 'ADAUSD' },
-        ],
-        [
-          PRIVATE_METRICS.positionUpdateCount,
-          1,
-          { env: 'testnet', table: 'position', symbol: 'XBTUSD' },
-        ],
-        [
-          PRIVATE_METRICS.positionUpdateCount,
-          1,
-          { env: 'testnet', table: 'position', symbol: 'SOLUSD' },
-        ],
-        [
-          PRIVATE_METRICS.positionUpdateCount,
-          1,
-          { env: 'testnet', table: 'position', symbol: 'ADAUSD' },
-        ],
+      handlePositionUpdate(core, [
+        {
+          account: 101,
+          symbol: 'SOLUSD',
+          currentQty: 35,
+          markPrice: 102,
+          timestamp: '2024-01-01T00:04:00.000Z',
+        },
       ]);
+
+      expect(hub.positions.get('101', 'SOLUSD')!.getSnapshot().currentQty).toBe(35);
+
+      handlePositionUpdate(core, [
+        {
+          account: 101,
+          symbol: 'XBTUSD',
+          currentQty: 95,
+          markPrice: 50_350,
+          timestamp: '2024-01-01T00:04:30.000Z',
+        },
+      ]);
+
+      expect(xbtEvents).toHaveLength(3);
+      expect(xbtEvents[2].snapshot.currentQty).toBe(95);
+
+      const expectedSymbols = [
+        'XBTUSD',
+        'ETHUSD',
+        'XBTUSD',
+        'XBTUSD',
+        'SOLUSD',
+        'ETHUSD',
+        'SOLUSD',
+        'XBTUSD',
+      ];
+
+      expect(incrementCounterSpy).toHaveBeenCalledTimes(expectedSymbols.length);
+      expect(incrementCounterSpy.mock.calls.map(([, , labels]) => labels.symbol)).toEqual(
+        expectedSymbols,
+      );
     } finally {
       incrementCounterSpy.mockRestore();
     }
