@@ -1,4 +1,7 @@
 /* eslint-disable no-console */
+// Для использования вне репозитория:
+// import { ExchangeHub, genClOrdID } from 'exchange-hub';
+// import { validatePlaceInput, type PreparedPlaceInput } from 'exchange-hub/validation';
 
 import { ExchangeHub } from '../src/ExchangeHub.js';
 import { genClOrdID } from '../src/infra/ids.js';
@@ -68,8 +71,7 @@ async function main() {
   try {
     await hub.connect();
 
-    const place =
-      side === 'sell' ? hub.Core.sell.bind(hub.Core) : hub.Core.buy.bind(hub.Core);
+    const place = side === 'sell' ? hub.Core.sell.bind(hub.Core) : hub.Core.buy.bind(hub.Core);
 
     console.log(
       'Submitting %s %s order on %s (size=%d, price=%s, clOrdId=%s)',
