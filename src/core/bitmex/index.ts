@@ -4,7 +4,7 @@ import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.
 import { L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants.js';
 import { markOrderChannelAwaitingSnapshot } from './channels/order.js';
 import { BitmexRestClient } from './rest/request.js';
-import { createOrder, BITMEX_CREATE_ORDER_TIMEOUT_MS } from './rest/orders.js';
+import { createOrder, getOrderByClOrdId, BITMEX_CREATE_ORDER_TIMEOUT_MS } from './rest/orders.js';
 import { mapBitmexOrderStatus, mapPreparedOrderToCreatePayload } from './mappers/order.js';
 import type { CreateOrderPayload } from './rest/orders.js';
 
@@ -14,7 +14,7 @@ import { Instrument } from '../../domain/instrument.js';
 import type { Order } from '../../domain/order.js';
 import { OrderStatus, type OrderInit, type OrderUpdate } from '../../domain/order.js';
 import { createLogger } from '../../infra/logger.js';
-import { ValidationError } from '../../infra/errors.js';
+import { OrderRejectedError, TimeoutError, ValidationError } from '../../infra/errors.js';
 import type { PreparedPlaceInput } from '../../infra/validation.js';
 import type { Settings } from '../../types.js';
 import type { ExchangeHub } from '../../ExchangeHub.js';
@@ -223,6 +223,7 @@ export class BitMex extends BaseCore<'BitMex'> {
       return Promise.resolve(existing);
     }
 
+    const startedAt = Date.now();
     const orderPromise = (async () => {
       try {
         const restOrder = await createOrder(this.#rest, payload, {
@@ -231,6 +232,52 @@ export class BitMex extends BaseCore<'BitMex'> {
           logger: this.#log,
         });
         return this.#upsertOrderFromRest(restOrder);
+      } catch (error) {
+        if (shouldReconcileCreateOrderError(error)) {
+          const existing = store.getByClOrdId(payload.clOrdID);
+          if (existing) {
+            this.#log.info('BitMEX createOrder error but order already present for %s', payload.clOrdID, {
+              clOrdID: payload.clOrdID,
+              symbol: payload.symbol,
+              errorName: error instanceof Error ? error.name : typeof error,
+              code: error instanceof OrderRejectedError || error instanceof TimeoutError ? error.code : undefined,
+            });
+            return existing;
+          }
+
+          try {
+            this.#log.warn('BitMEX createOrder failed for %s, reconciling via GET', payload.clOrdID, {
+              clOrdID: payload.clOrdID,
+              symbol: payload.symbol,
+              errorName: error instanceof Error ? error.name : typeof error,
+            });
+
+            const reconciled = await this.#reconcileOrderByClOrdId(payload.clOrdID);
+            if (reconciled) {
+              this.#log.info('BitMEX reconcile succeeded for %s', payload.clOrdID, {
+                clOrdID: payload.clOrdID,
+                symbol: payload.symbol,
+                latencyMs: Date.now() - startedAt,
+              });
+              return reconciled;
+            }
+
+            this.#log.error('BitMEX reconcile returned no order for %s', payload.clOrdID, {
+              clOrdID: payload.clOrdID,
+              symbol: payload.symbol,
+            });
+          } catch (reconcileError) {
+            const message =
+              reconcileError instanceof Error ? reconcileError.message : String(reconcileError);
+            this.#log.error('BitMEX reconcile failed for %s: %s', payload.clOrdID, message, {
+              clOrdID: payload.clOrdID,
+              symbol: payload.symbol,
+              errorName: reconcileError instanceof Error ? reconcileError.name : typeof reconcileError,
+            });
+          }
+        }
+
+        throw error;
       } finally {
         store.clearInflight(payload.clOrdID);
       }
@@ -239,6 +286,19 @@ export class BitMex extends BaseCore<'BitMex'> {
     store.registerInflight(payload.clOrdID, orderPromise);
 
     return orderPromise;
+  }
+
+  async #reconcileOrderByClOrdId(clOrdId: string): Promise<Order | undefined> {
+    const restOrder = await getOrderByClOrdId(this.#rest, clOrdId, {
+      timeoutMs: BITMEX_CREATE_ORDER_TIMEOUT_MS,
+      logger: this.#log,
+    });
+
+    if (!restOrder) {
+      return undefined;
+    }
+
+    return this.#upsertOrderFromRest(restOrder);
   }
 
   #upsertOrderFromRest(row: BitMexOrder): Order {
@@ -481,4 +541,16 @@ function normalizeTimestampMs(value: unknown): number | null {
   }
 
   return null;
+}
+
+function shouldReconcileCreateOrderError(error: unknown): boolean {
+  if (error instanceof TimeoutError) {
+    return true;
+  }
+
+  if (error instanceof OrderRejectedError) {
+    return error.httpStatus === 409;
+  }
+
+  return false;
 }

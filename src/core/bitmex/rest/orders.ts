@@ -1,4 +1,5 @@
 import { createLogger, type Logger } from '../../../infra/logger.js';
+import { incrementCounter, observeHistogram, type MetricLabelValue } from '../../../infra/metrics.js';
 import { BaseError, ExchangeDownError, NetworkError } from '../../../infra/errors.js';
 
 import type { BitMexOrder, BitMexOrderType, BitMexSide, BitMexTimeInForce } from '../types.js';
@@ -25,6 +26,9 @@ export interface CreateOrderOptions {
 
 export const BITMEX_CREATE_ORDER_TIMEOUT_MS = 8_000;
 const DEFAULT_RETRIES = 1;
+
+const CREATE_ORDER_LATENCY_METRIC = 'create_order_latency_ms';
+const CREATE_ORDER_ERROR_COUNTER = 'create_order_errors_total';
 
 const log = createLogger('bitmex:rest:orders');
 
@@ -85,6 +89,10 @@ export async function createOrder(
           symbol: payload.symbol,
         },
       );
+      observeHistogram(CREATE_ORDER_LATENCY_METRIC, elapsedMs, {
+        exchange: 'BitMEX',
+        symbol: payload.symbol,
+      });
       return result;
     } catch (error) {
       lastError = error;
@@ -119,10 +127,77 @@ export async function createOrder(
       );
 
       if (!shouldRetry) {
+        const labels = {
+          exchange: 'BitMEX',
+          symbol: payload.symbol,
+          error: errorName,
+          code: error instanceof BaseError ? error.category : 'UNKNOWN_ERROR',
+        } as Record<string, MetricLabelValue>;
+
+        if (httpStatus !== undefined) {
+          labels.httpStatus = httpStatus;
+        }
+
+        incrementCounter(CREATE_ORDER_ERROR_COUNTER, 1, labels);
         throw error;
       }
     }
   }
 
   throw lastError instanceof Error ? lastError : new NetworkError('BitMEX createOrder failed');
+}
+
+export async function getOrderByClOrdId(
+  client: BitmexRestClient,
+  clOrdID: string,
+  options: Pick<CreateOrderOptions, 'timeoutMs' | 'logger'> = {},
+): Promise<BitMexOrder | undefined> {
+  const { timeoutMs = BITMEX_CREATE_ORDER_TIMEOUT_MS, logger } = options;
+  const requestLogger = logger ?? log;
+  const startedAt = Date.now();
+
+  try {
+    const rows = await client.request<BitMexOrder[]>('GET', '/api/v1/order', {
+      auth: true,
+      timeoutMs,
+      qs: { clOrdID },
+    });
+    const elapsedMs = Date.now() - startedAt;
+
+    requestLogger.info('BitMEX getOrder by clOrdID=%s succeeded in %dms', clOrdID, elapsedMs, {
+      clOrdID,
+      elapsedMs,
+      timeoutMs,
+      symbol: rows?.[0]?.symbol,
+    });
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return undefined;
+    }
+
+    return rows[0];
+  } catch (error) {
+    const elapsedMs = Date.now() - startedAt;
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorName = error instanceof Error ? error.name : typeof error;
+    const httpStatus = error instanceof BaseError ? error.httpStatus : undefined;
+    const code = error instanceof BaseError ? error.code : undefined;
+
+    requestLogger.error(
+      'BitMEX getOrder by clOrdID=%s failed after %dms: %s',
+      clOrdID,
+      elapsedMs,
+      errorMessage,
+      {
+        clOrdID,
+        elapsedMs,
+        timeoutMs,
+        errorName,
+        httpStatus,
+        code,
+      },
+    );
+
+    throw error;
+  }
 }
