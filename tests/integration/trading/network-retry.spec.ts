@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 
 import { ExchangeHub } from '../../../src/ExchangeHub.js';
 import { OrderStatus } from '../../../src/domain/order.js';
+import { getHistogramValues, resetMetrics } from '../../../src/infra/metrics.js';
 
 import type { BitMex } from '../../../src/core/bitmex/index.js';
 import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
@@ -44,6 +45,8 @@ describe('BitMEX trading – network retry', () => {
   });
 
   test('retries once on recoverable errors', async () => {
+    resetMetrics();
+
     const mockFetch = jest
       .fn()
       .mockResolvedValueOnce(new Response('Service unavailable', { status: 503 }))
@@ -86,5 +89,12 @@ describe('BitMEX trading – network retry', () => {
 
     expect(hub.orders.getByClOrdId('retry-cli-1')).toBe(order);
     expect(hub.orders.getInflightByClOrdId('retry-cli-1')).toBeUndefined();
+
+    const latencies = getHistogramValues('create_order_latency_ms', {
+      exchange: 'BitMEX',
+      symbol: 'XBTUSD',
+    });
+    expect(latencies).toHaveLength(1);
+    expect(latencies[0]).toBeGreaterThanOrEqual(0);
   });
 });

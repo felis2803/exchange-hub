@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 
 import { ExchangeHub } from '../../../src/ExchangeHub.js';
 import { OrderStatus } from '../../../src/domain/order.js';
+import { getCounterValue, resetMetrics } from '../../../src/infra/metrics.js';
 
 import type { BitMex } from '../../../src/core/bitmex/index.js';
 import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
@@ -44,6 +45,8 @@ describe('BitMEX trading – timeout reconcile', () => {
   });
 
   test('falls back to GET reconcile after timeout', async () => {
+    resetMetrics();
+
     const abortError = new Error('Aborted');
     abortError.name = 'AbortError';
 
@@ -110,5 +113,13 @@ describe('BitMEX trading – timeout reconcile', () => {
     expect(new URL(String(postUrl)).pathname).toBe('/api/v1/order');
     expect(getInit?.method ?? 'GET').toBe('GET');
     expect(new URL(String(getUrl)).searchParams.get('clOrdID')).toBe('timeout-cli-1');
+
+    const errorCount = getCounterValue('create_order_errors_total', {
+      exchange: 'BitMEX',
+      symbol: 'XBTUSD',
+      error: 'TimeoutError',
+      code: 'TIMEOUT',
+    });
+    expect(errorCount).toBe(1);
   });
 });
