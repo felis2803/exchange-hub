@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 
 import { ExchangeHub } from '../../../src/ExchangeHub.js';
 import { OrderStatus } from '../../../src/domain/order.js';
+import { getHistogramValues, resetMetrics } from '../../../src/infra/metrics.js';
 
 import type { BitMex } from '../../../src/core/bitmex/index.js';
 import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
@@ -44,6 +45,8 @@ describe('BitMEX trading – idempotency', () => {
   });
 
   test('reuses inflight promise and cached order for duplicate clOrdID', async () => {
+    resetMetrics();
+
     const mockFetch = jest.fn(
       async () =>
         new Response(
@@ -82,6 +85,13 @@ describe('BitMEX trading – idempotency', () => {
       clOrdId: 'idempotent-cli-1',
       status: OrderStatus.Placed,
     });
+
+    const latencies = getHistogramValues('create_order_latency_ms', {
+      exchange: 'BitMEX',
+      symbol: 'XBTUSD',
+    });
+    expect(latencies).toHaveLength(1);
+    expect(latencies[0]).toBeGreaterThanOrEqual(0);
 
     const repeated = await core.buy(prepared);
     expect(repeated).toBe(order);

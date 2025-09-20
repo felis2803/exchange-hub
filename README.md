@@ -126,6 +126,49 @@ REST-обертка BitMEX в ExchangeHub принимает ограничен�
 для `Market` будет отклонена маппером ещё до HTTP-запроса, что предотвращает
 нежелательные рыночные агрессии.
 
+## Торговля: buy/sell, postOnly, clOrdID
+
+Торговый слой предоставляет симметричные методы `buy()` и `sell()` на `hub.Core`.
+Они принимают нормализованный `PreparedPlaceInput` и возвращают объект `Order`,
+который можно отслеживать через `getSnapshot()` или подписку `order.on('update', ...)`.
+
+- Подготовьте payload через `Instrument.buy()/sell()` или утилиту `validatePlaceInput`;
+  обязательно задайте `clOrdId`, чтобы повторные вызовы возвращали тот же ордер и
+  оставались идемпотентными.
+- `postOnly: true` автоматически превращается в `execInst=ParticipateDoNotInitiate`,
+  а `reduceOnly` и `timeInForce` мапятся в соответствующие REST-поля.
+- Все попытки постановки ордера логируются, а метрики `create_order_latency_ms`
+  и `create_order_errors_total` помогают отслеживать успешные ответы и ошибки сети/биржи.
+
+```ts
+import { ExchangeHub, genClOrdID } from 'exchange-hub';
+import { validatePlaceInput } from 'exchange-hub/validation';
+
+const hub = new ExchangeHub('BitMex', { apiKey: '...', apiSec: '...' });
+
+const normalized = validatePlaceInput({
+  symbol: 'XBTUSD',
+  side: 'buy',
+  size: 10,
+  type: 'Limit',
+  price: 50_000,
+  opts: { postOnly: true, timeInForce: 'GoodTillCancel', clOrdID: genClOrdID('desk-a') },
+});
+
+const order = await hub.Core.buy({
+  ...normalized,
+  options: { ...normalized.options, clOrdId: normalized.options.clOrdId ?? genClOrdID('desk-a') },
+});
+
+order.on('update', (snapshot) => {
+  console.log('Order status', snapshot.status, 'leaves', snapshot.leavesQty);
+});
+```
+
+Готовый пример «быстрого старта» расположен в `examples/place-order.ts`. Он
+показывает, как собрать payload из переменных окружения и отправить лимитный или
+рыночный ордер на Node.js 22.
+
 ## Domain events & types
 
 ExchangeHub фиксирует единый контракт обновлений приватных доменных сущностей.
