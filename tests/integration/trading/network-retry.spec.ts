@@ -3,6 +3,7 @@ import { jest } from '@jest/globals';
 import { ExchangeHub } from '../../../src/ExchangeHub.js';
 import { OrderStatus } from '../../../src/domain/order.js';
 import { getHistogramValues, resetMetrics } from '../../../src/infra/metrics.js';
+import { RateLimitError } from '../../../src/infra/errors.js';
 
 import type { BitMex } from '../../../src/core/bitmex/index.js';
 import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
@@ -96,5 +97,30 @@ describe('BitMEX trading – network retry', () => {
     });
     expect(latencies).toHaveLength(1);
     expect(latencies[0]).toBeGreaterThanOrEqual(0);
+  });
+
+  test('propagates rate limit errors without retrying', async () => {
+    const mockFetch = jest.fn(
+      async () =>
+        new Response('Too many requests', {
+          status: 429,
+          headers: { 'Retry-After': '1' },
+        }),
+    );
+
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    const { hub, core } = createHub();
+    const prepared = createPreparedMarket({
+      options: { clOrdId: 'retry-cli-429' },
+    });
+
+    await expect(core.buy(prepared)).rejects.toBeInstanceOf(RateLimitError);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect((mockFetch.mock.calls[0]?.[1] as RequestInit | undefined)?.method ?? 'GET').toBe('POST');
+
+    expect(hub.orders.getByClOrdId('retry-cli-429')).toBeUndefined();
+    expect(hub.orders.getInflightByClOrdId('retry-cli-429')).toBeUndefined();
   });
 });
