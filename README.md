@@ -100,6 +100,11 @@ BitMEX и большинство бирж требуют, чтобы `clOrdID` �
 важно придерживаться договорённостей по префиксам, чтобы избежать конфликтов в
 кластерной среде.
 
+> BitMEX ожидает поле `clOrdID` (с заглавной `ID`) в исходном payload, а
+> ExchangeHub нормализует его до `clOrdId` внутри подготовленной структуры.
+> Повторное использование одного и того же значения гарантирует идемпотентность
+> постановки ордеров, вне зависимости от регистра последней буквы.
+
 ```ts
 import { ExchangeHub, genClOrdID } from 'exchange-hub';
 
@@ -146,18 +151,20 @@ import { validatePlaceInput } from 'exchange-hub/validation';
 
 const hub = new ExchangeHub('BitMex', { apiKey: '...', apiSec: '...' });
 
+const clOrdId = genClOrdID('desk-a');
+
 const normalized = validatePlaceInput({
   symbol: 'XBTUSD',
   side: 'buy',
   size: 10,
   type: 'Limit',
   price: 50_000,
-  opts: { postOnly: true, timeInForce: 'GoodTillCancel', clOrdID: genClOrdID('desk-a') },
+  opts: { postOnly: true, timeInForce: 'GoodTillCancel', clOrdID: clOrdId },
 });
 
 const order = await hub.Core.buy({
   ...normalized,
-  options: { ...normalized.options, clOrdId: normalized.options.clOrdId ?? genClOrdID('desk-a') },
+  options: { ...normalized.options, clOrdId },
 });
 
 order.on('update', (snapshot) => {
@@ -168,6 +175,15 @@ order.on('update', (snapshot) => {
 Готовый пример «быстрого старта» расположен в `examples/place-order.ts`. Он
 показывает, как собрать payload из переменных окружения и отправить лимитный или
 рыночный ордер на Node.js 22.
+
+### Quick start with env
+
+Подготовьте `.env` с ключами BitMEX и запустите пример:
+
+```bash
+cp .env.example .env # заполните значения
+node --env-file=.env examples/place-order.ts
+```
 
 ## Domain events & types
 
