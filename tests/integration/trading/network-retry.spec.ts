@@ -108,9 +108,7 @@ describe('BitMEX trading – network retry', () => {
     await expect(core.buy(prepared)).rejects.toBeInstanceOf(RateLimitError);
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
-    expect((mockFetch.mock.calls[0]?.[1] as RequestInit | undefined)?.method ?? 'GET').toBe(
-      'POST',
-    );
+    expect((mockFetch.mock.calls[0]?.[1] as RequestInit | undefined)?.method ?? 'GET').toBe('POST');
 
     expect(hub.orders.getByClOrdId('retry-cli-429')).toBeUndefined();
     expect(hub.orders.getInflightByClOrdId('retry-cli-429')).toBeUndefined();
