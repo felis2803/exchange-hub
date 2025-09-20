@@ -104,7 +104,12 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
 
   if (input.type === 'Limit' || input.type === 'StopLimit') {
     if (input.price === null) {
-      throw new ValidationError('limit order requires price', {
+      const message =
+        input.type === 'StopLimit'
+          ? 'stop-limit order requires a limit price'
+          : 'limit order requires price';
+
+      throw new ValidationError(message, {
         details: { type: input.type },
       });
     }
@@ -120,12 +125,10 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
     }
 
     payload.stopPx = input.stopPrice;
-  } else if (input.stopPrice !== null && input.stopPrice !== undefined) {
-    payload.stopPx = input.stopPrice;
   }
 
   const execInst: string[] = [];
-  if (input.options.postOnly) {
+  if (input.options.postOnly && input.type === 'Limit') {
     execInst.push('ParticipateDoNotInitiate');
   }
   if (input.options.reduceOnly) {
