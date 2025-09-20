@@ -21,25 +21,26 @@ describe('BitMEX REST createOrder – limit/postOnly', () => {
   });
 
   test('submits limit payload with price and timeInForce', async () => {
-    const mockFetch = jest.fn(async () =>
-      new Response(
-        JSON.stringify({
-          orderID: 'ord-10',
-          clOrdID: 'cli-10',
-          symbol: 'XBTUSD',
-          side: 'Sell',
-          orderQty: 5,
-          price: 61_000,
-          ordType: 'Limit',
-          ordStatus: 'New',
-          execType: 'New',
-          leavesQty: 5,
-          cumQty: 0,
-          avgPx: 0,
-          timestamp: '2024-01-01T00:00:00.000Z',
-        }),
-        { status: 200 },
-      ),
+    const mockFetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            orderID: 'ord-10',
+            clOrdID: 'cli-10',
+            symbol: 'XBTUSD',
+            side: 'Sell',
+            orderQty: 5,
+            price: 61_000,
+            ordType: 'Limit',
+            ordStatus: 'New',
+            execType: 'New',
+            leavesQty: 5,
+            cumQty: 0,
+            avgPx: 0,
+            timestamp: '2024-01-01T00:00:00.000Z',
+          }),
+          { status: 200 },
+        ),
     );
     global.fetch = mockFetch as unknown as typeof fetch;
 
@@ -81,25 +82,26 @@ describe('BitMEX REST createOrder – limit/postOnly', () => {
   });
 
   test('maps postOnly and reduceOnly to execInst', async () => {
-    const mockFetch = jest.fn(async () =>
-      new Response(
-        JSON.stringify({
-          orderID: 'ord-11',
-          clOrdID: 'cli-11',
-          symbol: 'XBTUSD',
-          side: 'Buy',
-          orderQty: 3,
-          price: 60_500,
-          ordType: 'Limit',
-          ordStatus: 'New',
-          execType: 'New',
-          leavesQty: 3,
-          cumQty: 0,
-          avgPx: 0,
-          timestamp: '2024-01-01T00:00:00.000Z',
-        }),
-        { status: 200 },
-      ),
+    const mockFetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            orderID: 'ord-11',
+            clOrdID: 'cli-11',
+            symbol: 'XBTUSD',
+            side: 'Buy',
+            orderQty: 3,
+            price: 60_500,
+            ordType: 'Limit',
+            ordStatus: 'New',
+            execType: 'New',
+            leavesQty: 3,
+            cumQty: 0,
+            avgPx: 0,
+            timestamp: '2024-01-01T00:00:00.000Z',
+          }),
+          { status: 200 },
+        ),
     );
     global.fetch = mockFetch as unknown as typeof fetch;
 

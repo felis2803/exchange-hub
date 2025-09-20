@@ -9,7 +9,9 @@ import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
 
 const ORIGINAL_FETCH = global.fetch;
 
-function createPreparedMarketOrder(overrides: Partial<PreparedPlaceInput> = {}): PreparedPlaceInput {
+function createPreparedMarketOrder(
+  overrides: Partial<PreparedPlaceInput> = {},
+): PreparedPlaceInput {
   return {
     symbol: 'XBTUSD',
     side: 'buy',
@@ -40,24 +42,25 @@ describe('BitMEX REST createOrder – market', () => {
   });
 
   test('submits market payload and stores order snapshot', async () => {
-    const mockFetch = jest.fn(async () =>
-      new Response(
-        JSON.stringify({
-          orderID: 'ord-1',
-          clOrdID: 'cli-1',
-          symbol: 'XBTUSD',
-          side: 'Buy',
-          orderQty: 100,
-          ordType: 'Market',
-          ordStatus: 'New',
-          execType: 'New',
-          leavesQty: 100,
-          cumQty: 0,
-          avgPx: 0,
-          timestamp: '2024-01-01T00:00:00.000Z',
-        }),
-        { status: 200 },
-      ),
+    const mockFetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            orderID: 'ord-1',
+            clOrdID: 'cli-1',
+            symbol: 'XBTUSD',
+            side: 'Buy',
+            orderQty: 100,
+            ordType: 'Market',
+            ordStatus: 'New',
+            execType: 'New',
+            leavesQty: 100,
+            cumQty: 0,
+            avgPx: 0,
+            timestamp: '2024-01-01T00:00:00.000Z',
+          }),
+          { status: 200 },
+        ),
     );
     global.fetch = mockFetch as unknown as typeof fetch;
 
@@ -163,11 +166,12 @@ describe('BitMEX REST createOrder – market', () => {
   });
 
   test('does not retry on 429', async () => {
-    const mockFetch = jest.fn(async () =>
-      new Response('Too many', {
-        status: 429,
-        headers: { 'Retry-After': '1' },
-      }),
+    const mockFetch = jest.fn(
+      async () =>
+        new Response('Too many', {
+          status: 429,
+          headers: { 'Retry-After': '1' },
+        }),
     );
     global.fetch = mockFetch as unknown as typeof fetch;
 

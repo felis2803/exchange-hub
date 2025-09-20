@@ -84,7 +84,9 @@ function normalizeFinite(value: number | null | undefined): number | null {
 
 export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): CreateOrderPayload {
   if (input.type === 'Stop') {
-    throw new ValidationError('Stop orders are not supported yet', { details: { type: input.type } });
+    throw new ValidationError('Stop orders are not supported yet', {
+      details: { type: input.type },
+    });
   }
 
   const side = input.side === 'sell' ? 'Sell' : 'Buy';

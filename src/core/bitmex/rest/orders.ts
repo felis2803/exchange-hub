@@ -3,7 +3,7 @@ import { ExchangeDownError, NetworkError } from '../../../infra/errors.js';
 
 import type { BitMexOrder, BitMexOrderType, BitMexSide, BitMexTimeInForce } from '../types.js';
 
-import { BitmexRestClient } from './request.js';
+import type { BitmexRestClient } from './request.js';
 
 export interface CreateOrderPayload {
   symbol: string;
@@ -76,13 +76,19 @@ export async function createOrder(
         throw error;
       }
 
-      attemptLogger.warn('BitMEX createOrder retry %d/%d after %s', attempt + 1, retries, error.message, {
-        attempt: attempt + 1,
+      attemptLogger.warn(
+        'BitMEX createOrder retry %d/%d after %s',
+        attempt + 1,
         retries,
-        code: error.code,
-        clOrdID: payload.clOrdID,
-        symbol: payload.symbol,
-      });
+        error.message,
+        {
+          attempt: attempt + 1,
+          retries,
+          code: error.code,
+          clOrdID: payload.clOrdID,
+          symbol: payload.symbol,
+        },
+      );
     }
   }
 

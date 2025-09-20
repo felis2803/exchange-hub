@@ -11,7 +11,8 @@ import type { CreateOrderPayload } from './rest/orders.js';
 import { BaseCore } from '../BaseCore.js';
 import { getUnifiedSymbolAliases, mapSymbolNativeToUni } from '../../utils/symbolMapping.js';
 import { Instrument } from '../../domain/instrument.js';
-import { Order, OrderStatus, type OrderInit, type OrderUpdate } from '../../domain/order.js';
+import type { Order } from '../../domain/order.js';
+import { OrderStatus, type OrderInit, type OrderUpdate } from '../../domain/order.js';
 import { createLogger } from '../../infra/logger.js';
 import { ValidationError } from '../../infra/errors.js';
 import type { PreparedPlaceInput } from '../../infra/validation.js';
@@ -263,7 +264,9 @@ export class BitMex extends BaseCore<'BitMex'> {
         leavesQty: leavesQty ?? null,
         cumQty: cumQty ?? null,
         previousStatus: order?.status ?? null,
-      }) ?? order?.status ?? OrderStatus.Placed;
+      }) ??
+      order?.status ??
+      OrderStatus.Placed;
 
     const update: OrderUpdate = { status };
 
