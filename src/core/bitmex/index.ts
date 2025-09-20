@@ -224,11 +224,13 @@ export class BitMex extends BaseCore<'BitMex'> {
     }
 
     const startedAt = Date.now();
+    const createOrderRetries = 1;
+    const createOrderMaxAttempts = createOrderRetries + 1;
     const orderPromise = (async () => {
       try {
         const restOrder = await createOrder(this.#rest, payload, {
           timeoutMs: BITMEX_CREATE_ORDER_TIMEOUT_MS,
-          retries: 1,
+          retries: createOrderRetries,
           logger: this.#log,
         });
         return this.#upsertOrderFromRest(restOrder);
@@ -243,6 +245,8 @@ export class BitMex extends BaseCore<'BitMex'> {
                 clOrdID: payload.clOrdID,
                 symbol: payload.symbol,
                 errorName: error instanceof Error ? error.name : typeof error,
+                attemptCount: createOrderMaxAttempts,
+                maxAttempts: createOrderMaxAttempts,
                 code:
                   error instanceof OrderRejectedError || error instanceof TimeoutError
                     ? error.code
@@ -260,6 +264,8 @@ export class BitMex extends BaseCore<'BitMex'> {
                 clOrdID: payload.clOrdID,
                 symbol: payload.symbol,
                 errorName: error instanceof Error ? error.name : typeof error,
+                attemptCount: createOrderMaxAttempts,
+                maxAttempts: createOrderMaxAttempts,
               },
             );
 
@@ -273,6 +279,8 @@ export class BitMex extends BaseCore<'BitMex'> {
                   clOrdID: payload.clOrdID,
                   symbol: payload.symbol,
                   latencyMs: Date.now() - startedAt,
+                  attemptCount: createOrderMaxAttempts,
+                  maxAttempts: createOrderMaxAttempts,
                 },
               );
               return reconciled;
@@ -285,6 +293,8 @@ export class BitMex extends BaseCore<'BitMex'> {
               {
                 clOrdID: payload.clOrdID,
                 symbol: payload.symbol,
+                attemptCount: createOrderMaxAttempts,
+                maxAttempts: createOrderMaxAttempts,
               },
             );
           } catch (reconcileError) {
@@ -300,6 +310,8 @@ export class BitMex extends BaseCore<'BitMex'> {
                 symbol: payload.symbol,
                 errorName:
                   reconcileError instanceof Error ? reconcileError.name : typeof reconcileError,
+                attemptCount: createOrderMaxAttempts,
+                maxAttempts: createOrderMaxAttempts,
               },
             );
           }

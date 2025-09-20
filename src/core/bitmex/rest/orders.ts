@@ -84,7 +84,7 @@ export async function createOrder(
         elapsedMs,
         {
           attempt: attemptNumber,
-          attemptCount: attemptNumber,
+          attemptCount: maxAttempts,
           maxAttempts,
           elapsedMs,
           latencyMs: elapsedMs,
@@ -118,7 +118,7 @@ export async function createOrder(
         errorMessage,
         {
           attempt: attemptNumber,
-          attemptCount: attemptNumber,
+          attemptCount: maxAttempts,
           maxAttempts,
           elapsedMs,
           timeoutMs,
