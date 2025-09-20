@@ -71,8 +71,14 @@ export function inferOrderType(
   price?: number | null,
   bestBid?: number | null,
   bestAsk?: number | null,
+  stopLimitPrice?: number | null,
 ): OrderType {
+  const normalizedStopLimit = normalizeFinite(stopLimitPrice);
   const normalizedPrice = normalizeFinite(price);
+
+  if (normalizedStopLimit !== null) {
+    return 'StopLimit';
+  }
 
   if (normalizedPrice === null) {
     return 'Market';
@@ -111,12 +117,6 @@ function normalizeFinite(value: number | null | undefined): number | null {
 }
 
 export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): CreateOrderPayload {
-  if (input.type === 'Stop') {
-    throw new ValidationError('Stop orders are not supported yet', {
-      details: { type: input.type },
-    });
-  }
-
   if (input.type === 'Market' && input.options.postOnly) {
     throw new ValidationError('postOnly is allowed for limit orders only', {
       details: { type: input.type, postOnly: input.options.postOnly },
@@ -132,16 +132,43 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
     clOrdID: input.options.clOrdId,
   };
 
-  if (input.type === 'Limit') {
-    if (input.price === null) {
-      throw new ValidationError('limit order requires price', { details: { type: input.type } });
-    }
+  switch (input.type) {
+    case 'Limit':
+      if (input.price === null) {
+        throw new ValidationError('limit order requires price', {
+          details: { type: input.type },
+        });
+      }
 
-    payload.price = input.price;
-  }
+      payload.price = input.price;
+      break;
+    case 'Stop':
+      if (input.stopPrice === null) {
+        throw new ValidationError('stop order requires stop price', {
+          details: { type: input.type },
+        });
+      }
 
-  if (input.stopPrice !== null && input.stopPrice !== undefined) {
-    payload.stopPx = input.stopPrice;
+      payload.stopPx = input.stopPrice;
+      break;
+    case 'StopLimit':
+      if (input.price === null) {
+        throw new ValidationError('stop-limit order requires limit price', {
+          details: { type: input.type },
+        });
+      }
+
+      if (input.stopPrice === null) {
+        throw new ValidationError('stop order requires stop price', {
+          details: { type: input.type },
+        });
+      }
+
+      payload.price = input.price;
+      payload.stopPx = input.stopPrice;
+      break;
+    default:
+      break;
   }
 
   const execInst: string[] = [];

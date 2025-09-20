@@ -9,7 +9,7 @@ export interface CreateOrderPayload {
   symbol: string;
   side: BitMexSide;
   orderQty: number;
-  ordType: Extract<BitMexOrderType, 'Market' | 'Limit' | 'Stop'>;
+  ordType: Extract<BitMexOrderType, 'Market' | 'Limit' | 'Stop' | 'StopLimit'>;
   clOrdID: string;
   price?: number;
   stopPx?: number;

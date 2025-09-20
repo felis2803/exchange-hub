@@ -333,7 +333,7 @@ export class Instrument extends EventEmitter {
     const bestBid = book.bestBid?.price ?? undefined;
     const bestAsk = book.bestAsk?.price ?? undefined;
 
-    const type = inferOrderType(side, price, bestBid, bestAsk);
+    const type = inferOrderType(side, price, bestBid, bestAsk, opts?.stopLimitPrice ?? null);
     const validated = validatePlaceInput({
       symbol: this.symbolNative,
       side,
@@ -341,6 +341,8 @@ export class Instrument extends EventEmitter {
       price,
       type,
       opts,
+      bestBid,
+      bestAsk,
     });
 
     const clOrdId = validated.options.clOrdId ?? genClOrdID();
