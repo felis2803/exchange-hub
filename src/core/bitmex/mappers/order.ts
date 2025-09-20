@@ -142,15 +142,6 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
 
       payload.price = input.price;
       break;
-    case 'Stop':
-      if (input.stopPrice === null) {
-        throw new ValidationError('stop order requires stop price', {
-          details: { type: input.type },
-        });
-      }
-
-      payload.stopPx = input.stopPrice;
-      break;
     case 'StopLimit':
       if (input.price === null) {
         throw new ValidationError('stop-limit order requires limit price', {
@@ -158,14 +149,11 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
         });
       }
 
-      if (input.stopPrice === null) {
-        throw new ValidationError('stop order requires stop price', {
-          details: { type: input.type },
-        });
-      }
-
       payload.price = input.price;
-      payload.stopPx = input.stopPrice;
+      applyStopPrice(payload, input);
+      break;
+    case 'Stop':
+      applyStopPrice(payload, input);
       break;
     default:
       break;
@@ -189,6 +177,16 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
   }
 
   return payload;
+}
+
+function applyStopPrice(payload: CreateOrderPayload, input: PreparedPlaceInput): void {
+  if (input.stopPrice === null) {
+    throw new ValidationError('stop order requires stop price', {
+      details: { type: input.type },
+    });
+  }
+
+  payload.stopPx = input.stopPrice;
 }
 
 function normalizeTimeInForce(value: string | null | undefined): SupportedTimeInForce | null {
