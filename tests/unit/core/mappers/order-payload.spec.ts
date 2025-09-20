@@ -103,4 +103,12 @@ describe('mapPreparedOrderToCreatePayload', () => {
       new ValidationError('stop-limit order requires limit price'),
     );
   });
+
+  test('throws when stop-limit payload misses stop price', () => {
+    const input = createPreparedInput({ type: 'StopLimit', price: 50_400, stopPrice: null });
+
+    expect(() => mapPreparedOrderToCreatePayload(input)).toThrowError(
+      new ValidationError('stop order requires stop price'),
+    );
+  });
 });
