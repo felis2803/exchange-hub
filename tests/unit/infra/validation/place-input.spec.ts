@@ -120,17 +120,61 @@ describe('validatePlaceInput', () => {
     ).toThrowErrorMatchingInlineSnapshot('"limit order requires a finite positive price"');
   });
 
-  test('throws when postOnly is used for non-limit orders', () => {
+  test.each([
+    {
+      name: 'Stop',
+      input: {
+        symbol: 'XBTUSD',
+        side: 'sell' as const,
+        size: 1,
+        price: 64_000,
+        type: 'Stop' as const,
+        opts: { postOnly: true },
+      },
+    },
+    {
+      name: 'StopLimit',
+      input: {
+        symbol: 'XBTUSD',
+        side: 'buy' as const,
+        size: 1,
+        price: 63_800,
+        type: 'StopLimit' as const,
+        bestAsk: 63_700,
+        opts: { postOnly: true, stopLimitPrice: 63_780 },
+      },
+    },
+  ])('throws when postOnly is used for $name orders', ({ input }) => {
+    expect(() => validatePlaceInput(input)).toThrowErrorMatchingInlineSnapshot(
+      '"postOnly is allowed for limit orders only"',
+    );
+  });
+
+  test('throws when stop-limit order is missing limit price', () => {
     expect(() =>
       validatePlaceInput({
         symbol: 'XBTUSD',
-        side: 'sell',
+        side: 'buy',
         size: 1,
-        price: 64_000,
-        type: 'Stop',
-        opts: { postOnly: true },
+        price: 63_800,
+        type: 'StopLimit',
+        bestAsk: 63_700,
       }),
-    ).toThrowErrorMatchingInlineSnapshot('"postOnly is allowed for limit orders only"');
+    ).toThrowErrorMatchingInlineSnapshot('"stop-limit orders require a limit price"');
+  });
+
+  test('throws when stopLimitPrice is not positive', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'buy',
+        size: 1,
+        price: 63_800,
+        type: 'StopLimit',
+        bestAsk: 63_700,
+        opts: { stopLimitPrice: 0 },
+      }),
+    ).toThrowErrorMatchingInlineSnapshot('"stopLimitPrice must be a finite positive number"');
   });
 
   test('throws when size is not positive', () => {
@@ -164,8 +208,21 @@ describe('validatePlaceInput', () => {
         side: 'sell',
         size: 1,
         price: 63_700,
+        type: 'Stop',
+        bestBid: 63_650,
+      }),
+    ).toThrowErrorMatchingInlineSnapshot(
+      '"sell stop price must be less than or equal to best bid"',
+    );
+
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'sell',
+        size: 1,
+        price: 63_700,
         type: 'StopLimit',
-        bestBid: 63_600,
+        bestBid: 63_650,
         opts: { stopLimitPrice: 63_550 },
       }),
     ).toThrowErrorMatchingInlineSnapshot(
