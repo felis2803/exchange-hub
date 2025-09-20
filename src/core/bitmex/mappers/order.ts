@@ -26,6 +26,34 @@ const STATUS_PRIORITY: Record<OrderStatus, number> = {
   [OrderStatus.Placed]: 1,
 };
 
+type SupportedTimeInForce = Exclude<CreateOrderPayload['timeInForce'], undefined>;
+
+const SUPPORTED_TIME_IN_FORCE: readonly SupportedTimeInForce[] = [
+  'GoodTillCancel',
+  'ImmediateOrCancel',
+  'FillOrKill',
+] as const;
+
+const TIME_IN_FORCE_LOOKUP = new Map<string, SupportedTimeInForce>();
+
+for (const value of SUPPORTED_TIME_IN_FORCE) {
+  TIME_IN_FORCE_LOOKUP.set(value, value);
+  TIME_IN_FORCE_LOOKUP.set(value.toLowerCase(), value);
+  TIME_IN_FORCE_LOOKUP.set(value.toUpperCase(), value);
+}
+
+const TIME_IN_FORCE_ALIASES: Record<string, SupportedTimeInForce> = {
+  GTC: 'GoodTillCancel',
+  IOC: 'ImmediateOrCancel',
+  FOK: 'FillOrKill',
+};
+
+for (const [alias, canonical] of Object.entries(TIME_IN_FORCE_ALIASES)) {
+  TIME_IN_FORCE_LOOKUP.set(alias, canonical);
+  TIME_IN_FORCE_LOOKUP.set(alias.toLowerCase(), canonical);
+  TIME_IN_FORCE_LOOKUP.set(alias.toUpperCase(), canonical);
+}
+
 /**
  * Infers the BitMEX order type from the provided context.
  *
@@ -89,6 +117,12 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
     });
   }
 
+  if (input.type === 'Market' && input.options.postOnly) {
+    throw new ValidationError('postOnly is allowed for limit orders only', {
+      details: { type: input.type, postOnly: input.options.postOnly },
+    });
+  }
+
   const side = input.side === 'sell' ? 'Sell' : 'Buy';
   const payload: CreateOrderPayload = {
     symbol: input.symbol,
@@ -122,11 +156,38 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
     payload.execInst = execInst.join(',');
   }
 
-  if (input.options.timeInForce) {
-    payload.timeInForce = input.options.timeInForce as CreateOrderPayload['timeInForce'];
+  const timeInForce = normalizeTimeInForce(input.options.timeInForce);
+  if (timeInForce) {
+    payload.timeInForce = timeInForce;
   }
 
   return payload;
+}
+
+function normalizeTimeInForce(
+  value: string | null | undefined,
+): SupportedTimeInForce | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const direct =
+    TIME_IN_FORCE_LOOKUP.get(trimmed) ??
+    TIME_IN_FORCE_LOOKUP.get(trimmed.toLowerCase()) ??
+    TIME_IN_FORCE_LOOKUP.get(trimmed.toUpperCase());
+
+  if (!direct) {
+    throw new ValidationError('unsupported timeInForce', {
+      details: { timeInForce: value },
+    });
+  }
+
+  return direct;
 }
 
 export function mapBitmexOrderStatus({
