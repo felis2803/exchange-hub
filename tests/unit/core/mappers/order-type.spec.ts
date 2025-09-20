@@ -40,4 +40,10 @@ describe('inferOrderType', () => {
     expect(inferOrderType('buy', 10, 8, undefined)).toBe('Limit');
     expect(inferOrderType('sell', 12, undefined, 13)).toBe('Limit');
   });
+
+  test('prefers stop-limit classification when explicit limit price is provided', () => {
+    expect(inferOrderType('buy', 110, 100, 105, 109)).toBe('StopLimit');
+    expect(inferOrderType('sell', 90, 95, 100, 89)).toBe('StopLimit');
+    expect(inferOrderType('buy', 125, undefined, undefined, 120)).toBe('StopLimit');
+  });
 });

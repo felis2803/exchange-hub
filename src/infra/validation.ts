@@ -3,13 +3,14 @@ import { ValidationError } from './errors.js';
 import type { ClOrdID, Symbol } from '../core/types.js';
 import type { Side } from '../types.js';
 
-export type OrderType = 'Market' | 'Limit' | 'Stop';
+export type OrderType = 'Market' | 'Limit' | 'Stop' | 'StopLimit';
 
 export interface PlaceOpts {
   postOnly?: boolean;
   clOrdID?: ClOrdID;
   timeInForce?: string;
   reduceOnly?: boolean;
+  stopLimitPrice?: number;
 }
 
 export interface PlaceValidationParams {
@@ -115,6 +116,7 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
   const normalizedSymbol = normalizeSymbol(symbol);
   const normalizedSize = normalizeSize(size);
   const rawPrice = price ?? null;
+  const rawStopLimitPrice = opts?.stopLimitPrice;
 
   let normalizedPrice: number | null = null;
   let normalizedStopPrice: number | null = null;
@@ -144,6 +146,33 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
     }
 
     normalizedStopPrice = stopPrice;
+  } else if (type === 'StopLimit') {
+    const stopPrice = normalizePrice(rawPrice);
+
+    if (stopPrice === null) {
+      throw new ValidationError('stop-limit order requires a stop price', { details: { price } });
+    }
+
+    if (
+      rawStopLimitPrice === null ||
+      rawStopLimitPrice === undefined ||
+      typeof rawStopLimitPrice !== 'number' ||
+      !Number.isFinite(rawStopLimitPrice) ||
+      rawStopLimitPrice <= 0
+    ) {
+      throw new ValidationError('stop-limit order requires a finite positive limit price', {
+        details: { stopLimitPrice: rawStopLimitPrice },
+      });
+    }
+
+    normalizedStopPrice = stopPrice;
+    normalizedPrice = rawStopLimitPrice;
+  }
+
+  if (rawStopLimitPrice !== undefined && rawStopLimitPrice !== null && type !== 'StopLimit') {
+    throw new ValidationError('stopLimitPrice is only allowed for stop-limit orders', {
+      details: { type, stopLimitPrice: rawStopLimitPrice },
+    });
   }
 
   const postOnly = Boolean(opts?.postOnly);
@@ -162,8 +191,8 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
     side,
     size: normalizedSize,
     type,
-    price: type === 'Limit' ? normalizedPrice : null,
-    stopPrice: type === 'Stop' ? normalizedStopPrice : null,
+    price: type === 'Limit' || type === 'StopLimit' ? normalizedPrice : null,
+    stopPrice: type === 'Stop' || type === 'StopLimit' ? normalizedStopPrice : null,
     options: {
       postOnly,
       reduceOnly,

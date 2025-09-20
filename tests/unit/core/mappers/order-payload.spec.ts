@@ -64,4 +64,43 @@ describe('mapPreparedOrderToCreatePayload', () => {
       new ValidationError('unsupported timeInForce'),
     );
   });
+
+  test('maps stop orders to stop ordType with stopPx only', () => {
+    const input = createPreparedInput({
+      type: 'Stop',
+      price: null,
+      stopPrice: 50_500,
+    });
+
+    const payload = mapPreparedOrderToCreatePayload(input);
+    expect(payload).toMatchObject({ ordType: 'Stop', stopPx: 50_500 });
+    expect(payload).not.toHaveProperty('price');
+  });
+
+  test('maps stop-limit orders with both price and stopPx', () => {
+    const input = createPreparedInput({
+      type: 'StopLimit',
+      price: 50_450,
+      stopPrice: 50_500,
+    });
+
+    const payload = mapPreparedOrderToCreatePayload(input);
+    expect(payload).toMatchObject({ ordType: 'StopLimit', price: 50_450, stopPx: 50_500 });
+  });
+
+  test('throws when stop order is missing stop price', () => {
+    const input = createPreparedInput({ type: 'Stop', price: null, stopPrice: null });
+
+    expect(() => mapPreparedOrderToCreatePayload(input)).toThrowError(
+      new ValidationError('stop order requires stop price'),
+    );
+  });
+
+  test('throws when stop-limit payload misses limit price', () => {
+    const input = createPreparedInput({ type: 'StopLimit', price: null, stopPrice: 50_400 });
+
+    expect(() => mapPreparedOrderToCreatePayload(input)).toThrowError(
+      new ValidationError('stop-limit order requires limit price'),
+    );
+  });
 });

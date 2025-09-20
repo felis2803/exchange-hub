@@ -11,6 +11,7 @@ import {
   type PlaceOpts,
   type PreparedPlaceInput,
 } from '../infra/validation.js';
+import { ValidationError } from '../infra/errors.js';
 
 export type Nullable<T> = T | null | undefined;
 
@@ -333,7 +334,7 @@ export class Instrument extends EventEmitter {
     const bestBid = book.bestBid?.price ?? undefined;
     const bestAsk = book.bestAsk?.price ?? undefined;
 
-    const type = inferOrderType(side, price, bestBid, bestAsk);
+    const type = inferOrderType(side, price, bestBid, bestAsk, opts?.stopLimitPrice ?? null);
     const validated = validatePlaceInput({
       symbol: this.symbolNative,
       side,
@@ -342,6 +343,22 @@ export class Instrument extends EventEmitter {
       type,
       opts,
     });
+
+    if ((type === 'Stop' || type === 'StopLimit') && validated.stopPrice !== null) {
+      if (side === 'buy') {
+        if (typeof bestAsk === 'number' && validated.stopPrice < bestAsk) {
+          throw new ValidationError('buy stop requires stop price at or above best ask', {
+            details: { stopPrice: validated.stopPrice, bestAsk },
+          });
+        }
+      } else if (side === 'sell') {
+        if (typeof bestBid === 'number' && validated.stopPrice > bestBid) {
+          throw new ValidationError('sell stop requires stop price at or below best bid', {
+            details: { stopPrice: validated.stopPrice, bestBid },
+          });
+        }
+      }
+    }
 
     const clOrdId = validated.options.clOrdId ?? genClOrdID();
 

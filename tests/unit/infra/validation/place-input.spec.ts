@@ -49,6 +49,22 @@ describe('validatePlaceInput', () => {
     expect(result.options.reduceOnly).toBe(true);
   });
 
+  test('normalizes a stop-limit order with separate trigger and limit prices', () => {
+    const result = validatePlaceInput({
+      symbol: 'XBTUSD',
+      side: 'buy',
+      size: 5,
+      price: 64_200,
+      type: 'StopLimit',
+      opts: { stopLimitPrice: 64_150, clOrdID: 'cli-stop-limit' },
+    });
+
+    expect(result.type).toBe('StopLimit');
+    expect(result.price).toBe(64_150);
+    expect(result.stopPrice).toBe(64_200);
+    expect(result.options.clOrdId).toBe('cli-stop-limit');
+  });
+
   test('throws when market order carries price', () => {
     expect(() =>
       validatePlaceInput({
@@ -83,6 +99,32 @@ describe('validatePlaceInput', () => {
     ).toThrowErrorMatchingInlineSnapshot('"stop orders require a price"');
   });
 
+  test('throws when stop-limit order omits trigger price', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'buy',
+        size: 1,
+        type: 'StopLimit',
+        opts: { stopLimitPrice: 64_500 },
+      }),
+    ).toThrowErrorMatchingInlineSnapshot('"stop-limit order requires a stop price"');
+  });
+
+  test('throws when stop-limit order omits limit price', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'buy',
+        size: 1,
+        price: 64_500,
+        type: 'StopLimit',
+      }),
+    ).toThrowErrorMatchingInlineSnapshot(
+      '"stop-limit order requires a finite positive limit price"',
+    );
+  });
+
   test.each([
     ['NaN', Number.NaN],
     ['Infinity', Number.POSITIVE_INFINITY],
@@ -98,6 +140,19 @@ describe('validatePlaceInput', () => {
         type: 'Limit',
       }),
     ).toThrowErrorMatchingInlineSnapshot('"limit order requires a finite positive price"');
+  });
+
+  test('throws when stopLimitPrice is used for non stop-limit orders', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'buy',
+        size: 1,
+        price: 64_000,
+        type: 'Limit',
+        opts: { stopLimitPrice: 64_100 },
+      }),
+    ).toThrowErrorMatchingInlineSnapshot('"stopLimitPrice is only allowed for stop-limit orders"');
   });
 
   test('throws when postOnly is used for non-limit orders', () => {
