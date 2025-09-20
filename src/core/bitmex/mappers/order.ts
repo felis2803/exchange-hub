@@ -132,30 +132,43 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
     clOrdID: input.options.clOrdId,
   };
 
-  if (input.type === 'Limit') {
-    if (input.price === null) {
-      throw new ValidationError('limit order requires price', { details: { type: input.type } });
-    }
+  switch (input.type) {
+    case 'Limit':
+      if (input.price === null) {
+        throw new ValidationError('limit order requires price', {
+          details: { type: input.type },
+        });
+      }
 
-    payload.price = input.price;
-  } else if (input.type === 'StopLimit') {
-    if (input.price === null) {
-      throw new ValidationError('stop-limit order requires limit price', {
-        details: { type: input.type },
-      });
-    }
+      payload.price = input.price;
+      break;
+    case 'Stop':
+      if (input.stopPrice === null) {
+        throw new ValidationError('stop order requires stop price', {
+          details: { type: input.type },
+        });
+      }
 
-    payload.price = input.price;
-  }
+      payload.stopPx = input.stopPrice;
+      break;
+    case 'StopLimit':
+      if (input.price === null) {
+        throw new ValidationError('stop-limit order requires limit price', {
+          details: { type: input.type },
+        });
+      }
 
-  if (input.type === 'Stop' || input.type === 'StopLimit') {
-    if (input.stopPrice === null) {
-      throw new ValidationError('stop order requires stop price', {
-        details: { type: input.type },
-      });
-    }
+      if (input.stopPrice === null) {
+        throw new ValidationError('stop order requires stop price', {
+          details: { type: input.type },
+        });
+      }
 
-    payload.stopPx = input.stopPrice;
+      payload.price = input.price;
+      payload.stopPx = input.stopPrice;
+      break;
+    default:
+      break;
   }
 
   const execInst: string[] = [];
