@@ -2,7 +2,7 @@ import { jest } from '@jest/globals';
 
 import { ExchangeHub } from '../../../src/ExchangeHub.js';
 import { OrderStatus } from '../../../src/domain/order.js';
-import { RateLimitError, ValidationError } from '../../../src/infra/errors.js';
+import { RateLimitError } from '../../../src/infra/errors.js';
 
 import type { BitMex } from '../../../src/core/bitmex/index.js';
 import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
@@ -232,11 +232,31 @@ describe('BitMEX REST createOrder – market', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  test('throws validation error for stop orders (not supported yet)', async () => {
-    const mockFetch = jest.fn();
+  test('submits stop-market payload when requested', async () => {
+    const mockFetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            orderID: 'stop-ord-1',
+            clOrdID: 'cli-stop',
+            symbol: 'XBTUSD',
+            side: 'Sell',
+            orderQty: 1,
+            ordType: 'Stop',
+            ordStatus: 'New',
+            execType: 'New',
+            stopPx: 62_000,
+            leavesQty: 1,
+            cumQty: 0,
+            avgPx: 0,
+            timestamp: '2024-01-01T00:00:00.000Z',
+          }),
+          { status: 200 },
+        ),
+    );
     global.fetch = mockFetch as unknown as typeof fetch;
 
-    const { core } = createHub();
+    const { hub, core } = createHub();
     const prepared: PreparedPlaceInput = {
       symbol: 'XBTUSD',
       side: 'sell',
@@ -252,7 +272,31 @@ describe('BitMEX REST createOrder – market', () => {
       },
     };
 
-    await expect(core.sell(prepared)).rejects.toBeInstanceOf(ValidationError);
-    expect(mockFetch).not.toHaveBeenCalled();
+    const order = await core.sell(prepared);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+    expect(String(url)).toBe('https://testnet.bitmex.com/api/v1/order');
+    expect(init.method).toBe('POST');
+
+    const headers = init.headers as Record<string, string>;
+    expect(headers['content-type']).toBe('application/json');
+    expect(headers['api-key']).toBe('key');
+
+    const body = JSON.parse(String(init.body));
+    expect(body).toMatchObject({
+      symbol: 'XBTUSD',
+      side: 'Sell',
+      orderQty: 1,
+      ordType: 'Stop',
+      stopPx: 62_000,
+      clOrdID: 'cli-stop',
+    });
+    expect(body).not.toHaveProperty('price');
+
+    const snapshot = order.getSnapshot();
+    expect(snapshot.status).toBe(OrderStatus.Placed);
+    expect(snapshot.stopPrice).toBe(62_000);
+    expect(hub.orders.getByClOrdId('cli-stop')).toBe(order);
   });
 });
