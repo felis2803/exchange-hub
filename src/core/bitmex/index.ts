@@ -3,11 +3,19 @@ import { channelMessageHandlers } from './channelMessageHandlers/index.js';
 import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.js';
 import { L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants.js';
 import { markOrderChannelAwaitingSnapshot } from './channels/order.js';
+import { BitmexRestClient } from './rest/request.js';
+import { createOrder, BITMEX_CREATE_ORDER_TIMEOUT_MS } from './rest/orders.js';
+import { mapBitmexOrderStatus, mapPreparedOrderToCreatePayload } from './mappers/order.js';
+import type { CreateOrderPayload } from './rest/orders.js';
 
 import { BaseCore } from '../BaseCore.js';
 import { getUnifiedSymbolAliases, mapSymbolNativeToUni } from '../../utils/symbolMapping.js';
 import { Instrument } from '../../domain/instrument.js';
+import type { Order } from '../../domain/order.js';
+import { OrderStatus, type OrderInit, type OrderUpdate } from '../../domain/order.js';
 import { createLogger } from '../../infra/logger.js';
+import { ValidationError } from '../../infra/errors.js';
+import type { PreparedPlaceInput } from '../../infra/validation.js';
 import type { Settings } from '../../types.js';
 import type { ExchangeHub } from '../../ExchangeHub.js';
 import type {
@@ -15,12 +23,14 @@ import type {
   BitMexChannelMessage,
   BitMexSubscribeMessage,
   BitMexWelcomeMessage,
+  BitMexOrder,
 } from './types.js';
 
 export class BitMex extends BaseCore<'BitMex'> {
   #log = createLogger('bitmex:core');
   #settings: Settings;
   #transport: BitMexTransport;
+  #rest: BitmexRestClient;
   #symbolMappingEnabled: boolean;
   #instruments = new Map<string, Instrument>();
   #instrumentsByNative = new Map<string, Instrument>();
@@ -34,6 +44,11 @@ export class BitMex extends BaseCore<'BitMex'> {
     this.#transport = new BitMexTransport(settings.isTest ?? false, (message) =>
       this.#handleMessage(message),
     );
+    this.#rest = new BitmexRestClient({
+      isTest: settings.isTest ?? false,
+      apiKey: settings.apiKey,
+      apiSecret: settings.apiSec,
+    });
   }
 
   override get instruments(): Map<string, Instrument> {
@@ -118,6 +133,26 @@ export class BitMex extends BaseCore<'BitMex'> {
     this.#removeInstrumentKeys(instrument);
   }
 
+  buy(prepared: PreparedPlaceInput): Promise<Order> {
+    if (prepared.side !== 'buy') {
+      throw new ValidationError('BitMEX buy() expects payload with side "buy"', {
+        details: { side: prepared.side },
+      });
+    }
+
+    return this.#submitOrder(prepared);
+  }
+
+  sell(prepared: PreparedPlaceInput): Promise<Order> {
+    if (prepared.side !== 'sell') {
+      throw new ValidationError('BitMEX sell() expects payload with side "sell"', {
+        details: { side: prepared.side },
+      });
+    }
+
+    return this.#submitOrder(prepared);
+  }
+
   #registerInstrumentKeys(instrument: Instrument): void {
     const existingKeys = this.#instrumentKeys.get(instrument);
 
@@ -167,6 +202,167 @@ export class BitMex extends BaseCore<'BitMex'> {
     }
 
     this.#instrumentKeys.delete(instrument);
+  }
+
+  #submitOrder(prepared: PreparedPlaceInput): Promise<Order> {
+    let payload: CreateOrderPayload;
+    try {
+      payload = mapPreparedOrderToCreatePayload(prepared);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    const store = this.shell.orders;
+
+    const inflight = store.getInflightByClOrdId(payload.clOrdID);
+    if (inflight) {
+      return inflight;
+    }
+
+    const existing = store.getByClOrdId(payload.clOrdID);
+    if (existing) {
+      return Promise.resolve(existing);
+    }
+
+    const orderPromise = (async () => {
+      try {
+        const restOrder = await createOrder(this.#rest, payload, {
+          timeoutMs: BITMEX_CREATE_ORDER_TIMEOUT_MS,
+          retries: 1,
+          logger: this.#log,
+        });
+        return this.#upsertOrderFromRest(restOrder);
+      } finally {
+        store.clearInflight(payload.clOrdID);
+      }
+    })();
+
+    store.registerInflight(payload.clOrdID, orderPromise);
+
+    return orderPromise;
+  }
+
+  #upsertOrderFromRest(row: BitMexOrder): Order {
+    const store = this.shell.orders;
+    const orderId = normalizeId(row.orderID);
+
+    if (!orderId) {
+      throw new ValidationError('BitMEX createOrder response missing orderID', {
+        details: { clOrdID: row.clOrdID, symbol: row.symbol },
+      });
+    }
+
+    const clOrdId = normalizeId(row.clOrdID);
+    const order = store.resolve(orderId, clOrdId);
+
+    const leavesQty = normalizeNumber(row.leavesQty);
+    const cumQty = normalizeNumber(row.cumQty);
+
+    const status =
+      mapBitmexOrderStatus({
+        ordStatus: row.ordStatus,
+        execType: row.execType,
+        leavesQty: leavesQty ?? null,
+        cumQty: cumQty ?? null,
+        previousStatus: order?.status ?? null,
+      }) ??
+      order?.status ??
+      OrderStatus.Placed;
+
+    const update: OrderUpdate = { status };
+
+    if (clOrdId) {
+      update.clOrdId = clOrdId;
+    }
+
+    const symbol = normalizeSymbol(row.symbol);
+    if (symbol) {
+      update.symbol = symbol;
+    }
+
+    const side = normalizeSide(row.side);
+    if (side) {
+      update.side = side;
+    }
+
+    const ordType = normalizeString(row.ordType);
+    if (ordType) {
+      update.type = ordType;
+    }
+
+    const timeInForce = normalizeString(row.timeInForce);
+    if (timeInForce) {
+      update.timeInForce = timeInForce;
+    }
+
+    const execInst = normalizeString(row.execInst);
+    if (execInst) {
+      update.execInst = execInst;
+    }
+
+    const price = normalizeNumber(row.price);
+    if (price !== undefined) {
+      update.price = price;
+    }
+
+    const stopPx = normalizeNumber(row.stopPx);
+    if (stopPx !== undefined) {
+      update.stopPrice = stopPx;
+    }
+
+    const qty = normalizeNumber(row.orderQty);
+    if (qty !== undefined) {
+      update.qty = qty;
+    }
+
+    if (leavesQty !== undefined) {
+      update.leavesQty = leavesQty;
+    }
+
+    if (cumQty !== undefined) {
+      update.cumQty = cumQty;
+    }
+
+    const avgPx = normalizeNumber(row.avgPx);
+    if (avgPx !== undefined) {
+      update.avgPx = avgPx;
+    }
+
+    const text = normalizeString(row.text);
+    if (text) {
+      update.text = text;
+    }
+
+    const lastUpdateTs = normalizeTimestampMs(row.transactTime ?? row.timestamp);
+    if (lastUpdateTs !== null) {
+      update.lastUpdateTs = lastUpdateTs;
+    }
+
+    if (order) {
+      order.applyUpdate(update);
+      return order;
+    }
+
+    const init: OrderInit = {
+      orderId,
+      status,
+      clOrdId: clOrdId ?? undefined,
+      symbol: update.symbol,
+      side: update.side,
+      type: update.type,
+      timeInForce: update.timeInForce,
+      execInst: update.execInst,
+      price: update.price,
+      stopPrice: update.stopPrice,
+      qty: update.qty,
+      leavesQty: update.leavesQty,
+      filledQty: update.cumQty,
+      avgFillPrice: update.avgPx,
+      text: update.text,
+      lastUpdateTs: update.lastUpdateTs,
+      submittedAt: update.lastUpdateTs,
+    };
+
+    return store.create(orderId, init);
   }
 
   async connect(): Promise<void> {
@@ -229,4 +425,60 @@ export class BitMex extends BaseCore<'BitMex'> {
 
     channelMessageHandlers[table][action](this, data);
   }
+}
+
+function normalizeId(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeSymbol(value: unknown): string | null {
+  return normalizeId(value);
+}
+
+function normalizeSide(value: unknown): 'buy' | 'sell' | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'buy' || normalized === 'sell') {
+    return normalized as 'buy' | 'sell';
+  }
+
+  return null;
+}
+
+function normalizeString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeNumber(value: unknown): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return undefined;
+  }
+
+  return value;
+}
+
+function normalizeTimestampMs(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
 }

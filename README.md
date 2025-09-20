@@ -103,7 +103,9 @@ BitMEX и большинство бирж требуют, чтобы `clOrdID` �
 ```ts
 import { ExchangeHub, genClOrdID } from 'exchange-hub';
 
-export const eh = new ExchangeHub('BitMex', { /*...*/ });
+export const eh = new ExchangeHub('BitMex', {
+  /*...*/
+});
 // Рекомендуется задавать уникальный префикс для clOrdID через переменную окружения:
 // EH_PREFIX=my-desk-01
 const clOrdID = genClOrdID(process.env.EH_PREFIX);

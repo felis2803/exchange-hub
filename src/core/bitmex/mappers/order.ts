@@ -1,8 +1,12 @@
 import { OrderStatus } from '../../../domain/order.js';
+import { ValidationError } from '../../../infra/errors.js';
+
+import type { PreparedPlaceInput } from '../../../infra/validation.js';
 
 import type { BitMexExecType, BitMexOrderStatus } from '../types.js';
 import type { Side } from '../../../types.js';
 import type { OrderType } from '../../../infra/validation.js';
+import type { CreateOrderPayload } from '../rest/orders.js';
 
 export type BitmexOrderStatusInput = {
   ordStatus?: BitMexOrderStatus | null;
@@ -76,6 +80,53 @@ function normalizeFinite(value: number | null | undefined): number | null {
   }
 
   return Number.isFinite(value) ? value : null;
+}
+
+export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): CreateOrderPayload {
+  if (input.type === 'Stop') {
+    throw new ValidationError('Stop orders are not supported yet', {
+      details: { type: input.type },
+    });
+  }
+
+  const side = input.side === 'sell' ? 'Sell' : 'Buy';
+  const payload: CreateOrderPayload = {
+    symbol: input.symbol,
+    side,
+    orderQty: input.size,
+    ordType: input.type,
+    clOrdID: input.options.clOrdId,
+  };
+
+  if (input.type === 'Limit') {
+    if (input.price === null) {
+      throw new ValidationError('limit order requires price', { details: { type: input.type } });
+    }
+
+    payload.price = input.price;
+  }
+
+  if (input.stopPrice !== null && input.stopPrice !== undefined) {
+    payload.stopPx = input.stopPrice;
+  }
+
+  const execInst: string[] = [];
+  if (input.options.postOnly) {
+    execInst.push('ParticipateDoNotInitiate');
+  }
+  if (input.options.reduceOnly) {
+    execInst.push('ReduceOnly');
+  }
+
+  if (execInst.length > 0) {
+    payload.execInst = execInst.join(',');
+  }
+
+  if (input.options.timeInForce) {
+    payload.timeInForce = input.options.timeInForce as CreateOrderPayload['timeInForce'];
+  }
+
+  return payload;
 }
 
 export function mapBitmexOrderStatus({
