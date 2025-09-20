@@ -104,7 +104,9 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
 
   if (input.type === 'Limit' || input.type === 'StopLimit') {
     if (input.price === null) {
-      throw new ValidationError('limit order requires price', { details: { type: input.type } });
+      throw new ValidationError('limit order requires price', {
+        details: { type: input.type },
+      });
     }
 
     payload.price = input.price;
@@ -112,7 +114,9 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
 
   if (input.type === 'Stop' || input.type === 'StopLimit') {
     if (input.stopPrice === null || input.stopPrice === undefined) {
-      throw new ValidationError('stop order requires stop price', { details: { type: input.type } });
+      throw new ValidationError('stop order requires stop price', {
+        details: { type: input.type },
+      });
     }
 
     payload.stopPx = input.stopPrice;

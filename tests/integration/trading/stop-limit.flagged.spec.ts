@@ -65,29 +65,29 @@ describe('BitMEX trading – stop-limit orders', () => {
       .build();
 
     const harness = await setupPrivateHarness(scenario, { startTime: '2024-01-01T00:02:00.000Z' });
-    const { hub, core, clock, server, cleanup } = harness;
+    const { core, clock, server, cleanup } = harness;
 
     try {
       const fetchMock = jest.fn(
-      async () =>
-        new Response(
-          JSON.stringify({
-            orderID: 'ws-stop-limit-1',
-            clOrdID,
-            symbol: 'XBTUSD',
-            side: 'Sell',
-            orderQty: 5,
-            ordType: 'StopLimit',
-            stopPx: stopPrice,
-            price: limitPrice,
-            ordStatus: 'New',
-            execType: 'New',
-            leavesQty: 5,
-            cumQty: 0,
-            timestamp: '2024-01-01T00:02:00.050Z',
-          }),
-          { status: 200 },
-        ),
+        async () =>
+          new Response(
+            JSON.stringify({
+              orderID: 'ws-stop-limit-1',
+              clOrdID,
+              symbol: 'XBTUSD',
+              side: 'Sell',
+              orderQty: 5,
+              ordType: 'StopLimit',
+              stopPx: stopPrice,
+              price: limitPrice,
+              ordStatus: 'New',
+              execType: 'New',
+              leavesQty: 5,
+              cumQty: 0,
+              timestamp: '2024-01-01T00:02:00.050Z',
+            }),
+            { status: 200 },
+          ),
       );
       global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -139,8 +139,6 @@ describe('BitMEX trading – stop-limit orders', () => {
     instrument.orderBook.bestBid = { price: 50_000, size: 1 };
     instrument.orderBook.bestAsk = { price: 50_010, size: 1 };
 
-    expect(() =>
-      instrument.sell(2, 50_050, { stopLimitPrice: 50_040 }),
-    ).toThrow(ValidationError);
+    expect(() => instrument.sell(2, 50_050, { stopLimitPrice: 50_040 })).toThrow(ValidationError);
   });
 });

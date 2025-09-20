@@ -65,24 +65,24 @@ describe('BitMEX trading – stop-market lifecycle', () => {
 
     try {
       const fetchMock = jest.fn(
-      async () =>
-        new Response(
-          JSON.stringify({
-            orderID: 'ws-stop-life-1',
-            clOrdID,
-            symbol: 'XBTUSD',
-            side: 'Buy',
-            orderQty: 10,
-            ordType: 'Stop',
-            stopPx: stopPrice,
-            ordStatus: 'New',
-            execType: 'New',
-            leavesQty: 10,
-            cumQty: 0,
-            timestamp: '2024-01-01T00:00:01.500Z',
-          }),
-          { status: 200 },
-        ),
+        async () =>
+          new Response(
+            JSON.stringify({
+              orderID: 'ws-stop-life-1',
+              clOrdID,
+              symbol: 'XBTUSD',
+              side: 'Buy',
+              orderQty: 10,
+              ordType: 'Stop',
+              stopPx: stopPrice,
+              ordStatus: 'New',
+              execType: 'New',
+              leavesQty: 10,
+              cumQty: 0,
+              timestamp: '2024-01-01T00:00:01.500Z',
+            }),
+            { status: 200 },
+          ),
       );
       global.fetch = fetchMock as unknown as typeof fetch;
 
