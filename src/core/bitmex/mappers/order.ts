@@ -164,9 +164,7 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
   return payload;
 }
 
-function normalizeTimeInForce(
-  value: string | null | undefined,
-): SupportedTimeInForce | null {
+function normalizeTimeInForce(value: string | null | undefined): SupportedTimeInForce | null {
   if (value === null || value === undefined) {
     return null;
   }

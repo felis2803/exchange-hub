@@ -62,13 +62,15 @@ function createHub() {
 
 function mockBitmexLogger(logger: Logger) {
   const actualCreateLogger = loggerModule.createLogger;
-  return jest.spyOn(loggerModule, 'createLogger').mockImplementation((namespace?: string, context?: any) => {
-    if (namespace === 'bitmex:core') {
-      return logger;
-    }
+  return jest
+    .spyOn(loggerModule, 'createLogger')
+    .mockImplementation((namespace?: string, context?: any) => {
+      if (namespace === 'bitmex:core') {
+        return logger;
+      }
 
-    return actualCreateLogger(namespace, context);
-  });
+      return actualCreateLogger(namespace, context);
+    });
 }
 
 describe('BitMEX REST createOrder – retry policy and logging', () => {
