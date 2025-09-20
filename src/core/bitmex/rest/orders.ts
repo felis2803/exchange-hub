@@ -1,5 +1,9 @@
 import { createLogger, type Logger } from '../../../infra/logger.js';
-import { incrementCounter, observeHistogram, type MetricLabelValue } from '../../../infra/metrics.js';
+import {
+  incrementCounter,
+  observeHistogram,
+  type MetricLabelValue,
+} from '../../../infra/metrics.js';
 import { BaseError, ExchangeDownError, NetworkError } from '../../../infra/errors.js';
 
 import type { BitMexOrder, BitMexOrderType, BitMexSide, BitMexTimeInForce } from '../types.js';
@@ -114,6 +118,7 @@ export async function createOrder(
         errorMessage,
         {
           attempt: attemptNumber,
+          attemptCount: attemptNumber,
           maxAttempts,
           elapsedMs,
           timeoutMs,

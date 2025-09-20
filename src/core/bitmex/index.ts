@@ -236,21 +236,32 @@ export class BitMex extends BaseCore<'BitMex'> {
         if (shouldReconcileCreateOrderError(error)) {
           const existing = store.getByClOrdId(payload.clOrdID);
           if (existing) {
-            this.#log.info('BitMEX createOrder error but order already present for %s', payload.clOrdID, {
-              clOrdID: payload.clOrdID,
-              symbol: payload.symbol,
-              errorName: error instanceof Error ? error.name : typeof error,
-              code: error instanceof OrderRejectedError || error instanceof TimeoutError ? error.code : undefined,
-            });
+            this.#log.info(
+              'BitMEX createOrder error but order already present for %s',
+              payload.clOrdID,
+              {
+                clOrdID: payload.clOrdID,
+                symbol: payload.symbol,
+                errorName: error instanceof Error ? error.name : typeof error,
+                code:
+                  error instanceof OrderRejectedError || error instanceof TimeoutError
+                    ? error.code
+                    : undefined,
+              },
+            );
             return existing;
           }
 
           try {
-            this.#log.warn('BitMEX createOrder failed for %s, reconciling via GET', payload.clOrdID, {
-              clOrdID: payload.clOrdID,
-              symbol: payload.symbol,
-              errorName: error instanceof Error ? error.name : typeof error,
-            });
+            this.#log.warn(
+              'BitMEX createOrder failed for %s, reconciling via GET',
+              payload.clOrdID,
+              {
+                clOrdID: payload.clOrdID,
+                symbol: payload.symbol,
+                errorName: error instanceof Error ? error.name : typeof error,
+              },
+            );
 
             const reconciled = await this.#reconcileOrderByClOrdId(payload.clOrdID);
             if (reconciled) {
@@ -272,7 +283,8 @@ export class BitMex extends BaseCore<'BitMex'> {
             this.#log.error('BitMEX reconcile failed for %s: %s', payload.clOrdID, message, {
               clOrdID: payload.clOrdID,
               symbol: payload.symbol,
-              errorName: reconcileError instanceof Error ? reconcileError.name : typeof reconcileError,
+              errorName:
+                reconcileError instanceof Error ? reconcileError.name : typeof reconcileError,
             });
           }
         }

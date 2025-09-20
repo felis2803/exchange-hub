@@ -106,9 +106,9 @@ describe('BitMEX trading – timeout reconcile', () => {
       [RequestInfo | URL, RequestInit | undefined],
       [RequestInfo | URL, RequestInit | undefined],
     ];
-    expect((postInit?.method ?? 'GET')).toBe('POST');
+    expect(postInit?.method ?? 'GET').toBe('POST');
     expect(new URL(String(postUrl)).pathname).toBe('/api/v1/order');
-    expect((getInit?.method ?? 'GET')).toBe('GET');
+    expect(getInit?.method ?? 'GET').toBe('GET');
     expect(new URL(String(getUrl)).searchParams.get('clOrdID')).toBe('timeout-cli-1');
   });
 });
