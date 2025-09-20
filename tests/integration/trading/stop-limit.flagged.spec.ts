@@ -2,6 +2,7 @@ import { jest } from '@jest/globals';
 
 import { ExchangeHub } from '../../../src/ExchangeHub.js';
 import { OrderStatus } from '../../../src/domain/order.js';
+import { ValidationError } from '../../../src/infra/errors.js';
 
 import type { BitMex } from '../../../src/core/bitmex/index.js';
 import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
@@ -45,27 +46,45 @@ describe('BitMEX trading – stop-limit flag', () => {
     jest.restoreAllMocks();
   });
 
+  test('rejects stop-limit payload without limit price flag', async () => {
+    const mockFetch = jest.fn(() => {
+      throw new Error('fetch should not be called for invalid stop-limit payloads');
+    });
+
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    const { core } = createHub();
+    const prepared = createPreparedStopLimitOrder({ price: null });
+
+    await expect(core.buy(prepared)).rejects.toThrowError(
+      new ValidationError('stop-limit order requires limit price'),
+    );
+
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   test('submits stop-limit payload with both trigger and limit prices', async () => {
-    const mockFetch = jest.fn(async () =>
-      new Response(
-        JSON.stringify({
-          orderID: 'stop-limit-ord-1',
-          clOrdID: 'stop-limit-cli-1',
-          symbol: 'XBTUSD',
-          side: 'Buy',
-          orderQty: 25,
-          ordType: 'StopLimit',
-          ordStatus: 'New',
-          execType: 'New',
-          price: 50_150,
-          stopPx: 50_200,
-          leavesQty: 25,
-          cumQty: 0,
-          avgPx: 0,
-          timestamp: '2024-01-01T00:00:05.000Z',
-        }),
-        { status: 200 },
-      ),
+    const mockFetch = jest.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            orderID: 'stop-limit-ord-1',
+            clOrdID: 'stop-limit-cli-1',
+            symbol: 'XBTUSD',
+            side: 'Buy',
+            orderQty: 25,
+            ordType: 'StopLimit',
+            ordStatus: 'New',
+            execType: 'New',
+            price: 50_150,
+            stopPx: 50_200,
+            leavesQty: 25,
+            cumQty: 0,
+            avgPx: 0,
+            timestamp: '2024-01-01T00:00:05.000Z',
+          }),
+          { status: 200 },
+        ),
     );
 
     global.fetch = mockFetch as unknown as typeof fetch;

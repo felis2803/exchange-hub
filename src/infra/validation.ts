@@ -20,6 +20,8 @@ export interface PlaceValidationParams {
   price?: number;
   type: OrderType;
   opts?: PlaceOpts;
+  bestBid?: number | null;
+  bestAsk?: number | null;
 }
 
 export interface NormalizedPlaceOptions {
@@ -84,6 +86,22 @@ function normalizePrice(price: number | null | undefined): number | null {
   return price;
 }
 
+function normalizeReferencePrice(price: number | null | undefined): number | null {
+  if (typeof price !== 'number') {
+    return null;
+  }
+
+  if (!Number.isFinite(price)) {
+    return null;
+  }
+
+  if (price <= 0) {
+    return null;
+  }
+
+  return price;
+}
+
 function normalizeTimeInForce(timeInForce: string | undefined): string | null {
   if (typeof timeInForce !== 'string') {
     return null;
@@ -107,7 +125,7 @@ function normalizeClOrdId(clOrdID: ClOrdID | undefined): ClOrdID | undefined {
 }
 
 export function validatePlaceInput(params: PlaceValidationParams): NormalizedPlaceInput {
-  const { symbol, side, size, price, type, opts } = params;
+  const { symbol, side, size, price, type, opts, bestBid, bestAsk } = params;
 
   if (side !== 'buy' && side !== 'sell') {
     throw new ValidationError('Order side must be "buy" or "sell"', { details: { side } });
@@ -117,6 +135,8 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
   const normalizedSize = normalizeSize(size);
   const rawPrice = price ?? null;
   const rawStopLimitPrice = opts?.stopLimitPrice;
+  const normalizedBestBid = normalizeReferencePrice(bestBid);
+  const normalizedBestAsk = normalizeReferencePrice(bestAsk);
 
   let normalizedPrice: number | null = null;
   let normalizedStopPrice: number | null = null;
@@ -173,6 +193,30 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
     throw new ValidationError('stopLimitPrice is only allowed for stop-limit orders', {
       details: { type, stopLimitPrice: rawStopLimitPrice },
     });
+  }
+
+  if ((type === 'Stop' || type === 'StopLimit') && normalizedStopPrice !== null) {
+    if (side === 'buy' && normalizedBestAsk !== null && normalizedStopPrice < normalizedBestAsk) {
+      throw new ValidationError('invalid stop zone', {
+        details: {
+          side,
+          type,
+          stopPrice: normalizedStopPrice,
+          bestAsk: normalizedBestAsk,
+        },
+      });
+    }
+
+    if (side === 'sell' && normalizedBestBid !== null && normalizedStopPrice > normalizedBestBid) {
+      throw new ValidationError('invalid stop zone', {
+        details: {
+          side,
+          type,
+          stopPrice: normalizedStopPrice,
+          bestBid: normalizedBestBid,
+        },
+      });
+    }
   }
 
   const postOnly = Boolean(opts?.postOnly);

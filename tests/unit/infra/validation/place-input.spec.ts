@@ -168,6 +168,45 @@ describe('validatePlaceInput', () => {
     ).toThrowErrorMatchingInlineSnapshot('"postOnly is allowed for limit orders only"');
   });
 
+  test('throws when buy stop trigger is below best ask', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'buy',
+        size: 1,
+        price: 50_100,
+        type: 'Stop',
+        bestAsk: 50_200,
+      }),
+    ).toThrowErrorMatchingInlineSnapshot('"invalid stop zone"');
+  });
+
+  test('throws when sell stop trigger is above best bid', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'sell',
+        size: 1,
+        price: 50_200,
+        type: 'Stop',
+        bestBid: 50_100,
+      }),
+    ).toThrowErrorMatchingInlineSnapshot('"invalid stop zone"');
+  });
+
+  test('accepts stop triggers when they are within the valid zone', () => {
+    const result = validatePlaceInput({
+      symbol: 'XBTUSD',
+      side: 'buy',
+      size: 1,
+      price: 50_250,
+      type: 'Stop',
+      bestAsk: 50_200,
+    });
+
+    expect(result.stopPrice).toBe(50_250);
+  });
+
   test('throws when size is not positive', () => {
     expect(() =>
       validatePlaceInput({

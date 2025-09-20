@@ -9,9 +9,7 @@ import { setupPrivateHarness } from '../../helpers/privateHarness.js';
 
 const ORIGINAL_FETCH = global.fetch;
 
-function createPreparedStopOrder(
-  overrides: Partial<PreparedPlaceInput> = {},
-): PreparedPlaceInput {
+function createPreparedStopOrder(overrides: Partial<PreparedPlaceInput> = {}): PreparedPlaceInput {
   const base: PreparedPlaceInput = {
     symbol: 'XBTUSD',
     side: 'buy',
