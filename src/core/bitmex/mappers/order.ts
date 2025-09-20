@@ -1,7 +1,7 @@
 import { OrderStatus } from '../../../domain/order.js';
 import { ValidationError } from '../../../infra/errors.js';
 
-import type { PreparedPlaceInput } from '../../../infra/validation.js';
+import type { PlaceOpts, PreparedPlaceInput } from '../../../infra/validation.js';
 
 import type { BitMexExecType, BitMexOrderStatus } from '../types.js';
 import type { Side } from '../../../types.js';
@@ -31,19 +31,29 @@ const STATUS_PRIORITY: Record<OrderStatus, number> = {
  *
  * - When price is omitted we default to a market order – this mirrors the API
  *   contract where the caller specifies size/side only.
+ * - Presence of the stopLimitPrice option explicitly maps the request to a
+ *   stop-limit order. Validation is responsible for ensuring accompanying
+ *   fields are present and consistent.
  * - When the top of book is unavailable (for example right after startup) we
  *   conservatively assume a limit order. This prevents us from accidentally
  *   tagging the order as a stop just because the order book did not stream yet.
- * - Prices that sit exactly on the best bid/ask are also treated as limit
- *   orders. Staying on the passive side is safer than crossing the spread in
- *   ambiguous boundary cases.
+ * - Prices that sit on or beyond the best bid/ask are considered stops so that
+ *   we never submit an aggressive limit order when the intent is to trigger a
+ *   stop.
  */
 export function inferOrderType(
   side: Side,
   price?: number | null,
   bestBid?: number | null,
   bestAsk?: number | null,
+  opts?: PlaceOpts | null,
 ): OrderType {
+  const wantsStopLimit = opts?.stopLimitPrice !== undefined && opts?.stopLimitPrice !== null;
+
+  if (wantsStopLimit) {
+    return 'StopLimit';
+  }
+
   const normalizedPrice = normalizeFinite(price);
 
   if (normalizedPrice === null) {
@@ -54,7 +64,7 @@ export function inferOrderType(
   const normalizedAsk = normalizeFinite(bestAsk);
 
   if (side === 'buy') {
-    if (normalizedAsk !== null && normalizedPrice > normalizedAsk) {
+    if (normalizedAsk !== null && normalizedPrice >= normalizedAsk) {
       return 'Stop';
     }
 
@@ -63,7 +73,7 @@ export function inferOrderType(
   }
 
   if (side === 'sell') {
-    if (normalizedBid !== null && normalizedPrice < normalizedBid) {
+    if (normalizedBid !== null && normalizedPrice <= normalizedBid) {
       return 'Stop';
     }
 
@@ -83,12 +93,6 @@ function normalizeFinite(value: number | null | undefined): number | null {
 }
 
 export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): CreateOrderPayload {
-  if (input.type === 'Stop') {
-    throw new ValidationError('Stop orders are not supported yet', {
-      details: { type: input.type },
-    });
-  }
-
   const side = input.side === 'sell' ? 'Sell' : 'Buy';
   const payload: CreateOrderPayload = {
     symbol: input.symbol,
@@ -98,7 +102,7 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
     clOrdID: input.options.clOrdId,
   };
 
-  if (input.type === 'Limit') {
+  if (input.type === 'Limit' || input.type === 'StopLimit') {
     if (input.price === null) {
       throw new ValidationError('limit order requires price', { details: { type: input.type } });
     }
@@ -106,7 +110,13 @@ export function mapPreparedOrderToCreatePayload(input: PreparedPlaceInput): Crea
     payload.price = input.price;
   }
 
-  if (input.stopPrice !== null && input.stopPrice !== undefined) {
+  if (input.type === 'Stop' || input.type === 'StopLimit') {
+    if (input.stopPrice === null || input.stopPrice === undefined) {
+      throw new ValidationError('stop order requires stop price', { details: { type: input.type } });
+    }
+
+    payload.stopPx = input.stopPrice;
+  } else if (input.stopPrice !== null && input.stopPrice !== undefined) {
     payload.stopPx = input.stopPrice;
   }
 

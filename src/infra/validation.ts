@@ -3,13 +3,14 @@ import { ValidationError } from './errors.js';
 import type { ClOrdID, Symbol } from '../core/types.js';
 import type { Side } from '../types.js';
 
-export type OrderType = 'Market' | 'Limit' | 'Stop';
+export type OrderType = 'Market' | 'Limit' | 'Stop' | 'StopLimit';
 
 export interface PlaceOpts {
   postOnly?: boolean;
   clOrdID?: ClOrdID;
   timeInForce?: string;
   reduceOnly?: boolean;
+  stopLimitPrice?: number;
 }
 
 export interface PlaceValidationParams {
@@ -19,6 +20,8 @@ export interface PlaceValidationParams {
   price?: number;
   type: OrderType;
   opts?: PlaceOpts;
+  bestBid?: number | null;
+  bestAsk?: number | null;
 }
 
 export interface NormalizedPlaceOptions {
@@ -26,6 +29,7 @@ export interface NormalizedPlaceOptions {
   reduceOnly: boolean;
   timeInForce: string | null;
   clOrdId?: ClOrdID;
+  stopLimitPrice: number | null;
 }
 
 export interface NormalizedPlaceInput {
@@ -105,8 +109,16 @@ function normalizeClOrdId(clOrdID: ClOrdID | undefined): ClOrdID | undefined {
   return trimmed as ClOrdID;
 }
 
+function normalizeFiniteNumber(value: number | null | undefined): number | null {
+  if (typeof value !== 'number') {
+    return null;
+  }
+
+  return Number.isFinite(value) ? value : null;
+}
+
 export function validatePlaceInput(params: PlaceValidationParams): NormalizedPlaceInput {
-  const { symbol, side, size, price, type, opts } = params;
+  const { symbol, side, size, price, type, opts, bestBid, bestAsk } = params;
 
   if (side !== 'buy' && side !== 'sell') {
     throw new ValidationError('Order side must be "buy" or "sell"', { details: { side } });
@@ -115,6 +127,21 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
   const normalizedSymbol = normalizeSymbol(symbol);
   const normalizedSize = normalizeSize(size);
   const rawPrice = price ?? null;
+  const normalizedBestBid = normalizeFiniteNumber(bestBid);
+  const normalizedBestAsk = normalizeFiniteNumber(bestAsk);
+  const normalizedStopLimitPrice = normalizePrice(opts?.stopLimitPrice);
+
+  if (normalizedStopLimitPrice !== null && normalizedStopLimitPrice <= 0) {
+    throw new ValidationError('stopLimitPrice must be a finite positive number', {
+      details: { stopLimitPrice: opts?.stopLimitPrice },
+    });
+  }
+
+  if (normalizedStopLimitPrice !== null && type !== 'StopLimit') {
+    throw new ValidationError('stopLimitPrice is allowed for stop-limit orders only', {
+      details: { type },
+    });
+  }
 
   let normalizedPrice: number | null = null;
   let normalizedStopPrice: number | null = null;
@@ -143,7 +170,58 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
       throw new ValidationError('stop orders require a price', { details: { price } });
     }
 
+    if (stopPrice <= 0) {
+      throw new ValidationError('stop price must be greater than zero', { details: { price } });
+    }
+
     normalizedStopPrice = stopPrice;
+
+    if (side === 'buy' && normalizedBestAsk !== null && stopPrice < normalizedBestAsk) {
+      throw new ValidationError('buy stop price must be greater than or equal to best ask', {
+        details: { stopPrice, bestAsk: normalizedBestAsk },
+      });
+    }
+
+    if (side === 'sell' && normalizedBestBid !== null && stopPrice > normalizedBestBid) {
+      throw new ValidationError('sell stop price must be less than or equal to best bid', {
+        details: { stopPrice, bestBid: normalizedBestBid },
+      });
+    }
+  } else if (type === 'StopLimit') {
+    const stopPrice = normalizePrice(rawPrice);
+
+    if (stopPrice === null) {
+      throw new ValidationError('stop-limit orders require a stop price', {
+        details: { price },
+      });
+    }
+
+    if (stopPrice <= 0) {
+      throw new ValidationError('stop-limit orders require a positive stop price', {
+        details: { price },
+      });
+    }
+
+    if (side === 'buy' && normalizedBestAsk !== null && stopPrice < normalizedBestAsk) {
+      throw new ValidationError('buy stop price must be greater than or equal to best ask', {
+        details: { stopPrice, bestAsk: normalizedBestAsk },
+      });
+    }
+
+    if (side === 'sell' && normalizedBestBid !== null && stopPrice > normalizedBestBid) {
+      throw new ValidationError('sell stop price must be less than or equal to best bid', {
+        details: { stopPrice, bestBid: normalizedBestBid },
+      });
+    }
+
+    if (normalizedStopLimitPrice === null) {
+      throw new ValidationError('stop-limit orders require a limit price', {
+        details: { stopLimitPrice: opts?.stopLimitPrice },
+      });
+    }
+
+    normalizedStopPrice = stopPrice;
+    normalizedPrice = normalizedStopLimitPrice;
   }
 
   const postOnly = Boolean(opts?.postOnly);
@@ -162,12 +240,13 @@ export function validatePlaceInput(params: PlaceValidationParams): NormalizedPla
     side,
     size: normalizedSize,
     type,
-    price: type === 'Limit' ? normalizedPrice : null,
-    stopPrice: type === 'Stop' ? normalizedStopPrice : null,
+    price: type === 'Limit' || type === 'StopLimit' ? normalizedPrice : null,
+    stopPrice: type === 'Stop' || type === 'StopLimit' ? normalizedStopPrice : null,
     options: {
       postOnly,
       reduceOnly,
       timeInForce,
+      stopLimitPrice: type === 'StopLimit' ? normalizedPrice : null,
       ...(clOrdId ? { clOrdId } : {}),
     },
   };

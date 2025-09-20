@@ -29,6 +29,7 @@ describe('validatePlaceInput', () => {
         reduceOnly: false,
         timeInForce: 'GoodTillCancel',
         clOrdId: 'client-01',
+        stopLimitPrice: null,
       },
     });
   });
@@ -46,6 +47,25 @@ describe('validatePlaceInput', () => {
     expect(result.price).toBeNull();
     expect(result.stopPrice).toBe(63_500);
     expect(result.options.postOnly).toBe(false);
+    expect(result.options.reduceOnly).toBe(true);
+    expect(result.options.stopLimitPrice).toBeNull();
+  });
+
+  test('normalizes a stop-limit order when flag is provided', () => {
+    const result = validatePlaceInput({
+      symbol: 'XBTUSD',
+      side: 'buy',
+      size: 3,
+      price: 63_800,
+      type: 'StopLimit',
+      bestAsk: 63_700,
+      opts: { stopLimitPrice: 63_750, reduceOnly: true },
+    });
+
+    expect(result.type).toBe('StopLimit');
+    expect(result.price).toBe(63_750);
+    expect(result.stopPrice).toBe(63_800);
+    expect(result.options.stopLimitPrice).toBe(63_750);
     expect(result.options.reduceOnly).toBe(true);
   });
 
@@ -122,5 +142,34 @@ describe('validatePlaceInput', () => {
         type: 'Market',
       }),
     ).toThrow(ValidationError);
+  });
+
+  test('throws when stop price is on the wrong side of the book', () => {
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'buy',
+        size: 1,
+        price: 63_400,
+        type: 'Stop',
+        bestAsk: 63_500,
+      }),
+    ).toThrowErrorMatchingInlineSnapshot(
+      '"buy stop price must be greater than or equal to best ask"',
+    );
+
+    expect(() =>
+      validatePlaceInput({
+        symbol: 'XBTUSD',
+        side: 'sell',
+        size: 1,
+        price: 63_700,
+        type: 'StopLimit',
+        bestBid: 63_600,
+        opts: { stopLimitPrice: 63_550 },
+      }),
+    ).toThrowErrorMatchingInlineSnapshot(
+      '"sell stop price must be less than or equal to best bid"',
+    );
   });
 });
