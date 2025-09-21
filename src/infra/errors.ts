@@ -555,7 +555,10 @@ function stringifyHttpErrorBody(value: unknown): string {
   }
 }
 
-function truncateStringByBytes(value: string, limit: number): { value: string; truncated: boolean } {
+function truncateStringByBytes(
+  value: string,
+  limit: number,
+): { value: string; truncated: boolean } {
   const buffer = Buffer.from(value);
   if (buffer.byteLength <= limit) {
     return { value, truncated: false };
