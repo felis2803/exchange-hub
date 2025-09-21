@@ -253,6 +253,8 @@ type ErrnoException = Error & { code?: string };
 type ErrorConstructorFn = abstract new (...args: unknown[]) => unknown;
 type CaptureStackTraceFn = (target: Error, ctor?: ErrorConstructorFn) => void;
 
+const HTTP_ERROR_BODY_MAX_BYTES = 2048;
+
 const RETRYABLE_ERRNO_CODES = new Set([
   'ECONNRESET',
   'ECONNREFUSED',
@@ -277,7 +279,13 @@ export function fromHttpResponse(params: HttpResponseErrorParams): BaseError {
   const details: Record<string, unknown> = { status };
   if (url) details.url = url;
   if (method) details.method = method;
-  if (body !== undefined) details.body = safeSerializeValue(body);
+  if (body !== undefined) {
+    const { value, truncated } = buildHttpErrorBody(body);
+    details.body = value;
+    if (truncated) {
+      details.body_truncated = true;
+    }
+  }
   if (normalizedHeaders) details.headers = normalizedHeaders;
   if (retryAfterMs !== undefined) details.retryAfterMs = retryAfterMs;
 
@@ -504,6 +512,57 @@ function extractRetryAfter(headers?: Record<string, string>): number | undefined
   }
 
   return undefined;
+}
+
+function buildHttpErrorBody(body: unknown): { value: unknown; truncated: boolean } {
+  const sanitized = safeSerializeValue(body);
+
+  if (shouldLogFullHttpErrorBody()) {
+    return { value: sanitized, truncated: false };
+  }
+
+  const serialized = stringifyHttpErrorBody(sanitized);
+  const { value, truncated } = truncateStringByBytes(serialized, HTTP_ERROR_BODY_MAX_BYTES);
+  return { value, truncated };
+}
+
+function shouldLogFullHttpErrorBody(): boolean {
+  return process.env.EH_LOG_HTTP_ERROR_BODY === '1';
+}
+
+function stringifyHttpErrorBody(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value);
+  }
+
+  if (value === null) {
+    return 'null';
+  }
+
+  if (value === undefined) {
+    return '';
+  }
+
+  try {
+    const json = JSON.stringify(value);
+    return json ?? String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function truncateStringByBytes(value: string, limit: number): { value: string; truncated: boolean } {
+  const buffer = Buffer.from(value);
+  if (buffer.byteLength <= limit) {
+    return { value, truncated: false };
+  }
+
+  const truncated = buffer.subarray(0, limit).toString();
+  return { value: truncated, truncated: true };
 }
 
 function parseRetryAfterHeader(value: string | undefined): number | undefined {
