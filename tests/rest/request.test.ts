@@ -76,6 +76,67 @@ describe('BitmexRestClient.request()', () => {
     nowSpy.mockRestore();
   });
 
+  test('resolves api-expires skew from env when option is not provided', async () => {
+    const original = process.env.BITMEX_REST_EXPIRES_SKEW_SEC;
+    process.env.BITMEX_REST_EXPIRES_SKEW_SEC = '30';
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    const mockFetch = jest.fn(async () => new Response('[]', { status: 200 }));
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    try {
+      const client = new BitmexRestClient({
+        apiKey: 'key',
+        apiSecret: 'secret',
+        isTest: true,
+      });
+
+      await client.request('POST', '/api/v1/order', { auth: true, body: { symbol: 'XBTUSD' } });
+
+      const [, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      const expectedExpires = Math.floor(1_700_000_000_000 / 1000) + 30;
+      expect(Number(headers['api-expires'])).toBe(expectedExpires);
+    } finally {
+      if (original === undefined) {
+        delete process.env.BITMEX_REST_EXPIRES_SKEW_SEC;
+      } else {
+        process.env.BITMEX_REST_EXPIRES_SKEW_SEC = original;
+      }
+      nowSpy.mockRestore();
+    }
+  });
+
+  test('client option overrides env-configured api-expires skew', async () => {
+    const original = process.env.BITMEX_REST_EXPIRES_SKEW_SEC;
+    process.env.BITMEX_REST_EXPIRES_SKEW_SEC = '30';
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(1_750_000_000_000);
+    const mockFetch = jest.fn(async () => new Response('[]', { status: 200 }));
+    global.fetch = mockFetch as unknown as typeof fetch;
+
+    try {
+      const client = new BitmexRestClient({
+        apiKey: 'key',
+        apiSecret: 'secret',
+        apiExpiresSkewSec: 45,
+        isTest: true,
+      });
+
+      await client.request('POST', '/api/v1/order', { auth: true, body: { symbol: 'XBTUSD' } });
+
+      const [, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+      const headers = init.headers as Record<string, string>;
+      const expectedExpires = Math.floor(1_750_000_000_000 / 1000) + 45;
+      expect(Number(headers['api-expires'])).toBe(expectedExpires);
+    } finally {
+      if (original === undefined) {
+        delete process.env.BITMEX_REST_EXPIRES_SKEW_SEC;
+      } else {
+        process.env.BITMEX_REST_EXPIRES_SKEW_SEC = original;
+      }
+      nowSpy.mockRestore();
+    }
+  });
+
   test('throws AuthError when auth requested without credentials', async () => {
     const mockFetch = jest.fn();
     global.fetch = mockFetch as unknown as typeof fetch;

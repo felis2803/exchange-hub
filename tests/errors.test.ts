@@ -31,6 +31,35 @@ describe('errors (smoke)', () => {
     expect(e503).toBeInstanceOf(ExchangeDownError);
   });
 
+  test('fromHttpResponse truncates logged body by default', () => {
+    const body = 'x'.repeat(4096);
+    const error = fromHttpResponse({ status: 500, url: '/x', method: 'GET', body });
+
+    expect(error.details?.body_truncated).toBe(true);
+    const logged = error.details?.body as string;
+    expect(Buffer.byteLength(logged, 'utf8')).toBe(2048);
+    expect(logged).toBe(body.slice(0, 2048));
+  });
+
+  test('EH_LOG_HTTP_ERROR_BODY=1 preserves full body without truncation', () => {
+    const original = process.env.EH_LOG_HTTP_ERROR_BODY;
+    process.env.EH_LOG_HTTP_ERROR_BODY = '1';
+
+    try {
+      const body = 'payload'.repeat(400);
+      const error = fromHttpResponse({ status: 400, url: '/x', method: 'GET', body });
+
+      expect(error.details?.body).toBe(body);
+      expect(error.details?.body_truncated).toBeUndefined();
+    } finally {
+      if (original === undefined) {
+        delete process.env.EH_LOG_HTTP_ERROR_BODY;
+      } else {
+        process.env.EH_LOG_HTTP_ERROR_BODY = original;
+      }
+    }
+  });
+
   test('wrap unknown', () => {
     const e = wrap('boom');
     expect(e).toBeInstanceOf(BaseError);
