@@ -1,9 +1,9 @@
-import { OrderStatus } from '../../../domain/order.js';
-import { ValidationError } from '../../../infra/errors.js';
-import type { PreparedPlaceInput, OrderType } from '../../../infra/validation.js';
-import type { BitMexExecType, BitMexOrderStatus } from '../types.js';
-import type { Side } from '../../../types.js';
-import type { CreateOrderPayload } from '../rest/orders.js';
+import { OrderStatus } from '../../../domain/order';
+import { ValidationError } from '../../../infra/errors';
+import type { PreparedPlaceInput, OrderType } from '../../../infra/validation';
+import type { BitMexExecType, BitMexOrderStatus } from '../types';
+import type { Side } from '../../../types';
+import type { CreateOrderPayload } from '../rest/orders';
 
 export type BitmexOrderStatusInput = {
     ordStatus?: BitMexOrderStatus | null;

@@ -1,4 +1,4 @@
-import { BitMex } from './bitmex/index.js';
+import { BitMex } from './bitmex/index';
 
 export const Cores = {
     BitMex,

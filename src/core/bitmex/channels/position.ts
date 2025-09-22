@@ -1,13 +1,13 @@
-import { Position } from '../../../domain/position.js';
-import type { PositionSnapshot, PositionUpdate, PositionUpdateReason } from '../../../domain/position.js';
-import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
-import { observeHistogram } from '../../../infra/metrics.js';
-import { METRICS } from '../../../infra/metrics-private.js';
-import { isNewerByTimestamp, normalizeWsTs, parseIsoTs } from '../../../infra/time.js';
-import type { AccountId, Symbol as TradingSymbol, TimestampISO } from '../../types.js';
-import type { BitMex } from '../index.js';
-import type { BitMexChannelMessage, BitMexPosition } from '../types.js';
-import type { PrivateLabels } from '../../../infra/metrics-private.js';
+import { Position } from '../../../domain/position';
+import type { PositionSnapshot, PositionUpdate, PositionUpdateReason } from '../../../domain/position';
+import { createLogger, LOG_TAGS } from '../../../infra/logger';
+import { observeHistogram } from '../../../infra/metrics';
+import { METRICS } from '../../../infra/metrics-private';
+import { isNewerByTimestamp, normalizeWsTs, parseIsoTs } from '../../../infra/time';
+import type { AccountId, Symbol as TradingSymbol, TimestampISO } from '../../types';
+import type { BitMex } from '../index';
+import type { BitMexChannelMessage, BitMexPosition } from '../types';
+import type { PrivateLabels } from '../../../infra/metrics-private';
 
 const log = createLogger('bitmex:position').withTags([LOG_TAGS.ws, LOG_TAGS.private, LOG_TAGS.position]);
 

@@ -1,9 +1,9 @@
-import { ExchangeHub } from '../../src/ExchangeHub.js';
-import { handleInstrumentPartial } from '../../src/core/bitmex/channels/instrument.js';
-import { OrderBookL2 } from '../../src/domain/orderBookL2.js';
-import type { BitMex } from '../../src/core/bitmex/index.js';
-import type { BitMexInstrument } from '../../src/core/bitmex/types.js';
-import type { L2Row } from '../../src/types/orderbook.js';
+import { ExchangeHub } from '../../src/ExchangeHub';
+import { handleInstrumentPartial } from '../../src/core/bitmex/channels/instrument';
+import { OrderBookL2 } from '../../src/domain/orderBookL2';
+import type { BitMex } from '../../src/core/bitmex/index';
+import type { BitMexInstrument } from '../../src/core/bitmex/types';
+import type { L2Row } from '../../src/types/orderbook';
 
 class NoopWebSocket {
     public readonly url: string;

@@ -1,5 +1,5 @@
-import { Instrument } from '../../../src/domain/instrument.js';
-import { ValidationError } from '../../../src/infra/errors.js';
+import { Instrument } from '../../../src/domain/instrument';
+import { ValidationError } from '../../../src/infra/errors';
 
 function createInstrument(): Instrument {
     return new Instrument({ symbolNative: 'XBTUSD', symbolUni: 'XBTUSD' });

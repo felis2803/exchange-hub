@@ -1,8 +1,8 @@
-import { createLogger, type Logger } from '../../../infra/logger.js';
-import { incrementCounter, observeHistogram, type MetricLabelValue } from '../../../infra/metrics.js';
-import { BaseError, ExchangeDownError, NetworkError } from '../../../infra/errors.js';
-import type { BitMexOrder, BitMexOrderType, BitMexSide, BitMexTimeInForce } from '../types.js';
-import type { BitmexRestClient } from './request.js';
+import { createLogger, type Logger } from '../../../infra/logger';
+import { incrementCounter, observeHistogram, type MetricLabelValue } from '../../../infra/metrics';
+import { BaseError, ExchangeDownError, NetworkError } from '../../../infra/errors';
+import type { BitMexOrder, BitMexOrderType, BitMexSide, BitMexTimeInForce } from '../types';
+import type { BitmexRestClient } from './request';
 
 export interface CreateOrderPayload {
     symbol: string;

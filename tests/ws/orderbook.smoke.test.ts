@@ -1,10 +1,10 @@
-import type { ExchangeHub as ExchangeHubClass } from '../../src/ExchangeHub.js';
-import type { handleInstrumentPartial as handleInstrumentPartialFn } from '../../src/core/bitmex/channels/instrument.js';
-import type { BitMex } from '../../src/core/bitmex/index.js';
-import type { BitMexChannelMessage, BitMexInstrument } from '../../src/core/bitmex/types.js';
-import type { Logger } from '../../src/infra/logger.js';
-import type { BitmexOrderBookL2Raw } from '../../src/types/bitmex.js';
-import type { L2BatchDelta } from '../../src/types/orderbook.js';
+import type { ExchangeHub as ExchangeHubClass } from '../../src/ExchangeHub';
+import type { handleInstrumentPartial as handleInstrumentPartialFn } from '../../src/core/bitmex/channels/instrument';
+import type { BitMex } from '../../src/core/bitmex/index';
+import type { BitMexChannelMessage, BitMexInstrument } from '../../src/core/bitmex/types';
+import type { Logger } from '../../src/infra/logger';
+import type { BitmexOrderBookL2Raw } from '../../src/types/bitmex';
+import type { L2BatchDelta } from '../../src/types/orderbook';
 
 const orderBookLogger: Logger = {
     level: jest.fn(() => 'debug'),

@@ -3,9 +3,9 @@ import { createHmac } from 'node:crypto';
 import { WebSocketServer } from 'ws';
 
 import type { AddressInfo } from 'node:net';
-import { BitmexWsClient } from '../../src/core/bitmex/transport/ws.js';
-import { AuthError } from '../../src/infra/errors.js';
-import { getCounterValue, getHistogramValues, resetMetrics } from '../../src/infra/metrics.js';
+import { BitmexWsClient } from '../../src/core/bitmex/transport/ws';
+import { AuthError } from '../../src/infra/errors';
+import { getCounterValue, getHistogramValues, resetMetrics } from '../../src/infra/metrics';
 
 jest.setTimeout(10_000);
 

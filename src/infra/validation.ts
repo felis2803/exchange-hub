@@ -1,7 +1,7 @@
-import { ValidationError } from './errors.js';
+import { ValidationError } from './errors';
 
-import type { ClOrdID, Symbol } from '../core/types.js';
-import type { Side } from '../types.js';
+import type { ClOrdID, Symbol } from '../core/types';
+import type { Side } from '../types';
 
 export type OrderType = 'Market' | 'Limit' | 'Stop' | 'StopLimit';
 

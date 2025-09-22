@@ -1,6 +1,6 @@
-import type { DomainUpdate } from '../../src/core/types.js';
-import type { MetricLabels } from '../../src/infra/metrics.js';
-import { getCounterValue, getHistogramValues } from '../../src/infra/metrics.js';
+import type { DomainUpdate } from '../../src/core/types';
+import type { MetricLabels } from '../../src/infra/metrics';
+import { getCounterValue, getHistogramValues } from '../../src/infra/metrics';
 
 type KeyOf<T> = T extends Record<string, unknown> ? Extract<keyof T, string> : never;
 

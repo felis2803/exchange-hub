@@ -1,7 +1,7 @@
-import { Order, OrderStatus, type OrderInit, type OrderUpdateReason } from '../domain/order.js';
-import type { ClOrdID, OrderID, Symbol, DomainUpdate } from './types.js';
+import { Order, OrderStatus, type OrderInit, type OrderUpdateReason } from '../domain/order';
+import type { ClOrdID, OrderID, Symbol, DomainUpdate } from './types';
 
-export type { PlaceOpts, OrderType, PreparedPlaceInput } from '../infra/validation.js';
+export type { PlaceOpts, OrderType, PreparedPlaceInput } from '../infra/validation';
 
 type OrderListener = (
     snapshot: ReturnType<Order['getSnapshot']>,

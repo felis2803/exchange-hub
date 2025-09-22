@@ -1,8 +1,8 @@
 import { WebSocketServer } from 'ws';
 
 import type WebSocket from 'ws';
-import type { TestClock } from '../clock.js';
-import type { PrivateTable, ScenarioEvent, ScenarioScript } from './scenario.js';
+import type { TestClock } from '../clock';
+import type { PrivateTable, ScenarioEvent, ScenarioScript } from './scenario';
 
 type MessagePredicate = (message: unknown) => boolean;
 

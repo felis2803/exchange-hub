@@ -1,5 +1,5 @@
-import type { BitMex } from '../index.js';
-import type { BitMexMargin } from '../types.js';
+import type { BitMex } from '../index';
+import type { BitMexMargin } from '../types';
 
 export const margin = {
     partial(_core: BitMex, _data: BitMexMargin[]) {

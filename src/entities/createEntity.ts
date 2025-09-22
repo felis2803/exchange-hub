@@ -1,5 +1,5 @@
-import type { ExchangeHub } from '../ExchangeHub.js';
-import type { ExchangeName } from '../types.js';
+import type { ExchangeHub } from '../ExchangeHub';
+import type { ExchangeName } from '../types';
 
 export function createEntity<ExName extends ExchangeName>(eh: ExchangeHub<ExName>) {
     class Entity {

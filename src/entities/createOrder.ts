@@ -1,7 +1,7 @@
-import type { ExchangeHub } from '../ExchangeHub.js';
-import type { ExchangeName } from '../types.js';
-import type { EntityClass } from './createEntity.js';
-import type { Instrument } from './createInstrument.js';
+import type { ExchangeHub } from '../ExchangeHub';
+import type { ExchangeName } from '../types';
+import type { EntityClass } from './createEntity';
+import type { Instrument } from './createInstrument';
 
 export function createOrder<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
     class Order extends Entity {

@@ -2,9 +2,9 @@ import { WebSocketServer } from 'ws';
 
 import type { AddressInfo } from 'node:net';
 import type WebSocket from 'ws';
-import { BitmexWsClient } from '../../src/core/bitmex/transport/ws.js';
-import type { AuthError } from '../../src/infra/errors.js';
-import { getCounterValue, resetMetrics } from '../../src/infra/metrics.js';
+import { BitmexWsClient } from '../../src/core/bitmex/transport/ws';
+import type { AuthError } from '../../src/infra/errors';
+import { getCounterValue, resetMetrics } from '../../src/infra/metrics';
 
 jest.setTimeout(15_000);
 

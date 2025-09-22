@@ -1,8 +1,8 @@
-import { OrderStatus } from '../../../src/domain/order.js';
-import { METRICS } from '../../../src/infra/metrics-private.js';
-import { expectChangedKeys, expectCounter } from '../../helpers/asserts.js';
-import { createScenario } from '../../helpers/ws-mock/scenario.js';
-import { setupPrivateHarness } from '../../helpers/privateHarness.js';
+import { OrderStatus } from '../../../src/domain/order';
+import { METRICS } from '../../../src/infra/metrics-private';
+import { expectChangedKeys, expectCounter } from '../../helpers/asserts';
+import { createScenario } from '../../helpers/ws-mock/scenario';
+import { setupPrivateHarness } from '../../helpers/privateHarness';
 
 describe('BitMEX private integration – order lifecycle', () => {
     test('handles fills, cancel state transitions, and idempotent executions', async () => {

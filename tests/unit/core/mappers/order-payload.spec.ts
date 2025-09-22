@@ -1,6 +1,6 @@
-import { mapPreparedOrderToCreatePayload } from '../../../../src/core/bitmex/mappers/order.js';
-import { ValidationError } from '../../../../src/infra/errors.js';
-import type { PreparedPlaceInput } from '../../../../src/infra/validation.js';
+import { mapPreparedOrderToCreatePayload } from '../../../../src/core/bitmex/mappers/order';
+import { ValidationError } from '../../../../src/infra/errors';
+import type { PreparedPlaceInput } from '../../../../src/infra/validation';
 
 function createPreparedInput(overrides: Partial<PreparedPlaceInput> = {}): PreparedPlaceInput {
     const base: PreparedPlaceInput = {

@@ -3,9 +3,9 @@ import {
     handleInstrumentInsert,
     handleInstrumentPartial,
     handleInstrumentUpdate,
-} from '../channels/instrument.js';
-import type { BitMex } from '../index.js';
-import type { BitMexInstrument } from '../types.js';
+} from '../channels/instrument';
+import type { BitMex } from '../index';
+import type { BitMexInstrument } from '../types';
 
 export const instrument = {
     partial(core: BitMex, data: BitMexInstrument[]) {

@@ -1,4 +1,4 @@
-import { dedupeByKey } from '../../../src/infra/dedupe.js';
+import { dedupeByKey } from '../../../src/infra/dedupe';
 
 describe('dedupeByKey', () => {
     test('Дедуп по ключу возвращает первый экземпляр', () => {

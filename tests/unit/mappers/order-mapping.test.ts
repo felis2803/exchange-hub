@@ -1,6 +1,6 @@
-import { mapBitmexOrderStatus } from '../../../src/core/bitmex/mappers/order.js';
-import { OrderStatus } from '../../../src/domain/order.js';
-import type { BitMexExecType, BitMexOrderStatus } from '../../../src/core/bitmex/types.js';
+import { mapBitmexOrderStatus } from '../../../src/core/bitmex/mappers/order';
+import { OrderStatus } from '../../../src/domain/order';
+import type { BitMexExecType, BitMexOrderStatus } from '../../../src/core/bitmex/types';
 
 describe('BitMEX order status mapping', () => {
     type MappingCase = {

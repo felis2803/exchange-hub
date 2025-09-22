@@ -1,9 +1,9 @@
 import { EventEmitter } from 'node:events';
 
-import { diffKeys } from '../infra/diff.js';
-import { isNewerByTimestamp, normalizeWsTs } from '../infra/time.js';
-import type { AccountId, BaseEntity, DomainUpdate, Symbol as TradingSymbol, TimestampISO } from '../core/types.js';
-import type { Side } from '../types.js';
+import { diffKeys } from '../infra/diff';
+import { isNewerByTimestamp, normalizeWsTs } from '../infra/time';
+import type { AccountId, BaseEntity, DomainUpdate, Symbol as TradingSymbol, TimestampISO } from '../core/types';
+import type { Side } from '../types';
 
 type NumericField =
     | 'avgEntryPrice'

@@ -1,4 +1,4 @@
-import { createLogger } from '../src/infra/logger.js';
+import { createLogger } from '../src/infra/logger';
 
 describe('logger (smoke)', () => {
     test('create logger and log at all levels without throwing', () => {

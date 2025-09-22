@@ -4,12 +4,12 @@ import { EventEmitter } from 'node:events';
 import WebSocket from 'ws';
 
 import type { RawData } from 'ws';
-import { createLogger } from '../../../infra/logger.js';
-import type { Logger } from '../../../infra/logger.js';
-import { AuthError, ValidationError, fromWsClose } from '../../../infra/errors.js';
-import { incrementCounter, observeHistogram } from '../../../infra/metrics.js';
-import { getAuthExpiresSkewSec, getBitmexCredentials } from '../../../config/bitmex.js';
-import type { BitmexCredentials } from '../../../config/bitmex.js';
+import { createLogger } from '../../../infra/logger';
+import type { Logger } from '../../../infra/logger';
+import { AuthError, ValidationError, fromWsClose } from '../../../infra/errors';
+import { incrementCounter, observeHistogram } from '../../../infra/metrics';
+import { getAuthExpiresSkewSec, getBitmexCredentials } from '../../../config/bitmex';
+import type { BitmexCredentials } from '../../../config/bitmex';
 import {
     BITMEX_PRIVATE_CHANNELS,
     BITMEX_WS_ENDPOINTS,
@@ -19,7 +19,7 @@ import {
     WS_RECONNECT_MAX_ATTEMPTS,
     WS_RECONNECT_MAX_DELAY_MS,
     WS_SEND_BUFFER_LIMIT,
-} from '../constants.js';
+} from '../constants';
 
 const AUTH_SUCCESS_COUNTER = 'auth_success_total';
 const AUTH_ERROR_COUNTER = 'auth_error_total';

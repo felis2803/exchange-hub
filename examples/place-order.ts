@@ -3,9 +3,9 @@
 // import { ExchangeHub, genClOrdID } from 'exchange-hub';
 // import { validatePlaceInput, type PreparedPlaceInput } from 'exchange-hub/validation';
 
-import { ExchangeHub } from '../src/ExchangeHub.js';
-import { genClOrdID } from '../src/infra/ids.js';
-import { validatePlaceInput, type PreparedPlaceInput } from '../src/infra/validation.js';
+import { ExchangeHub } from '../src/ExchangeHub';
+import { genClOrdID } from '../src/infra/ids';
+import { validatePlaceInput, type PreparedPlaceInput } from '../src/infra/validation';
 
 function parsePositiveNumber(value: string | undefined, fallback: number, label: string): number {
     if (value === undefined || value.trim() === '') {

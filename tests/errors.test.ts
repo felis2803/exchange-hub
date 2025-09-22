@@ -6,7 +6,7 @@ import {
     fromWsClose,
     fromHttpResponse,
     wrap,
-} from '../src/infra/errors.js';
+} from '../src/infra/errors';
 
 describe('errors (smoke)', () => {
     test('hierarchy and toJSON', () => {

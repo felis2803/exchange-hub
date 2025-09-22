@@ -1,11 +1,11 @@
-import { ExchangeHub } from '../../src/ExchangeHub.js';
-import { handleInstrumentPartial } from '../../src/core/bitmex/channels/instrument.js';
-import { handleTradeInsert, handleTradePartial } from '../../src/core/bitmex/channels/trade.js';
-import { TRADE_BUFFER_DEFAULT } from '../../src/core/bitmex/constants.js';
-import type { BitMex } from '../../src/core/bitmex/index.js';
-import type { BitMexInstrument } from '../../src/core/bitmex/types.js';
-import type { BitmexTradeRaw } from '../../src/types/bitmex.js';
-import type { Settings } from '../../src/types.js';
+import { ExchangeHub } from '../../src/ExchangeHub';
+import { handleInstrumentPartial } from '../../src/core/bitmex/channels/instrument';
+import { handleTradeInsert, handleTradePartial } from '../../src/core/bitmex/channels/trade';
+import { TRADE_BUFFER_DEFAULT } from '../../src/core/bitmex/constants';
+import type { BitMex } from '../../src/core/bitmex/index';
+import type { BitMexInstrument } from '../../src/core/bitmex/types';
+import type { BitmexTradeRaw } from '../../src/types/bitmex';
+import type { Settings } from '../../src/types';
 
 class FakeWebSocket {
     public readonly url: string;

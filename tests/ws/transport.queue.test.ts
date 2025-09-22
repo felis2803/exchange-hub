@@ -1,7 +1,7 @@
 import { WebSocketServer } from 'ws';
 
 import type { AddressInfo } from 'node:net';
-import { BitmexWsClient } from '../../src/core/bitmex/transport/ws.js';
+import { BitmexWsClient } from '../../src/core/bitmex/transport/ws';
 
 jest.setTimeout(10_000);
 

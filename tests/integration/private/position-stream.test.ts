@@ -1,15 +1,15 @@
-import type { ExchangeHub as ExchangeHubClass } from '../../../src/ExchangeHub.js';
-import type { BitMex } from '../../../src/core/bitmex/index.js';
-import type { BitMexPosition } from '../../../src/core/bitmex/types.js';
-import type { DomainUpdate } from '../../../src/core/types.js';
-import type { PositionSnapshot } from '../../../src/domain/position.js';
-import type * as MetricsModule from '../../../src/infra/metrics.js';
+import type { ExchangeHub as ExchangeHubClass } from '../../../src/ExchangeHub';
+import type { BitMex } from '../../../src/core/bitmex/index';
+import type { BitMexPosition } from '../../../src/core/bitmex/types';
+import type { DomainUpdate } from '../../../src/core/types';
+import type { PositionSnapshot } from '../../../src/domain/position';
+import type * as MetricsModule from '../../../src/infra/metrics';
 import {
     handlePositionInsert,
     handlePositionPartial,
     handlePositionUpdate,
     markPositionsAwaitingResync,
-} from '../../../src/core/bitmex/channels/position.js';
+} from '../../../src/core/bitmex/channels/position';
 
 let metrics!: MetricsModule;
 

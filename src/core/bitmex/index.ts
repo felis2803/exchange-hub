@@ -1,29 +1,29 @@
-import { BitMexTransport } from './transport.js';
-import { channelMessageHandlers } from './channelMessageHandlers/index.js';
-import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils.js';
-import { L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants.js';
-import { markOrderChannelAwaitingSnapshot } from './channels/order.js';
-import { BitmexRestClient } from './rest/request.js';
-import { createOrder, getOrderByClOrdId, BITMEX_CREATE_ORDER_TIMEOUT_MS } from './rest/orders.js';
-import { mapBitmexOrderStatus, mapPreparedOrderToCreatePayload } from './mappers/order.js';
+import { BitMexTransport } from './transport';
+import { channelMessageHandlers } from './channelMessageHandlers/index';
+import { isChannelMessage, isSubscribeMessage, isWelcomeMessage } from './utils';
+import { L2_CHANNEL, L2_MAX_DEPTH_HINT } from './constants';
+import { markOrderChannelAwaitingSnapshot } from './channels/order';
+import { BitmexRestClient } from './rest/request';
+import { createOrder, getOrderByClOrdId, BITMEX_CREATE_ORDER_TIMEOUT_MS } from './rest/orders';
+import { mapBitmexOrderStatus, mapPreparedOrderToCreatePayload } from './mappers/order';
 
-import type { CreateOrderPayload } from './rest/orders.js';
-import { BaseCore } from '../BaseCore.js';
-import { getUnifiedSymbolAliases, mapSymbolNativeToUni } from '../../utils/symbolMapping.js';
-import { Instrument } from '../../domain/instrument.js';
-import type { Order, OrderStatus, type OrderInit, type OrderUpdate } from '../../domain/order.js';
-import { createLogger } from '../../infra/logger.js';
-import { OrderRejectedError, TimeoutError, ValidationError } from '../../infra/errors.js';
-import type { PreparedPlaceInput } from '../../infra/validation.js';
-import type { Settings } from '../../types.js';
-import type { ExchangeHub } from '../../ExchangeHub.js';
+import type { CreateOrderPayload } from './rest/orders';
+import { BaseCore } from '../BaseCore';
+import { getUnifiedSymbolAliases, mapSymbolNativeToUni } from '../../utils/symbolMapping';
+import { Instrument } from '../../domain/instrument';
+import type { Order, OrderStatus, type OrderInit, type OrderUpdate } from '../../domain/order';
+import { createLogger } from '../../infra/logger';
+import { OrderRejectedError, TimeoutError, ValidationError } from '../../infra/errors';
+import type { PreparedPlaceInput } from '../../infra/validation';
+import type { Settings } from '../../types';
+import type { ExchangeHub } from '../../ExchangeHub';
 import type {
     BitMexChannel,
     BitMexChannelMessage,
     BitMexSubscribeMessage,
     BitMexWelcomeMessage,
     BitMexOrder,
-} from './types.js';
+} from './types';
 
 export class BitMex extends BaseCore<'BitMex'> {
     #log = createLogger('bitmex:core');

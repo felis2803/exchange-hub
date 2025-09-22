@@ -1,8 +1,8 @@
-import { METRICS } from '../../../src/infra/metrics-private.js';
-import { getHistogramValues } from '../../../src/infra/metrics.js';
-import { expectChangedKeys, expectHistogramIncludes, expectCounter } from '../../helpers/asserts.js';
-import { createScenario } from '../../helpers/ws-mock/scenario.js';
-import { setupPrivateHarness } from '../../helpers/privateHarness.js';
+import { METRICS } from '../../../src/infra/metrics-private';
+import { getHistogramValues } from '../../../src/infra/metrics';
+import { expectChangedKeys, expectHistogramIncludes, expectCounter } from '../../helpers/asserts';
+import { createScenario } from '../../helpers/ws-mock/scenario';
+import { setupPrivateHarness } from '../../helpers/privateHarness';
 
 describe('BitMEX private integration – auth → partial → updates', () => {
     test('applies snapshots and updates across wallet, position, and order channels', async () => {

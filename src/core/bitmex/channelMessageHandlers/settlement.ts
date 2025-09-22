@@ -1,5 +1,5 @@
-import type { BitMex } from '../index.js';
-import type { BitMexSettlement } from '../types.js';
+import type { BitMex } from '../index';
+import type { BitMexSettlement } from '../types';
 
 export const settlement = {
     partial(_core: BitMex, _data: BitMexSettlement[]) {

@@ -1,16 +1,16 @@
-import { ScenarioServer } from './ws-mock/server.js';
-import { createTestClock, type TestClock, type TestClockOptions } from './clock.js';
+import { ScenarioServer } from './ws-mock/server';
+import { createTestClock, type TestClock, type TestClockOptions } from './clock';
 
-import { ExchangeHub } from '../../src/ExchangeHub.js';
-import { channelMessageHandlers } from '../../src/core/bitmex/channelMessageHandlers/index.js';
-import { markOrderChannelAwaitingSnapshot } from '../../src/core/bitmex/channels/order.js';
-import { markPositionsAwaitingResync } from '../../src/core/bitmex/channels/position.js';
-import type { BitMex } from '../../src/core/bitmex/index.js';
-import { BitmexWsClient } from '../../src/core/bitmex/transport/ws.js';
-import { isChannelMessage, isSubscribeMessage } from '../../src/core/bitmex/utils.js';
-import { resetMetrics } from '../../src/infra/metrics.js';
-import type { BitMexChannel, BitMexChannelMessage } from '../../src/core/bitmex/types.js';
-import type { ScenarioScript } from './ws-mock/scenario.js';
+import { ExchangeHub } from '../../src/ExchangeHub';
+import { channelMessageHandlers } from '../../src/core/bitmex/channelMessageHandlers/index';
+import { markOrderChannelAwaitingSnapshot } from '../../src/core/bitmex/channels/order';
+import { markPositionsAwaitingResync } from '../../src/core/bitmex/channels/position';
+import type { BitMex } from '../../src/core/bitmex/index';
+import { BitmexWsClient } from '../../src/core/bitmex/transport/ws';
+import { isChannelMessage, isSubscribeMessage } from '../../src/core/bitmex/utils';
+import { resetMetrics } from '../../src/infra/metrics';
+import type { BitMexChannel, BitMexChannelMessage } from '../../src/core/bitmex/types';
+import type { ScenarioScript } from './ws-mock/scenario';
 
 export type PrivateHarnessOptions = TestClockOptions;
 

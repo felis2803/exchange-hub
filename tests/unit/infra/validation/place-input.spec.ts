@@ -1,5 +1,5 @@
-import { ValidationError } from '../../../../src/infra/errors.js';
-import { validatePlaceInput } from '../../../../src/infra/validation.js';
+import { ValidationError } from '../../../../src/infra/errors';
+import { validatePlaceInput } from '../../../../src/infra/validation';
 
 describe('validatePlaceInput', () => {
     test('normalizes a valid limit order payload', () => {

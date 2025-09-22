@@ -1,9 +1,9 @@
-import type { BitMexChannelMessage, BitMexWallet } from '../../../src/core/bitmex/types.js';
-import type { DomainUpdate } from '../../../src/core/types.js';
-import type { WalletSnapshot } from '../../../src/domain/wallet.js';
-import { ExchangeHub } from '../../../src/ExchangeHub.js';
-import { METRICS } from '../../../src/infra/metrics-private.js';
-import { getCounterValue, getHistogramValues, resetMetrics } from '../../../src/infra/metrics.js';
+import type { BitMexChannelMessage, BitMexWallet } from '../../../src/core/bitmex/types';
+import type { DomainUpdate } from '../../../src/core/types';
+import type { WalletSnapshot } from '../../../src/domain/wallet';
+import { ExchangeHub } from '../../../src/ExchangeHub';
+import { METRICS } from '../../../src/infra/metrics-private';
+import { getCounterValue, getHistogramValues, resetMetrics } from '../../../src/infra/metrics';
 
 const ORIGINAL_WEBSOCKET = (globalThis as any).WebSocket;
 

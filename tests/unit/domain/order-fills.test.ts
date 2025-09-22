@@ -1,4 +1,4 @@
-import { Order, OrderStatus } from '../../../src/domain/order.js';
+import { Order, OrderStatus } from '../../../src/domain/order';
 
 describe('Order fills', () => {
     test('computes VWAP across executions', () => {

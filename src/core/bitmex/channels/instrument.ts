@@ -1,9 +1,9 @@
-import { Instrument } from '../../../domain/instrument.js';
-import type { InstrumentInit } from '../../../domain/instrument.js';
-import { mapSymbolNativeToUni } from '../../../utils/symbolMapping.js';
-import { TRADE_BUFFER_DEFAULT } from '../constants.js';
-import type { BitMex } from '../index.js';
-import type { BitMexChannelMessage, BitMexChannelMessageAction, BitMexInstrument } from '../types.js';
+import { Instrument } from '../../../domain/instrument';
+import type { InstrumentInit } from '../../../domain/instrument';
+import { mapSymbolNativeToUni } from '../../../utils/symbolMapping';
+import { TRADE_BUFFER_DEFAULT } from '../constants';
+import type { BitMex } from '../index';
+import type { BitMexChannelMessage, BitMexChannelMessageAction, BitMexInstrument } from '../types';
 
 export function handleInstrumentMessage(
     core: BitMex,

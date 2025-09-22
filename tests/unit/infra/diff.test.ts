@@ -1,4 +1,4 @@
-import { diffKeys } from '../../../src/infra/diff.js';
+import { diffKeys } from '../../../src/infra/diff';
 
 describe('diffKeys', () => {
     test('Изменение простых полей попадает в changed', () => {

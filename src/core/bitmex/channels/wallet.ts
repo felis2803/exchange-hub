@@ -1,11 +1,11 @@
-import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
-import { incrementCounter, observeHistogram } from '../../../infra/metrics.js';
-import { METRICS } from '../../../infra/metrics-private.js';
-import { normalizeWsTs, parseIsoTs } from '../../../infra/time.js';
-import type { Wallet, WalletBalanceInput } from '../../../domain/wallet.js';
-import type { PrivateLabels } from '../../../infra/metrics-private.js';
-import type { BitMex } from '../index.js';
-import type { BitMexWallet } from '../types.js';
+import { createLogger, LOG_TAGS } from '../../../infra/logger';
+import { incrementCounter, observeHistogram } from '../../../infra/metrics';
+import { METRICS } from '../../../infra/metrics-private';
+import { normalizeWsTs, parseIsoTs } from '../../../infra/time';
+import type { Wallet, WalletBalanceInput } from '../../../domain/wallet';
+import type { PrivateLabels } from '../../../infra/metrics-private';
+import type { BitMex } from '../index';
+import type { BitMexWallet } from '../types';
 
 const log = createLogger('bitmex:wallet');
 const BASE_TAGS = [LOG_TAGS.ws, LOG_TAGS.private, LOG_TAGS.wallet] as const;

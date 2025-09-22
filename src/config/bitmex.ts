@@ -1,4 +1,4 @@
-import { createLogger } from '../infra/logger.js';
+import { createLogger } from '../infra/logger';
 
 /**
  * Default number of seconds added to the BitMEX auth `expires` timestamp.

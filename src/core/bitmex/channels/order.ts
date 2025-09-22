@@ -1,13 +1,13 @@
-import { createLogger, LOG_TAGS } from '../../../infra/logger.js';
-import { incrementCounter, observeHistogram } from '../../../infra/metrics.js';
-import { METRICS } from '../../../infra/metrics-private.js';
-import { normalizeWsTs as normalizeTimestamp, parseIsoTs } from '../../../infra/time.js';
-import { mapBitmexOrderStatus } from '../mappers/order.js';
-import { OrderStatus, type OrderSnapshot, type OrderUpdate, type OrderUpdateReason } from '../../../domain/order.js';
-import type { PrivateLabels } from '../../../infra/metrics-private.js';
-import type { DomainUpdate } from '../../types.js';
-import type { BitMex } from '../index.js';
-import type { BitMexChannelMessage, BitMexOrder } from '../types.js';
+import { createLogger, LOG_TAGS } from '../../../infra/logger';
+import { incrementCounter, observeHistogram } from '../../../infra/metrics';
+import { METRICS } from '../../../infra/metrics-private';
+import { normalizeWsTs as normalizeTimestamp, parseIsoTs } from '../../../infra/time';
+import { mapBitmexOrderStatus } from '../mappers/order';
+import { OrderStatus, type OrderSnapshot, type OrderUpdate, type OrderUpdateReason } from '../../../domain/order';
+import type { PrivateLabels } from '../../../infra/metrics-private';
+import type { DomainUpdate } from '../../types';
+import type { BitMex } from '../index';
+import type { BitMexChannelMessage, BitMexOrder } from '../types';
 
 const log = createLogger('bitmex:order').withTags([LOG_TAGS.ws, LOG_TAGS.private, LOG_TAGS.order]);
 

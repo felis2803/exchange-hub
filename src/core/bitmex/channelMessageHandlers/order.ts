@@ -1,6 +1,6 @@
-import { handleOrderMessage } from '../channels/order.js';
-import type { BitMex } from '../index.js';
-import type { BitMexChannelMessage } from '../types.js';
+import { handleOrderMessage } from '../channels/order';
+import type { BitMex } from '../index';
+import type { BitMexChannelMessage } from '../types';
 
 type OrderMessage = BitMexChannelMessage<'order'>;
 

@@ -1,9 +1,9 @@
-import { ExchangeHub } from '../../../src/ExchangeHub.js';
-import { handleOrderMessage, markOrderChannelAwaitingSnapshot } from '../../../src/core/bitmex/channels/order.js';
-import { OrderStatus } from '../../../src/domain/order.js';
-import type { BitMex } from '../../../src/core/bitmex/index.js';
-import type { BitMexOrder } from '../../../src/core/bitmex/types.js';
-import type { Settings } from '../../../src/types.js';
+import { ExchangeHub } from '../../../src/ExchangeHub';
+import { handleOrderMessage, markOrderChannelAwaitingSnapshot } from '../../../src/core/bitmex/channels/order';
+import { OrderStatus } from '../../../src/domain/order';
+import type { BitMex } from '../../../src/core/bitmex/index';
+import type { BitMexOrder } from '../../../src/core/bitmex/types';
+import type { Settings } from '../../../src/types';
 
 class FakeWebSocket {
     public readonly url: string;

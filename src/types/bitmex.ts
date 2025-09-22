@@ -1,4 +1,4 @@
-import type { Side } from '../types.js';
+import type { Side } from '../types';
 
 export type BitmexTradeRaw = {
     symbol: string;

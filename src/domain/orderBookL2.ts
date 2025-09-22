@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 
-import { createLogger } from '../infra/logger.js';
-import type { L2BatchDelta, L2Best, L2Row } from '../types/orderbook.js';
+import { createLogger } from '../infra/logger';
+import type { L2BatchDelta, L2Best, L2Row } from '../types/orderbook';
 
 type L2UpdateRow = Pick<L2Row, 'id'> & Partial<Omit<L2Row, 'id'>>;
 

@@ -1,6 +1,6 @@
 import { createHmac } from 'crypto';
 
-import { BITMEX_WS_ENDPOINTS, BITMEX_REST_ENDPOINTS } from './constants.js';
+import { BITMEX_WS_ENDPOINTS, BITMEX_REST_ENDPOINTS } from './constants';
 
 import type {
     BitMexChannel,
@@ -8,7 +8,7 @@ import type {
     BitMexChangeOrderRequest,
     BitMexOrder,
     BitMexRequestVerb,
-} from './types.js';
+} from './types';
 
 export class BitMexTransport {
     #wsEndpoint: string;

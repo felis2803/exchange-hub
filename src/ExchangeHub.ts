@@ -1,14 +1,14 @@
-import { Cores } from './core/index.js';
-import { createEntities } from './entities/index.js';
-import { OrdersRegistry } from './core/exchange-hub.js';
-import { PositionsRegistry, type PositionsView } from './domain/position.js';
-import { incrementCounter } from './infra/metrics.js';
-import { METRICS as PRIVATE_METRICS } from './infra/metrics-private.js';
-import { Wallet } from './domain/wallet.js';
+import { Cores } from './core/index';
+import { createEntities } from './entities/index';
+import { OrdersRegistry } from './core/exchange-hub';
+import { PositionsRegistry, type PositionsView } from './domain/position';
+import { incrementCounter } from './infra/metrics';
+import { METRICS as PRIVATE_METRICS } from './infra/metrics-private';
+import { Wallet } from './domain/wallet';
 
-import type { BaseCore } from './core/BaseCore.js';
-import type { AccountId } from './core/types.js';
-import type { ExchangeName, Settings } from './types.js';
+import type { BaseCore } from './core/BaseCore';
+import type { AccountId } from './core/types';
+import type { ExchangeName, Settings } from './types';
 
 export class ExchangeHub<ExName extends ExchangeName> {
     #entities = createEntities(this);

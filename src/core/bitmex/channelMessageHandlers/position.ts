@@ -3,9 +3,9 @@ import {
     handlePositionInsert,
     handlePositionPartial,
     handlePositionUpdate,
-} from '../channels/position.js';
-import type { BitMex } from '../index.js';
-import type { BitMexPosition } from '../types.js';
+} from '../channels/position';
+import type { BitMex } from '../index';
+import type { BitMexPosition } from '../types';
 
 export const position = {
     partial(core: BitMex, data: BitMexPosition[]) {

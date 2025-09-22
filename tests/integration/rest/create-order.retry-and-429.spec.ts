@@ -1,12 +1,12 @@
 import { jest } from '@jest/globals';
 
-import { ExchangeHub } from '../../../src/ExchangeHub.js';
-import { BITMEX_CREATE_ORDER_TIMEOUT_MS } from '../../../src/core/bitmex/rest/orders.js';
-import { RateLimitError } from '../../../src/infra/errors.js';
-import type { BitMex } from '../../../src/core/bitmex/index.js';
-import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
-import type { Logger } from '../../../src/infra/logger.js';
-import * as loggerModule from '../../../src/infra/logger.js';
+import { ExchangeHub } from '../../../src/ExchangeHub';
+import { BITMEX_CREATE_ORDER_TIMEOUT_MS } from '../../../src/core/bitmex/rest/orders';
+import { RateLimitError } from '../../../src/infra/errors';
+import type { BitMex } from '../../../src/core/bitmex/index';
+import type { PreparedPlaceInput } from '../../../src/infra/validation';
+import type { Logger } from '../../../src/infra/logger';
+import * as loggerModule from '../../../src/infra/logger';
 
 const ORIGINAL_FETCH = global.fetch;
 

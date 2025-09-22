@@ -1,7 +1,7 @@
-import { METRICS } from '../../../src/infra/metrics-private.js';
-import { expectCounter } from '../../helpers/asserts.js';
-import { createScenario } from '../../helpers/ws-mock/scenario.js';
-import { setupPrivateHarness } from '../../helpers/privateHarness.js';
+import { METRICS } from '../../../src/infra/metrics-private';
+import { expectCounter } from '../../helpers/asserts';
+import { createScenario } from '../../helpers/ws-mock/scenario';
+import { setupPrivateHarness } from '../../helpers/privateHarness';
 
 describe('BitMEX private integration – reconnect and resubscribe', () => {
     test('rebuilds snapshots from fresh partials after reconnect', async () => {

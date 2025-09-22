@@ -1,9 +1,9 @@
 import { jest } from '@jest/globals';
 
-import { ExchangeHub } from '../../../src/ExchangeHub.js';
-import { OrderStatus } from '../../../src/domain/order.js';
-import type { BitMex } from '../../../src/core/bitmex/index.js';
-import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
+import { ExchangeHub } from '../../../src/ExchangeHub';
+import { OrderStatus } from '../../../src/domain/order';
+import type { BitMex } from '../../../src/core/bitmex/index';
+import type { PreparedPlaceInput } from '../../../src/infra/validation';
 
 const ORIGINAL_FETCH = global.fetch;
 

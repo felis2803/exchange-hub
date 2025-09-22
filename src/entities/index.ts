@@ -1,1 +1,1 @@
-export { createEntities } from './createEntities.js';
+export { createEntities } from './createEntities';

@@ -1,6 +1,6 @@
-import { handleTradeMessage } from '../channels/trade.js';
-import type { BitMex } from '../index.js';
-import type { BitMexChannelMessage } from '../types.js';
+import { handleTradeMessage } from '../channels/trade';
+import type { BitMex } from '../index';
+import type { BitMexChannelMessage } from '../types';
 
 type TradeMessage = BitMexChannelMessage<'trade'>;
 

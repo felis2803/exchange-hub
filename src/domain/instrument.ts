@@ -1,12 +1,12 @@
 import { EventEmitter } from 'node:events';
 
-import { OrderBookL2 } from './orderBookL2.js';
+import { OrderBookL2 } from './orderBookL2';
 
-import { inferOrderType } from '../core/bitmex/mappers/order.js';
-import type { Trade as NormalizedTrade } from '../types/bitmex.js';
-import type { Side } from '../types.js';
-import { genClOrdID } from '../infra/ids.js';
-import { validatePlaceInput, type PlaceOpts, type PreparedPlaceInput } from '../infra/validation.js';
+import { inferOrderType } from '../core/bitmex/mappers/order';
+import type { Trade as NormalizedTrade } from '../types/bitmex';
+import type { Side } from '../types';
+import { genClOrdID } from '../infra/ids';
+import { validatePlaceInput, type PlaceOpts, type PreparedPlaceInput } from '../infra/validation';
 
 export type Nullable<T> = T | null | undefined;
 

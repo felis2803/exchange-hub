@@ -1,6 +1,6 @@
-import { handleWalletDelete, handleWalletInsert, handleWalletPartial, handleWalletUpdate } from '../channels/wallet.js';
-import type { BitMex } from '../index.js';
-import type { BitMexWallet } from '../types.js';
+import { handleWalletDelete, handleWalletInsert, handleWalletPartial, handleWalletUpdate } from '../channels/wallet';
+import type { BitMex } from '../index';
+import type { BitMexWallet } from '../types';
 
 export const wallet = {
     partial(core: BitMex, data: BitMexWallet[]) {

@@ -1,8 +1,8 @@
 import { jest } from '@jest/globals';
 
-import { BitmexRestClient } from '../../src/core/bitmex/rest/request.js';
-import { sign } from '../../src/core/bitmex/rest/sign.js';
-import { AuthError, ExchangeDownError, RateLimitError } from '../../src/infra/errors.js';
+import { BitmexRestClient } from '../../src/core/bitmex/rest/request';
+import { sign } from '../../src/core/bitmex/rest/sign';
+import { AuthError, ExchangeDownError, RateLimitError } from '../../src/infra/errors';
 
 describe('BitmexRestClient.request()', () => {
     const originalFetch = global.fetch;

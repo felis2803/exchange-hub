@@ -1,9 +1,9 @@
-import { sign } from './sign.js';
+import { sign } from './sign';
 
-import { AuthError, BaseError, fromFetchError, fromHttpResponse } from '../../../infra/errors.js';
-import { createLogger } from '../../../infra/logger.js';
-import { BITMEX_REST_DEFAULT_TIMEOUT_MS, BITMEX_REST_HOSTS } from '../constants.js';
-import type { BitMexInstrument } from '../types.js';
+import { AuthError, BaseError, fromFetchError, fromHttpResponse } from '../../../infra/errors';
+import { createLogger } from '../../../infra/logger';
+import { BITMEX_REST_DEFAULT_TIMEOUT_MS, BITMEX_REST_HOSTS } from '../constants';
+import type { BitMexInstrument } from '../types';
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 

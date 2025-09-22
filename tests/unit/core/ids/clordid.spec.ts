@@ -1,5 +1,5 @@
-import { genClOrdID } from '../../../../src/infra/ids.js';
-import { Instrument } from '../../../../src/domain/instrument.js';
+import { genClOrdID } from '../../../../src/infra/ids';
+import { Instrument } from '../../../../src/domain/instrument';
 
 let seedCounter = 0;
 

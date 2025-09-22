@@ -1,8 +1,8 @@
-import { METRICS } from '../../../src/infra/metrics-private.js';
-import { getHistogramValues } from '../../../src/infra/metrics.js';
-import { expectCounter, expectHistogramValues } from '../../helpers/asserts.js';
-import { createScenario } from '../../helpers/ws-mock/scenario.js';
-import { setupPrivateHarness } from '../../helpers/privateHarness.js';
+import { METRICS } from '../../../src/infra/metrics-private';
+import { getHistogramValues } from '../../../src/infra/metrics';
+import { expectCounter, expectHistogramValues } from '../../helpers/asserts';
+import { createScenario } from '../../helpers/ws-mock/scenario';
+import { setupPrivateHarness } from '../../helpers/privateHarness';
 
 describe('BitMEX private integration – metrics latency', () => {
     test('records latency histograms and update counters with proper labels', async () => {

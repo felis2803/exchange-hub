@@ -1,7 +1,7 @@
-import type { ExchangeHub } from '../ExchangeHub.js';
-import type { EntityClass } from './createEntity.js';
-import type { Asset } from './createAsset.js';
-import type { ExchangeName } from '../types.js';
+import type { ExchangeHub } from '../ExchangeHub';
+import type { EntityClass } from './createEntity';
+import type { Asset } from './createAsset';
+import type { ExchangeName } from '../types';
 
 export function createWallet<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
     class Wallet extends Entity {

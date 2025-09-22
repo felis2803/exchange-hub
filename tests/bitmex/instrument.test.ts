@@ -1,15 +1,15 @@
-import { ExchangeHub } from '../../src/ExchangeHub.js';
+import { ExchangeHub } from '../../src/ExchangeHub';
 import {
     handleInstrumentDelete,
     handleInstrumentInsert,
     handleInstrumentPartial,
     handleInstrumentUpdate,
-} from '../../src/core/bitmex/channels/instrument.js';
-import { Instrument } from '../../src/domain/instrument.js';
-import { mapSymbolNativeToUni, mapSymbolUniToNative } from '../../src/utils/symbolMapping.js';
-import type { BitMex } from '../../src/core/bitmex/index.js';
-import type { BitMexInstrument } from '../../src/core/bitmex/types.js';
-import type { Settings } from '../../src/types.js';
+} from '../../src/core/bitmex/channels/instrument';
+import { Instrument } from '../../src/domain/instrument';
+import { mapSymbolNativeToUni, mapSymbolUniToNative } from '../../src/utils/symbolMapping';
+import type { BitMex } from '../../src/core/bitmex/index';
+import type { BitMexInstrument } from '../../src/core/bitmex/types';
+import type { Settings } from '../../src/types';
 
 class FakeWebSocket {
     public readonly url: string;

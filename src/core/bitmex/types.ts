@@ -1,5 +1,5 @@
-import type { BITMEX_PRIVATE_CHANNELS, BITMEX_PUBLIC_CHANNELS, BITMEX_CHANNELS } from './constants.js';
-import type { BitmexTradeRaw } from '../../types/bitmex.js';
+import type { BITMEX_PRIVATE_CHANNELS, BITMEX_PUBLIC_CHANNELS, BITMEX_CHANNELS } from './constants';
+import type { BitmexTradeRaw } from '../../types/bitmex';
 
 export type BitMexWelcomeMessage = {
     info: string;

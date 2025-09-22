@@ -1,8 +1,8 @@
-import { createLogger } from '../../../infra/logger.js';
-import type { BitmexOrderBookL2Raw } from '../../../types/bitmex.js';
-import type { L2Row } from '../../../types/orderbook.js';
-import type { BitMex } from '../index.js';
-import type { BitMexChannelMessage } from '../types.js';
+import { createLogger } from '../../../infra/logger';
+import type { BitmexOrderBookL2Raw } from '../../../types/bitmex';
+import type { L2Row } from '../../../types/orderbook';
+import type { BitMex } from '../index';
+import type { BitMexChannelMessage } from '../types';
 
 const log = createLogger('bitmex:orderbook');
 

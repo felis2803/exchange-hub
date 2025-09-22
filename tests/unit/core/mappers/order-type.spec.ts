@@ -1,4 +1,4 @@
-import { inferOrderType } from '../../../../src/core/bitmex/mappers/order.js';
+import { inferOrderType } from '../../../../src/core/bitmex/mappers/order';
 
 describe('inferOrderType', () => {
     test('returns Market when price is omitted', () => {

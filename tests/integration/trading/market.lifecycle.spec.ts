@@ -1,9 +1,9 @@
 import { jest } from '@jest/globals';
 
-import { OrderStatus } from '../../../src/domain/order.js';
-import type { PreparedPlaceInput } from '../../../src/infra/validation.js';
-import { createScenario } from '../../helpers/ws-mock/scenario.js';
-import { setupPrivateHarness } from '../../helpers/privateHarness.js';
+import { OrderStatus } from '../../../src/domain/order';
+import type { PreparedPlaceInput } from '../../../src/infra/validation';
+import { createScenario } from '../../helpers/ws-mock/scenario';
+import { setupPrivateHarness } from '../../helpers/privateHarness';
 
 const ORIGINAL_FETCH = global.fetch;
 

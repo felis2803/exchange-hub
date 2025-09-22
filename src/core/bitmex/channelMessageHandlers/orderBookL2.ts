@@ -1,6 +1,6 @@
-import { handleOrderBookMessage } from '../channels/orderBookL2.js';
-import type { BitMex } from '../index.js';
-import type { BitMexChannelMessage } from '../types.js';
+import { handleOrderBookMessage } from '../channels/orderBookL2';
+import type { BitMex } from '../index';
+import type { BitMexChannelMessage } from '../types';
 
 type OrderBookMessage = BitMexChannelMessage<'orderBookL2'>;
 

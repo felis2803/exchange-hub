@@ -1,6 +1,6 @@
-import { createLogger } from '../infra/logger.js';
-import type { ExchangeHub } from '../ExchangeHub.js';
-import type { ApiKey, ApiSec, ExchangeName, Settings } from '../types.js';
+import { createLogger } from '../infra/logger';
+import type { ExchangeHub } from '../ExchangeHub';
+import type { ApiKey, ApiSec, ExchangeName, Settings } from '../types';
 
 const log = createLogger('core:base');
 

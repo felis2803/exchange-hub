@@ -1,9 +1,9 @@
-import type { BitMexChannelMessage, BitMexInstrument } from '../../src/core/bitmex/types.js';
-import { ExchangeHub } from '../../src/ExchangeHub.js';
-import { handleInstrumentPartial } from '../../src/core/bitmex/channels/instrument.js';
-import { TRADE_BUFFER_DEFAULT } from '../../src/core/bitmex/constants.js';
-import type { BitMex } from '../../src/core/bitmex/index.js';
-import type { BitmexTradeRaw } from '../../src/types/bitmex.js';
+import type { BitMexChannelMessage, BitMexInstrument } from '../../src/core/bitmex/types';
+import { ExchangeHub } from '../../src/ExchangeHub';
+import { handleInstrumentPartial } from '../../src/core/bitmex/channels/instrument';
+import { TRADE_BUFFER_DEFAULT } from '../../src/core/bitmex/constants';
+import type { BitMex } from '../../src/core/bitmex/index';
+import type { BitmexTradeRaw } from '../../src/types/bitmex';
 
 class ControlledWebSocket {
     static instances: ControlledWebSocket[] = [];

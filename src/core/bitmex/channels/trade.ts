@@ -1,9 +1,9 @@
-import { createLogger } from '../../../infra/logger.js';
-import { TRADE_BUFFER_MAX, TRADE_BUFFER_MIN } from '../constants.js';
-import type { Instrument } from '../../../domain/instrument.js';
-import type { Trade, BitmexTradeRaw } from '../../../types/bitmex.js';
-import type { BitMex } from '../index.js';
-import type { BitMexChannelMessage } from '../types.js';
+import { createLogger } from '../../../infra/logger';
+import { TRADE_BUFFER_MAX, TRADE_BUFFER_MIN } from '../constants';
+import type { Instrument } from '../../../domain/instrument';
+import type { Trade, BitmexTradeRaw } from '../../../types/bitmex';
+import type { BitMex } from '../index';
+import type { BitMexChannelMessage } from '../types';
 
 const log = createLogger('bitmex:trade');
 

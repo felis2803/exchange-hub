@@ -1,6 +1,6 @@
-import { createScenario } from '../../helpers/ws-mock/scenario.js';
-import { setupPrivateHarness } from '../../helpers/privateHarness.js';
-import { expectChangedKeys } from '../../helpers/asserts.js';
+import { createScenario } from '../../helpers/ws-mock/scenario';
+import { setupPrivateHarness } from '../../helpers/privateHarness';
+import { expectChangedKeys } from '../../helpers/asserts';
 
 describe('BitMEX private integration – cross-channel consistency', () => {
     test('aligned wallet and position updates accompany order fills without redundant diffs', async () => {

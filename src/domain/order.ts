@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 
-import type { BaseEntity, ClOrdID, DomainUpdate, Liquidity, OrderID, Symbol } from '../core/types.js';
-import type { Side } from '../types.js';
+import type { BaseEntity, ClOrdID, DomainUpdate, Liquidity, OrderID, Symbol } from '../core/types';
+import type { Side } from '../types';
 
 export enum OrderStatus {
     Placed = 'placed',

@@ -1,5 +1,5 @@
-import type { BitMex } from '../index.js';
-import type { BitMexExecution } from '../types.js';
+import type { BitMex } from '../index';
+import type { BitMexExecution } from '../types';
 
 export const execution = {
     partial(_core: BitMex, _data: BitMexExecution[]) {
