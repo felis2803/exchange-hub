@@ -43,13 +43,13 @@ export interface ErrorOptions {
 type ErrorOverrides = Partial<Omit<ErrorOptions, 'code'>>;
 
 export class BaseError extends Error {
-    readonly category: ErrorCode;
-    override readonly cause?: unknown;
-    readonly details?: Record<string, unknown>;
-    readonly httpStatus?: number;
-    readonly retryAfterMs?: number;
-    readonly exchange?: string;
-    readonly requestId?: string;
+    #category: ErrorCode;
+    #cause: unknown;
+    #details?: Record<string, unknown>;
+    #httpStatus?: number;
+    #retryAfterMs?: number;
+    #exchange?: string;
+    #requestId?: string;
 
     constructor(opts: ErrorOptions) {
         const message = opts.message ?? opts.code;
@@ -57,13 +57,13 @@ export class BaseError extends Error {
         super(message);
 
         this.name = new.target.name;
-        this.category = opts.code;
-        this.cause = opts.cause;
-        this.details = opts.details;
-        this.httpStatus = opts.httpStatus;
-        this.retryAfterMs = opts.retryAfterMs;
-        this.exchange = opts.exchange;
-        this.requestId = opts.requestId;
+        this.#category = opts.code;
+        this.#cause = opts.cause;
+        this.#details = opts.details;
+        this.#httpStatus = opts.httpStatus;
+        this.#retryAfterMs = opts.retryAfterMs;
+        this.#exchange = opts.exchange;
+        this.#requestId = opts.requestId;
 
         const captureStackTrace = (Error as { captureStackTrace?: CaptureStackTraceFn }).captureStackTrace;
 
@@ -72,6 +72,34 @@ export class BaseError extends Error {
         }
 
         Object.setPrototypeOf(this, new.target.prototype);
+    }
+
+    get category(): ErrorCode {
+        return this.#category;
+    }
+
+    override get cause(): unknown {
+        return this.#cause;
+    }
+
+    get details(): Record<string, unknown> | undefined {
+        return this.#details;
+    }
+
+    get httpStatus(): number | undefined {
+        return this.#httpStatus;
+    }
+
+    get retryAfterMs(): number | undefined {
+        return this.#retryAfterMs;
+    }
+
+    get exchange(): string | undefined {
+        return this.#exchange;
+    }
+
+    get requestId(): string | undefined {
+        return this.#requestId;
     }
 
     get code(): ErrorCode | AuthErrorCode {
@@ -114,7 +142,7 @@ export class NetworkError extends BaseError {
 }
 
 export class AuthError extends BaseError {
-    readonly authCode: AuthErrorCode;
+    #authCode: AuthErrorCode;
 
     constructor(
         message = 'Authentication error',
@@ -122,11 +150,15 @@ export class AuthError extends BaseError {
         opts: Omit<ErrorOptions, 'code' | 'message'> = {},
     ) {
         super({ code: 'AUTH_ERROR', message, ...opts });
-        this.authCode = code;
+        this.#authCode = code;
+    }
+
+    get authCode(): AuthErrorCode {
+        return this.#authCode;
     }
 
     override get code(): AuthErrorCode {
-        return this.authCode;
+        return this.#authCode;
     }
 
     static badCredentials(

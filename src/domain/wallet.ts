@@ -35,7 +35,7 @@ export type WalletApplyOptions = {
 };
 
 export class Wallet extends EventEmitter implements BaseEntity<WalletSnapshot> {
-    readonly #accountId: AccountId;
+    #accountId: AccountId;
     #balances: Map<string, WalletBalanceSnapshot> = new Map();
     #updatedAt?: TimestampISO;
 
