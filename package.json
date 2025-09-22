@@ -10,7 +10,7 @@
         "build": "tsc",
         "start": "npm run build && node ./dist/index.js",
         "lint": "eslint .",
-        "type-check": "tsc -p tsconfig.json --noEmit",
+        "type-check": "tsc --noEmit",
         "check": "npm run lint && npm run type-check",
         "fix": "prettier --write . && eslint . --fix",
         "test": "jest",
