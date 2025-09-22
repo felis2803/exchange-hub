@@ -7,7 +7,7 @@ import type { PrivateTable, ScenarioEvent, ScenarioScript } from './scenario';
 type MessagePredicate = (message: unknown) => boolean;
 
 class SessionContext {
-    readonly socket: WebSocket;
+    #socket: WebSocket;
     #clock: TestClock;
     #messages: unknown[] = [];
     #closed = false;
@@ -16,7 +16,7 @@ class SessionContext {
     #nextAuthMode: 'success' | 'already-authed' = 'success';
 
     constructor(socket: WebSocket, clock: TestClock) {
-        this.socket = socket;
+        this.#socket = socket;
         this.#clock = clock;
         this.#closedPromise = new Promise<void>(resolve => {
             this.#resolveClosed = resolve;
@@ -32,6 +32,10 @@ class SessionContext {
             this.#closed = true;
             this.#resolveClosed();
         });
+    }
+
+    get socket(): WebSocket {
+        return this.#socket;
     }
 
     requireAuth(): void {
@@ -54,7 +58,7 @@ class SessionContext {
                 ? { success: false, error: 'Already authenticated', request }
                 : { success: true, request };
 
-        this.socket.send(JSON.stringify(response));
+        this.#socket.send(JSON.stringify(response));
         this.#nextAuthMode = 'success';
     }
 
@@ -85,18 +89,18 @@ class SessionContext {
                 request: { op: 'subscribe', args: channels },
             };
 
-            this.socket.send(JSON.stringify(payload));
+            this.#socket.send(JSON.stringify(payload));
         }
     }
 
     sendChannel(table: PrivateTable, action: 'partial' | 'insert' | 'update' | 'delete', data: unknown[]): void {
         const payload = { table, action, data };
 
-        this.socket.send(JSON.stringify(payload));
+        this.#socket.send(JSON.stringify(payload));
     }
 
     drop(code?: number, reason?: string): void {
-        this.socket.close(code ?? 4000, reason ?? 'scenario-drop');
+        this.#socket.close(code ?? 4000, reason ?? 'scenario-drop');
     }
 
     waitForClose(): Promise<void> {

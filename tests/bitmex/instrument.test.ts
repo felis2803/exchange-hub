@@ -13,12 +13,16 @@ import type { BitMexInstrument } from '../../src/core/bitmex/types';
 import type { Settings } from '../../src/types';
 
 class FakeWebSocket {
-    readonly url: string;
+    #url: string;
     onmessage: ((event: { data: unknown }) => void) | null = null;
     #listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 
     constructor(url: string) {
-        this.url = url;
+        this.#url = url;
+    }
+
+    get url(): string {
+        return this.#url;
     }
 
     addEventListener(event: string, listener: (...args: unknown[]) => void): void {

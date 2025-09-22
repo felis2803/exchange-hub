@@ -199,10 +199,14 @@ export class ScenarioBuilder {
 }
 
 export class ScenarioScript {
-    readonly events: readonly ScenarioEvent[];
+    #events: readonly ScenarioEvent[];
 
     constructor(events: readonly ScenarioEvent[]) {
-        this.events = events;
+        this.#events = events;
+    }
+
+    get events(): readonly ScenarioEvent[] {
+        return this.#events;
     }
 }
 

@@ -79,7 +79,7 @@ export type OrderUpdateContext = {
 };
 
 export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
-    readonly orderId: OrderID;
+    #orderId: OrderID;
 
     #clOrdId: ClOrdID | null = null;
     #symbol: Symbol;
@@ -129,7 +129,7 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
             throw new TypeError('Order requires a non-empty orderId');
         }
 
-        this.orderId = orderId.trim();
+        this.#orderId = orderId.trim();
         this.#clOrdId = normalizeId(clOrdId);
         this.#symbol = normalizeSymbol(symbol);
         this.#status = status ?? OrderStatus.Placed;
@@ -160,6 +160,10 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
             this.#avgFillPrice = null;
             this.#fillValue = 0;
         }
+    }
+
+    get orderId(): OrderID {
+        return this.#orderId;
     }
 
     get clOrdId(): ClOrdID | null {
