@@ -4,7 +4,7 @@ export interface PrivateResubscribeFlow {
 }
 
 export class DefaultPrivateResubscribeFlow implements PrivateResubscribeFlow {
-    readonly #doResubscribe: () => Promise<void>;
+    #doResubscribe: () => Promise<void>;
 
     constructor(doResubscribe: () => Promise<void>) {
         this.#doResubscribe = doResubscribe;
