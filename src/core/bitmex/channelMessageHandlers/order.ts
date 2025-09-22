@@ -1,27 +1,20 @@
-import { handleOrderMessage } from '../channels/order';
 import type { BitMex } from '../index';
-import type { BitMexChannelMessage } from '../types';
-
-type OrderMessage = BitMexChannelMessage<'order'>;
-
-function forward(core: BitMex, action: OrderMessage['action'], data: OrderMessage['data']): void {
-    handleOrderMessage(core, { table: 'order', action, data });
-}
+import type { BitMexOrder } from '../types';
 
 export const order = {
-    partial(core: BitMex, data: OrderMessage['data']) {
-        forward(core, 'partial', data);
+    partial(core: BitMex, data: BitMexOrder[]) {
+        throw 'not implemented';
     },
 
-    insert(core: BitMex, data: OrderMessage['data']) {
-        forward(core, 'insert', data);
+    insert(core: BitMex, data: BitMexOrder[]) {
+        throw 'not implemented';
     },
 
-    update(core: BitMex, data: OrderMessage['data']) {
-        forward(core, 'update', data);
+    update(core: BitMex, data: BitMexOrder[]) {
+        throw 'not implemented';
     },
 
-    delete(core: BitMex, data: OrderMessage['data']) {
-        forward(core, 'delete', data);
+    delete(core: BitMex, data: BitMexOrder[]) {
+        throw 'not implemented';
     },
 };

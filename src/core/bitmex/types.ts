@@ -1,5 +1,4 @@
 import type { BITMEX_PRIVATE_CHANNELS, BITMEX_PUBLIC_CHANNELS, BITMEX_CHANNELS } from './constants';
-import type { BitmexTradeRaw } from '../../types/bitmex';
 
 export type BitMexWelcomeMessage = {
     info: string;
@@ -222,11 +221,18 @@ export type BitMexInstrument = {
     timestamp?: string;
 };
 
-export type BitMexTrade = BitmexTradeRaw & {
+export type BitMexTrade = {
+    trdMatchID: string;
+    symbol: string;
+    side: BitMexSide;
+    size: number;
+    price: number;
     tickDirection?: BitMexTickDirection;
     trdType?: BitMexTradeType;
     grossValue?: number;
     homeNotional?: number;
+    foreignNotional?: number;
+    timestamp: string;
 };
 
 export type BitMexLiquidation = {
@@ -310,7 +316,6 @@ export type BitMexExecution = {
 
 export type BitMexOrder = {
     orderID: string;
-    execID?: string;
     clOrdID?: string;
     clOrdLinkID?: string;
     account?: number;
@@ -329,7 +334,6 @@ export type BitMexOrder = {
     timeInForce?: BitMexTimeInForce;
     execInst?: BitMexExecInst;
     contingencyType?: BitMexContingencyType;
-    execType?: BitMexExecType;
     ordStatus?: BitMexOrderStatus;
     triggered?: string;
     workingIndicator?: boolean;
@@ -337,17 +341,12 @@ export type BitMexOrder = {
     leavesQty?: number;
     cumQty?: number;
     avgPx?: number;
-    lastPx?: number;
-    lastQty?: number;
-    lastLiquidityInd?: BitMexLastLiquidityInd;
-    commission?: number;
     multiLegReportingType?: string;
     text?: string;
     transactTime?: string;
     timestamp?: string;
     simpleLeavesQty?: number;
     simpleCumQty?: number;
-    trdMatchID?: string;
 };
 
 export type BitMexMargin = {

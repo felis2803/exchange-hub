@@ -1,21 +1,20 @@
-import { handleWalletDelete, handleWalletInsert, handleWalletPartial, handleWalletUpdate } from '../channels/wallet';
 import type { BitMex } from '../index';
 import type { BitMexWallet } from '../types';
 
 export const wallet = {
     partial(core: BitMex, data: BitMexWallet[]) {
-        handleWalletPartial(core, data);
+        throw 'not implemented';
     },
 
     insert(core: BitMex, data: BitMexWallet[]) {
-        handleWalletInsert(core, data);
+        throw 'not implemented';
     },
 
     update(core: BitMex, data: BitMexWallet[]) {
-        handleWalletUpdate(core, data);
+        throw 'not implemented';
     },
 
     delete(core: BitMex, data: BitMexWallet[]) {
-        handleWalletDelete(core, data);
+        throw 'not implemented';
     },
 };

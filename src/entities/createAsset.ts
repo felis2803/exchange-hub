@@ -23,5 +23,4 @@ export function createAsset<ExName extends ExchangeName>(eh: ExchangeHub<ExName>
 }
 
 export type AssetClass<ExName extends ExchangeName> = ReturnType<typeof createAsset<ExName>>;
-
 export type Asset<ExName extends ExchangeName> = InstanceType<AssetClass<ExName>>;

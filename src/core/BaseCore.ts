@@ -1,8 +1,5 @@
-import { createLogger } from '../infra/logger';
 import type { ExchangeHub } from '../ExchangeHub';
 import type { ApiKey, ApiSec, ExchangeName, Settings } from '../types';
-
-const log = createLogger('core:base');
 
 export class BaseCore<ExName extends ExchangeName> {
     #shell: ExchangeHub<ExName>;
@@ -16,8 +13,14 @@ export class BaseCore<ExName extends ExchangeName> {
         this.#shell = shell;
 
         this.#isTest = isTest ?? false;
-        this.#apiKey = apiKey;
-        this.#apiSec = apiSec;
+
+        if (apiKey) {
+            this.#apiKey = apiKey;
+        }
+
+        if (apiSec) {
+            this.#apiSec = apiSec;
+        }
     }
 
     get shell() {
@@ -44,15 +47,11 @@ export class BaseCore<ExName extends ExchangeName> {
         throw new Error('Not implemented!');
     }
 
-    async disconnect(): Promise<void> {
+    async reconnect(): Promise<void> {
         throw new Error('Not implemented!');
     }
 
-    resubscribeOrderBook(symbol: string): void {
-        const normalized = typeof symbol === 'string' ? symbol.trim() : '';
-
-        log.warn('Order book resubscribe stub invoked', {
-            symbol: normalized || null,
-        });
+    async disconnect(): Promise<void> {
+        throw new Error('Not implemented!');
     }
 }

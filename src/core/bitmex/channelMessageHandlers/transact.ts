@@ -2,19 +2,19 @@ import type { BitMex } from '../index';
 import type { BitMexTransact } from '../types';
 
 export const transact = {
-    partial(_core: BitMex, _data: BitMexTransact[]) {
+    partial(core: BitMex, data: BitMexTransact[]) {
         throw 'not implemented';
     },
 
-    insert(_core: BitMex, _data: BitMexTransact[]) {
+    insert(core: BitMex, data: BitMexTransact[]) {
         throw 'not implemented';
     },
 
-    update(_core: BitMex, _data: BitMexTransact[]) {
+    update(core: BitMex, data: BitMexTransact[]) {
         throw 'not implemented';
     },
 
-    delete(_core: BitMex, _data: BitMexTransact[]) {
+    delete(core: BitMex, data: BitMexTransact[]) {
         throw 'not implemented';
     },
 };
