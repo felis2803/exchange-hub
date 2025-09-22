@@ -11,6 +11,7 @@ import { isChannelMessage, isSubscribeMessage } from '../../src/core/bitmex/util
 import { resetMetrics } from '../../src/infra/metrics';
 import type { BitMexChannel, BitMexChannelMessage } from '../../src/core/bitmex/types';
 import type { ScenarioScript } from './ws-mock/scenario';
+import { noop as noopFn } from '../../src/utils/noop';
 
 export type PrivateHarnessOptions = TestClockOptions;
 
@@ -144,7 +145,9 @@ function createNoopWebSocket(): {
             this.#listeners.get(event)?.delete(listener);
         }
 
-        send(_data: string): void {}
+        send(data: string): void {
+            noopFn(data);
+        }
 
         close(): void {
             this.#emit('close', { code: 1000, reason: 'noop' });

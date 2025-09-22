@@ -4,6 +4,7 @@ import type { WalletSnapshot } from '../../../src/domain/wallet';
 import { ExchangeHub } from '../../../src/ExchangeHub';
 import { METRICS } from '../../../src/infra/metrics-private';
 import { getCounterValue, getHistogramValues, resetMetrics } from '../../../src/infra/metrics';
+import { noop } from '../../../src/utils/noop';
 
 const ORIGINAL_WEBSOCKET = (globalThis as any).WebSocket;
 
@@ -373,7 +374,9 @@ class ControlledWebSocket {
         this.#listeners.get(event)?.delete(listener);
     }
 
-    send(_data: string): void {}
+    send(data: string): void {
+        noop(data);
+    }
 
     close(): void {
         this.#emit('close', { code: 1000, reason: 'client-request' });

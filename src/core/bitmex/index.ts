@@ -10,6 +10,7 @@ import { mapBitmexOrderStatus, mapPreparedOrderToCreatePayload } from './mappers
 import type { CreateOrderPayload } from './rest/orders';
 import { BaseCore } from '../BaseCore';
 import { getUnifiedSymbolAliases, mapSymbolNativeToUni } from '../../utils/symbolMapping';
+import { noop } from '../../utils/noop';
 import { Instrument } from '../../domain/instrument';
 import type { Order, OrderStatus, type OrderInit, type OrderUpdate } from '../../domain/order';
 import { createLogger } from '../../infra/logger';
@@ -517,7 +518,9 @@ export class BitMex extends BaseCore<'BitMex'> {
         throw new Error('Unknown message');
     }
 
-    #handleWelcomeMessage(_message: BitMexWelcomeMessage) {}
+    #handleWelcomeMessage(message: BitMexWelcomeMessage) {
+        noop(message);
+    }
 
     #handleSubscribeMessage(message: BitMexSubscribeMessage) {
         if (!message.success) {

@@ -1,6 +1,7 @@
 import { ExchangeHub } from '../../src/ExchangeHub';
 import { handleInstrumentPartial } from '../../src/core/bitmex/channels/instrument';
 import { OrderBookL2 } from '../../src/domain/orderBookL2';
+import { noop } from '../../src/utils/noop';
 import type { BitMex } from '../../src/core/bitmex/index';
 import type { BitMexInstrument } from '../../src/core/bitmex/types';
 import type { L2Row } from '../../src/types/orderbook';
@@ -30,7 +31,9 @@ class NoopWebSocket {
         this.#listeners.get(event)?.delete(listener);
     }
 
-    send(_data: string): void {}
+    send(data: string): void {
+        noop(data);
+    }
 
     close(): void {
         this.#emit('close');
