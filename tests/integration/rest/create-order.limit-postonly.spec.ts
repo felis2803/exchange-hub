@@ -4,6 +4,7 @@ import { ExchangeHub } from '../../../src/ExchangeHub';
 import { OrderStatus } from '../../../src/domain/order';
 import type { BitMex } from '../../../src/core/bitmex/index';
 import type { PreparedPlaceInput } from '../../../src/infra/validation';
+import type { FetchRequestInit, FetchRequestInfo } from '../../fetch-types';
 
 const ORIGINAL_FETCH = global.fetch;
 
@@ -65,7 +66,7 @@ describe('BitMEX REST createOrder – limit/postOnly', () => {
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        const [, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+        const [, init] = mockFetch.mock.calls[0] as [FetchRequestInfo | URL, FetchRequestInit];
         const body = JSON.parse(String(init.body));
 
         expect(body).toMatchObject({
@@ -128,7 +129,7 @@ describe('BitMEX REST createOrder – limit/postOnly', () => {
 
         await core.buy(prepared);
 
-        const [, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+        const [, init] = mockFetch.mock.calls[0] as [FetchRequestInfo | URL, FetchRequestInit];
         const body = JSON.parse(String(init.body));
 
         expect(body.execInst).toBe('ParticipateDoNotInitiate,ReduceOnly');

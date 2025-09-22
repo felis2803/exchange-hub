@@ -6,6 +6,7 @@ import { getHistogramValues, resetMetrics } from '../../../src/infra/metrics';
 import { RateLimitError } from '../../../src/infra/errors';
 import type { BitMex } from '../../../src/core/bitmex/index';
 import type { PreparedPlaceInput } from '../../../src/infra/validation';
+import type { FetchRequestInit } from '../../fetch-types';
 
 const ORIGINAL_FETCH = global.fetch;
 
@@ -85,8 +86,12 @@ describe('BitMEX trading – network retry', () => {
         });
 
         expect(mockFetch).toHaveBeenCalledTimes(2);
-        expect((mockFetch.mock.calls[0]?.[1] as RequestInit | undefined)?.method ?? 'GET').toBe('POST');
-        expect((mockFetch.mock.calls[1]?.[1] as RequestInit | undefined)?.method ?? 'GET').toBe('POST');
+
+        const firstRequest = mockFetch.mock.calls[0]?.[1] as FetchRequestInit | undefined;
+        const secondRequest = mockFetch.mock.calls[1]?.[1] as FetchRequestInit | undefined;
+
+        expect(firstRequest?.method ?? 'GET').toBe('POST');
+        expect(secondRequest?.method ?? 'GET').toBe('POST');
 
         expect(hub.orders.getByClOrdId('retry-cli-1')).toBe(order);
         expect(hub.orders.getInflightByClOrdId('retry-cli-1')).toBeUndefined();
@@ -119,7 +124,10 @@ describe('BitMEX trading – network retry', () => {
         await expect(core.buy(prepared)).rejects.toBeInstanceOf(RateLimitError);
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
-        expect((mockFetch.mock.calls[0]?.[1] as RequestInit | undefined)?.method ?? 'GET').toBe('POST');
+
+        const firstRequest = mockFetch.mock.calls[0]?.[1] as FetchRequestInit | undefined;
+
+        expect(firstRequest?.method ?? 'GET').toBe('POST');
 
         expect(hub.orders.getByClOrdId('retry-cli-429')).toBeUndefined();
         expect(hub.orders.getInflightByClOrdId('retry-cli-429')).toBeUndefined();
