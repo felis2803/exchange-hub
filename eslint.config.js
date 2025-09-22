@@ -189,6 +189,10 @@ module.exports = [
                     selector: 'TSParameterProperty[accessibility]',
                     message: 'Accessibility modifiers are not allowed. Use # for private fields.',
                 },
+                {
+                    selector: ':matches(PropertyDefinition, TSParameterProperty)[readonly=true]',
+                    message: 'Readonly modifier is not allowed. Use a # prefixed field with a getter instead.',
+                },
             ],
         },
         linterOptions: {
