@@ -99,10 +99,12 @@ interface NormalizedReconnectOptions {
 
 type AuthAttemptSource = 'manual' | 'reconnect';
 
+type Timeout = ReturnType<typeof setTimeout>;
+
 interface PendingAuth {
     requestId: string;
     startedAt: number;
-    timeout: NodeJS.Timeout;
+    timeout: Timeout;
     resolve: (result: LoginResult) => void;
     source: AuthAttemptSource;
 }
@@ -134,11 +136,11 @@ export class BitmexWsClient extends EventEmitter {
     #isAuthed = false;
     #pendingAuth: PendingAuth | null = null;
     #authRetryAttempts = 0;
-    #authRetryTimer: NodeJS.Timeout | null = null;
+    #authRetryTimer: Timeout | null = null;
 
-    #pingTimer: NodeJS.Timeout | null = null;
-    #pongTimer: NodeJS.Timeout | null = null;
-    #reconnectTimer: NodeJS.Timeout | null = null;
+    #pingTimer: Timeout | null = null;
+    #pongTimer: Timeout | null = null;
+    #reconnectTimer: Timeout | null = null;
 
     #connectPromise: Promise<void> | null = null;
     #resolveConnect: (() => void) | undefined;
@@ -258,7 +260,7 @@ export class BitmexWsClient extends EventEmitter {
         }
 
         this.#reconnectAttempts = 0;
-        this.openSocket('connecting');
+        this.#openSocket('connecting');
 
         return this.#connectPromise;
     }
@@ -297,7 +299,7 @@ export class BitmexWsClient extends EventEmitter {
 
     async disconnect({ graceful = true }: { graceful?: boolean } = {}): Promise<void> {
         this.#manualClose = true;
-        this.clearReconnectTimer();
+        this.#clearReconnectTimer();
         this.#clearKeepaliveTimers();
         this.#clearAuthRetryTimer();
         this.#isAuthed = false;
@@ -850,8 +852,8 @@ export class BitmexWsClient extends EventEmitter {
 
     // region: socket lifecycle -------------------------------------------------
 
-    protected openSocket(initialState: 'connecting' | 'reconnecting'): void {
-        this.clearReconnectTimer();
+    #openSocket(initialState: 'connecting' | 'reconnecting'): void {
+        this.#clearReconnectTimer();
         this.#clearKeepaliveTimers();
         this.#cleanupWebSocket();
         this.#isAuthed = false;
@@ -1104,11 +1106,11 @@ export class BitmexWsClient extends EventEmitter {
         }
 
         this.#pongTimer = setTimeout(() => {
-            this.handlePongTimeout();
+            this.#handlePongTimeout();
         }, this.#pongTimeoutMs);
     }
 
-    protected handlePongTimeout(): void {
+    #handlePongTimeout(): void {
         if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
             return;
         }
@@ -1182,9 +1184,9 @@ export class BitmexWsClient extends EventEmitter {
             reason,
         });
 
-        this.clearReconnectTimer();
+        this.#clearReconnectTimer();
         this.#reconnectTimer = setTimeout(() => {
-            this.openSocket('reconnecting');
+            this.#openSocket('reconnecting');
         }, delay);
     }
 
@@ -1195,7 +1197,7 @@ export class BitmexWsClient extends EventEmitter {
         return Math.min(this.#reconnectOptions.maxDelayMs, delay);
     }
 
-    protected clearReconnectTimer(): void {
+    #clearReconnectTimer(): void {
         if (this.#reconnectTimer) {
             clearTimeout(this.#reconnectTimer);
             this.#reconnectTimer = null;
