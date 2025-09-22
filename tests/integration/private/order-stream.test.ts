@@ -6,8 +6,8 @@ import type { BitMexOrder } from '../../../src/core/bitmex/types';
 import type { Settings } from '../../../src/types';
 
 class FakeWebSocket {
-    public readonly url: string;
-    public onmessage: ((event: { data: unknown }) => void) | null = null;
+    readonly url: string;
+    onmessage: ((event: { data: unknown }) => void) | null = null;
     #listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 
     constructor(url: string) {

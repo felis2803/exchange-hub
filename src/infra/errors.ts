@@ -43,13 +43,13 @@ export interface ErrorOptions {
 type ErrorOverrides = Partial<Omit<ErrorOptions, 'code'>>;
 
 export class BaseError extends Error {
-    public readonly category: ErrorCode;
-    public override readonly cause?: unknown;
-    public readonly details?: Record<string, unknown>;
-    public readonly httpStatus?: number;
-    public readonly retryAfterMs?: number;
-    public readonly exchange?: string;
-    public readonly requestId?: string;
+    readonly category: ErrorCode;
+    override readonly cause?: unknown;
+    readonly details?: Record<string, unknown>;
+    readonly httpStatus?: number;
+    readonly retryAfterMs?: number;
+    readonly exchange?: string;
+    readonly requestId?: string;
 
     constructor(opts: ErrorOptions) {
         const message = opts.message ?? opts.code;
@@ -114,7 +114,7 @@ export class NetworkError extends BaseError {
 }
 
 export class AuthError extends BaseError {
-    public readonly authCode: AuthErrorCode;
+    readonly authCode: AuthErrorCode;
 
     constructor(
         message = 'Authentication error',

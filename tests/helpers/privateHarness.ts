@@ -120,11 +120,11 @@ function createNoopWebSocket(): {
     const OriginalWebSocket = (globalThis as any).WebSocket;
 
     class NoopSocket {
-        public readonly url: string;
-        public onopen: (() => void) | null = null;
-        public onmessage: ((event: { data: unknown }) => void) | null = null;
-        public onclose: ((event?: { code?: number; reason?: string }) => void) | null = null;
-        public onerror: ((err: unknown) => void) | null = null;
+        readonly url: string;
+        onopen: (() => void) | null = null;
+        onmessage: ((event: { data: unknown }) => void) | null = null;
+        onclose: ((event?: { code?: number; reason?: string }) => void) | null = null;
+        onerror: ((err: unknown) => void) | null = null;
 
         #listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 

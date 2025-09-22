@@ -8,8 +8,8 @@ import type { BitmexTradeRaw } from '../../src/types/bitmex';
 import type { Settings } from '../../src/types';
 
 class FakeWebSocket {
-    public readonly url: string;
-    public onmessage: ((event: { data: unknown }) => void) | null = null;
+    readonly url: string;
+    onmessage: ((event: { data: unknown }) => void) | null = null;
     #listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 
     constructor(url: string) {

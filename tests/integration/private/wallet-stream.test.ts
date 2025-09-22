@@ -348,11 +348,11 @@ describe('BitMEX wallet stream', () => {
 class ControlledWebSocket {
     static instances: ControlledWebSocket[] = [];
 
-    public readonly url: string;
-    public onmessage: ((event: { data: unknown }) => void) | null = null;
-    public onopen: (() => void) | null = null;
-    public onerror: ((err: unknown) => void) | null = null;
-    public onclose: ((event?: { code?: number; reason?: string }) => void) | null = null;
+    readonly url: string;
+    onmessage: ((event: { data: unknown }) => void) | null = null;
+    onopen: (() => void) | null = null;
+    onerror: ((err: unknown) => void) | null = null;
+    onclose: ((event?: { code?: number; reason?: string }) => void) | null = null;
 
     #listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 

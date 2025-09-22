@@ -264,30 +264,30 @@ export class Instrument extends EventEmitter {
     #tradeEventEnabled: boolean;
     #orderBook?: OrderBookL2;
 
-    public symbolNative: string;
-    public symbolUni: string;
-    public status?: Nullable<InstrumentStatus>;
-    public type?: Nullable<string>;
-    public baseCurrency?: Nullable<string>;
-    public quoteCurrency?: Nullable<string>;
-    public lotSize?: Nullable<number>;
-    public tickSize?: Nullable<number>;
-    public multiplier?: Nullable<number>;
-    public markPrice?: Nullable<number>;
-    public indexPrice?: Nullable<number>;
-    public lastPrice?: Nullable<number>;
-    public lastChangePcnt?: Nullable<number>;
-    public openInterest?: Nullable<number>;
-    public turnover24h?: Nullable<number>;
-    public volume24h?: Nullable<number>;
-    public fundingRate?: Nullable<number>;
-    public indicativeFundingRate?: Nullable<number>;
-    public fundingTimestamp?: Nullable<string>;
-    public fundingInterval?: Nullable<string>;
-    public expiry?: Nullable<string>;
-    public timestamp?: Nullable<string>;
-    public priceFilters: InstrumentPriceFilters;
-    public readonly trades: InstrumentTradesBuffer;
+    symbolNative: string;
+    symbolUni: string;
+    status?: Nullable<InstrumentStatus>;
+    type?: Nullable<string>;
+    baseCurrency?: Nullable<string>;
+    quoteCurrency?: Nullable<string>;
+    lotSize?: Nullable<number>;
+    tickSize?: Nullable<number>;
+    multiplier?: Nullable<number>;
+    markPrice?: Nullable<number>;
+    indexPrice?: Nullable<number>;
+    lastPrice?: Nullable<number>;
+    lastChangePcnt?: Nullable<number>;
+    openInterest?: Nullable<number>;
+    turnover24h?: Nullable<number>;
+    volume24h?: Nullable<number>;
+    fundingRate?: Nullable<number>;
+    indicativeFundingRate?: Nullable<number>;
+    fundingTimestamp?: Nullable<string>;
+    fundingInterval?: Nullable<string>;
+    expiry?: Nullable<string>;
+    timestamp?: Nullable<string>;
+    priceFilters: InstrumentPriceFilters;
+    readonly trades: InstrumentTradesBuffer;
 
     get orderBook(): OrderBookL2 {
         if (!this.#orderBook) {

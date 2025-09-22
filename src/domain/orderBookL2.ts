@@ -11,13 +11,13 @@ type PriceLevel = {
 };
 
 export class OrderBookL2 extends EventEmitter {
-    public readonly log = createLogger('orderbook:l2');
+    readonly log = createLogger('orderbook:l2');
 
-    public readonly rows = new Map<number, L2Row>();
+    readonly rows = new Map<number, L2Row>();
 
-    public bestBid: L2Best | null = null;
-    public bestAsk: L2Best | null = null;
-    public outOfSync = false;
+    bestBid: L2Best | null = null;
+    bestAsk: L2Best | null = null;
+    outOfSync = false;
 
     #levels: Record<'buy' | 'sell', Map<number, PriceLevel>> = {
         buy: new Map(),
@@ -25,35 +25,35 @@ export class OrderBookL2 extends EventEmitter {
     };
 
     // --- Events typing ---
-    public override on(event: 'update', listener: (delta: L2BatchDelta) => void): this;
+    override on(event: 'update', listener: (delta: L2BatchDelta) => void): this;
 
-    public override on(event: string | symbol, listener: (...args: any[]) => void): this;
+    override on(event: string | symbol, listener: (...args: any[]) => void): this;
 
-    public override on(event: string | symbol, listener: (...args: any[]) => void): this {
+    override on(event: string | symbol, listener: (...args: any[]) => void): this {
         return super.on(event, listener);
     }
 
-    public override once(event: 'update', listener: (delta: L2BatchDelta) => void): this;
+    override once(event: 'update', listener: (delta: L2BatchDelta) => void): this;
 
-    public override once(event: string | symbol, listener: (...args: any[]) => void): this;
+    override once(event: string | symbol, listener: (...args: any[]) => void): this;
 
-    public override once(event: string | symbol, listener: (...args: any[]) => void): this {
+    override once(event: string | symbol, listener: (...args: any[]) => void): this {
         return super.once(event, listener);
     }
 
-    public override off(event: 'update', listener: (delta: L2BatchDelta) => void): this;
+    override off(event: 'update', listener: (delta: L2BatchDelta) => void): this;
 
-    public override off(event: string | symbol, listener: (...args: any[]) => void): this;
+    override off(event: string | symbol, listener: (...args: any[]) => void): this;
 
-    public override off(event: string | symbol, listener: (...args: any[]) => void): this {
+    override off(event: string | symbol, listener: (...args: any[]) => void): this {
         return super.off(event, listener);
     }
 
-    public override emit(event: 'update', delta: L2BatchDelta): boolean;
+    override emit(event: 'update', delta: L2BatchDelta): boolean;
 
-    public override emit(event: string | symbol, ...args: any[]): boolean;
+    override emit(event: string | symbol, ...args: any[]): boolean;
 
-    public override emit(event: string | symbol, ...args: any[]): boolean {
+    override emit(event: string | symbol, ...args: any[]): boolean {
         return super.emit(event, ...args);
     }
 

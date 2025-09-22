@@ -556,36 +556,36 @@ export class Order extends EventEmitter implements BaseEntity<OrderSnapshot> {
         return { added: true, qtyDelta: qty, valueDelta };
     }
 
-    public override on(
+    override on(
         event: 'update',
         listener: (snapshot: OrderSnapshot, diff: DomainUpdate<OrderSnapshot>, reason?: OrderUpdateReason) => void,
     ): this;
 
-    public override on(event: string | symbol, listener: (...args: any[]) => void): this;
+    override on(event: string | symbol, listener: (...args: any[]) => void): this;
 
-    public override on(event: string | symbol, listener: (...args: any[]) => void): this {
+    override on(event: string | symbol, listener: (...args: any[]) => void): this {
         return super.on(event, listener);
     }
 
-    public override once(
+    override once(
         event: 'update',
         listener: (snapshot: OrderSnapshot, diff: DomainUpdate<OrderSnapshot>, reason?: OrderUpdateReason) => void,
     ): this;
 
-    public override once(event: string | symbol, listener: (...args: any[]) => void): this;
+    override once(event: string | symbol, listener: (...args: any[]) => void): this;
 
-    public override once(event: string | symbol, listener: (...args: any[]) => void): this {
+    override once(event: string | symbol, listener: (...args: any[]) => void): this {
         return super.once(event, listener);
     }
 
-    public override off(
+    override off(
         event: 'update',
         listener: (snapshot: OrderSnapshot, diff: DomainUpdate<OrderSnapshot>, reason?: OrderUpdateReason) => void,
     ): this;
 
-    public override off(event: string | symbol, listener: (...args: any[]) => void): this;
+    override off(event: string | symbol, listener: (...args: any[]) => void): this;
 
-    public override off(event: string | symbol, listener: (...args: any[]) => void): this {
+    override off(event: string | symbol, listener: (...args: any[]) => void): this {
         return super.off(event, listener);
     }
 
