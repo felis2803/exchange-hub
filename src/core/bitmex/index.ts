@@ -517,8 +517,9 @@ export class BitMex extends BaseCore<'BitMex'> {
         throw new Error('Unknown message');
     }
 
-    #handleWelcomeMessage(_message: BitMexWelcomeMessage) {
-        throw new Error('not implemented');
+    #handleWelcomeMessage(message: BitMexWelcomeMessage) {
+        // TODO: implement BitMEX welcome handler
+        console.warn('TODO: implement BitMEX welcome handler', message);
     }
 
     #handleSubscribeMessage(message: BitMexSubscribeMessage) {
