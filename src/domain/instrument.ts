@@ -245,7 +245,11 @@ const WRITABLE_FIELDS: (keyof InstrumentShape)[] = [
 ];
 
 export class Instrument extends EventEmitter {
-    static readonly DEFAULT_TRADE_BUFFER_SIZE = 1_000;
+    static #DEFAULT_TRADE_BUFFER_SIZE = 1_000;
+
+    static get DEFAULT_TRADE_BUFFER_SIZE(): number {
+        return Instrument.#DEFAULT_TRADE_BUFFER_SIZE;
+    }
 
     static normalizeTradeBufferSize(size?: number): number {
         if (!Number.isFinite(size)) {
@@ -287,7 +291,11 @@ export class Instrument extends EventEmitter {
     expiry?: Nullable<string>;
     timestamp?: Nullable<string>;
     priceFilters: InstrumentPriceFilters;
-    readonly trades: InstrumentTradesBuffer;
+    #trades: InstrumentTradesBuffer;
+
+    get trades(): InstrumentTradesBuffer {
+        return this.#trades;
+    }
 
     get orderBook(): OrderBookL2 {
         if (!this.#orderBook) {
@@ -387,7 +395,7 @@ export class Instrument extends EventEmitter {
         this.symbolNative = data.symbolNative;
         this.symbolUni = data.symbolUni;
         this.priceFilters = {};
-        this.trades = new InstrumentTradesBuffer(bufferSize, (trades, meta) =>
+        this.#trades = new InstrumentTradesBuffer(bufferSize, (trades, meta) =>
             this.#handleTradesInserted(trades, meta),
         );
         this.#tradeEventEnabled = tradeEventEnabled ?? false;

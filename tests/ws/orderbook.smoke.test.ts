@@ -43,7 +43,7 @@ beforeAll(async () => {
 class ControlledWebSocket {
     static instances: ControlledWebSocket[] = [];
 
-    readonly url: string;
+    #url: string;
     onmessage: ((event: { data: unknown }) => void) | null = null;
     onopen: (() => void) | null = null;
     onerror: ((err: unknown) => void) | null = null;
@@ -52,8 +52,12 @@ class ControlledWebSocket {
     #listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 
     constructor(url: string) {
-        this.url = url;
+        this.#url = url;
         ControlledWebSocket.instances.push(this);
+    }
+
+    get url(): string {
+        return this.#url;
     }
 
     addEventListener(event: string, listener: (...args: unknown[]) => void): void {
