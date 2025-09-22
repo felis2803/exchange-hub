@@ -10,6 +10,7 @@ import {
     handlePositionUpdate,
     markPositionsAwaitingResync,
 } from '../../../src/core/bitmex/channels/position';
+import { noop } from '../../../src/utils/noop';
 
 let metrics!: MetricsModule;
 
@@ -41,7 +42,9 @@ class ControlledWebSocket {
         this.#listeners.get(event)?.delete(listener);
     }
 
-    send(_data: string): void {}
+    send(data: string): void {
+        noop(data);
+    }
 
     close(): void {
         this.#emit('close', { code: 1000, reason: 'client-request' });

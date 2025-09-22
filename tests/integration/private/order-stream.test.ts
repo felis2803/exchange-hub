@@ -1,6 +1,7 @@
 import { ExchangeHub } from '../../../src/ExchangeHub';
 import { handleOrderMessage, markOrderChannelAwaitingSnapshot } from '../../../src/core/bitmex/channels/order';
 import { OrderStatus } from '../../../src/domain/order';
+import { noop } from '../../../src/utils/noop';
 import type { BitMex } from '../../../src/core/bitmex/index';
 import type { BitMexOrder } from '../../../src/core/bitmex/types';
 import type { Settings } from '../../../src/types';
@@ -26,7 +27,9 @@ class FakeWebSocket {
         this.#listeners.get(event)?.delete(listener);
     }
 
-    send(_data: string): void {}
+    send(data: string): void {
+        noop(data);
+    }
 
     close(): void {
         this.#emit('close');

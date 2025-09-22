@@ -2,6 +2,7 @@ import type { BitMexChannelMessage, BitMexInstrument } from '../../src/core/bitm
 import { ExchangeHub } from '../../src/ExchangeHub';
 import { handleInstrumentPartial } from '../../src/core/bitmex/channels/instrument';
 import { TRADE_BUFFER_DEFAULT } from '../../src/core/bitmex/constants';
+import { noop } from '../../src/utils/noop';
 import type { BitMex } from '../../src/core/bitmex/index';
 import type { BitmexTradeRaw } from '../../src/types/bitmex';
 
@@ -33,7 +34,9 @@ class ControlledWebSocket {
         this.#listeners.get(event)?.delete(listener);
     }
 
-    send(_data: string): void {}
+    send(data: string): void {
+        noop(data);
+    }
 
     close(): void {
         this.#emit('close', { code: 1000, reason: 'client-request' });

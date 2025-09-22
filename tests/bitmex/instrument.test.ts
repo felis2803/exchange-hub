@@ -7,6 +7,7 @@ import {
 } from '../../src/core/bitmex/channels/instrument';
 import { Instrument } from '../../src/domain/instrument';
 import { mapSymbolNativeToUni, mapSymbolUniToNative } from '../../src/utils/symbolMapping';
+import { noop } from '../../src/utils/noop';
 import type { BitMex } from '../../src/core/bitmex/index';
 import type { BitMexInstrument } from '../../src/core/bitmex/types';
 import type { Settings } from '../../src/types';
@@ -32,7 +33,9 @@ class FakeWebSocket {
         this.#listeners.get(event)?.delete(listener);
     }
 
-    send(_data: string): void {}
+    send(data: string): void {
+        noop(data);
+    }
 
     close(): void {
         this.#emit('close');

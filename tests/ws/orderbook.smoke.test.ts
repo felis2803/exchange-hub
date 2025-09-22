@@ -5,6 +5,7 @@ import type { BitMexChannelMessage, BitMexInstrument } from '../../src/core/bitm
 import type { Logger } from '../../src/infra/logger';
 import type { BitmexOrderBookL2Raw } from '../../src/types/bitmex';
 import type { L2BatchDelta } from '../../src/types/orderbook';
+import { noop } from '../../src/utils/noop';
 
 const orderBookLogger: Logger = {
     level: jest.fn(() => 'debug'),
@@ -67,7 +68,9 @@ class ControlledWebSocket {
         this.#listeners.get(event)?.delete(listener);
     }
 
-    send(_data: string): void {}
+    send(data: string): void {
+        noop(data);
+    }
 
     close(): void {
         this.#emit('close', { code: 1000, reason: 'client-request' });
