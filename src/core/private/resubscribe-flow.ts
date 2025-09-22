@@ -4,9 +4,13 @@ export interface PrivateResubscribeFlow {
 }
 
 export class DefaultPrivateResubscribeFlow implements PrivateResubscribeFlow {
-    constructor(private readonly doResubscribe: () => Promise<void>) {}
+    readonly #doResubscribe: () => Promise<void>;
+
+    constructor(doResubscribe: () => Promise<void>) {
+        this.#doResubscribe = doResubscribe;
+    }
 
     async onAuthedResubscribe(): Promise<void> {
-        await this.doResubscribe();
+        await this.#doResubscribe();
     }
 }
