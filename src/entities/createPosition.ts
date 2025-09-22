@@ -3,32 +3,29 @@ import type { ExchangeName, Side } from '../types.js';
 import type { EntityClass } from './createEntity.js';
 import type { Instrument } from './createInstrument.js';
 
-export function createPosition<ExName extends ExchangeName>(
-  eh: ExchangeHub<ExName>,
-  Entity: EntityClass<ExName>,
-) {
-  class Position extends Entity {
-    static eh = eh;
+export function createPosition<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
+    class Position extends Entity {
+        static eh = eh;
 
-    instrument: Instrument<ExName>;
-    price: number;
-    size: number;
-    liquidation = NaN;
+        instrument: Instrument<ExName>;
+        price: number;
+        size: number;
+        liquidation = NaN;
 
-    constructor(instrument: Instrument<ExName>, { price, size }: { price: number; size: number }) {
-      super();
+        constructor(instrument: Instrument<ExName>, { price, size }: { price: number; size: number }) {
+            super();
 
-      this.instrument = instrument;
-      this.price = price;
-      this.size = size;
+            this.instrument = instrument;
+            this.price = price;
+            this.size = size;
+        }
+
+        get side(): Side {
+            return this.size > 0 ? 'buy' : 'sell';
+        }
     }
 
-    get side(): Side {
-      return this.size > 0 ? 'buy' : 'sell';
-    }
-  }
-
-  return Position;
+    return Position;
 }
 
 export type PositionClass<ExName extends ExchangeName> = ReturnType<typeof createPosition<ExName>>;

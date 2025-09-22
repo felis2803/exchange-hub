@@ -3,26 +3,23 @@ import type { ExchangeHub } from '../ExchangeHub.js';
 import type { ExchangeName } from '../types.js';
 import type { EntityClass } from './createEntity.js';
 
-export function createAsset<ExName extends ExchangeName>(
-  eh: ExchangeHub<ExName>,
-  Entity: EntityClass<ExName>,
-) {
-  class Asset extends Entity {
-    static eh = eh;
+export function createAsset<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
+    class Asset extends Entity {
+        static eh = eh;
 
-    symbol: string;
-    instruments: Instrument<ExName>[] = [];
-    baseFor: Instrument<ExName>[] = [];
-    quoteFor: Instrument<ExName>[] = [];
+        symbol: string;
+        instruments: Instrument<ExName>[] = [];
+        baseFor: Instrument<ExName>[] = [];
+        quoteFor: Instrument<ExName>[] = [];
 
-    constructor(symbol: string) {
-      super();
+        constructor(symbol: string) {
+            super();
 
-      this.symbol = symbol;
+            this.symbol = symbol;
+        }
     }
-  }
 
-  return Asset;
+    return Asset;
 }
 
 export type AssetClass<ExName extends ExchangeName> = ReturnType<typeof createAsset<ExName>>;

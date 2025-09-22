@@ -6,19 +6,13 @@ export type TimestampISO = string;
 export type Liquidity = 'maker' | 'taker';
 
 export interface DomainUpdate<T> {
-  prev: T;
-  next: T;
-  changed: (keyof T)[];
+    prev: T;
+    next: T;
+    changed: (keyof T)[];
 }
 
 export interface BaseEntity<TSnapshot> {
-  getSnapshot(): TSnapshot;
-  on(
-    event: 'update',
-    handler: (next: TSnapshot, diff: DomainUpdate<TSnapshot>, reason?: string) => void,
-  ): this;
-  off(
-    event: 'update',
-    handler: (next: TSnapshot, diff: DomainUpdate<TSnapshot>, reason?: string) => void,
-  ): this;
+    getSnapshot(): TSnapshot;
+    on(event: 'update', handler: (next: TSnapshot, diff: DomainUpdate<TSnapshot>, reason?: string) => void): this;
+    off(event: 'update', handler: (next: TSnapshot, diff: DomainUpdate<TSnapshot>, reason?: string) => void): this;
 }

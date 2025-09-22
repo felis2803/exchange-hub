@@ -11,29 +11,22 @@ import { transact } from './transact.js';
 import { wallet } from './wallet.js';
 
 import type { BitMex } from '../index.js';
-import type {
-  BitMexChannel,
-  BitMexChannelMessageAction,
-  BitMexChannelMessageMap,
-} from '../types.js';
+import type { BitMexChannel, BitMexChannelMessageAction, BitMexChannelMessageMap } from '../types.js';
 
 export const channelMessageHandlers: {
-  [Channel in BitMexChannel]: {
-    [Action in BitMexChannelMessageAction]: (
-      core: BitMex,
-      data: BitMexChannelMessageMap[Channel][],
-    ) => void;
-  };
+    [Channel in BitMexChannel]: {
+        [Action in BitMexChannelMessageAction]: (core: BitMex, data: BitMexChannelMessageMap[Channel][]) => void;
+    };
 } = {
-  instrument,
-  trade,
-  liquidation,
-  orderBookL2,
-  settlement,
-  execution,
-  order,
-  margin,
-  position,
-  transact,
-  wallet,
+    instrument,
+    trade,
+    liquidation,
+    orderBookL2,
+    settlement,
+    execution,
+    order,
+    margin,
+    position,
+    transact,
+    wallet,
 };

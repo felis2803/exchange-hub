@@ -1,135 +1,136 @@
 const PERP_SUFFIX = '.perp';
 
 const BASE_NATIVE_TO_UNI: Record<string, string> = {
-  XBT: 'btc',
+    XBT: 'btc',
 };
 
 const BASE_UNI_TO_NATIVE: Record<string, string> = Object.fromEntries(
-  Object.entries(BASE_NATIVE_TO_UNI).map(([native, uni]) => [uni, native]),
+    Object.entries(BASE_NATIVE_TO_UNI).map(([native, uni]) => [uni, native]),
 );
 
 const QUOTE_NATIVE_TO_UNI: Record<string, string> = {
-  USD: 'usdt',
-  USDT: 'usdt',
-  USDC: 'usdc',
+    USD: 'usdt',
+    USDT: 'usdt',
+    USDC: 'usdc',
 };
 
 const QUOTE_UNI_TO_NATIVE: Record<string, string> = {
-  usdt: 'USDT',
-  usdc: 'USDC',
-  usd: 'USD',
+    usdt: 'USDT',
+    usdc: 'USDC',
+    usd: 'USD',
 };
 
 const QUOTE_SUFFIXES = Object.keys(QUOTE_UNI_TO_NATIVE);
 
 export type SymbolMappingConfig = {
-  enabled?: boolean;
+    enabled?: boolean;
 };
 
 function shouldMap(config?: SymbolMappingConfig): boolean {
-  return config?.enabled ?? true;
+    return config?.enabled ?? true;
 }
 
 function normalizeNative(symbol: string): string {
-  return symbol.trim();
+    return symbol.trim();
 }
 
 function normalizeUnified(symbol: string): string {
-  return symbol.trim();
+    return symbol.trim();
 }
 
 export function mapSymbolNativeToUni(symbol: string, config: SymbolMappingConfig = {}): string {
-  const normalized = normalizeNative(symbol);
+    const normalized = normalizeNative(symbol);
 
-  if (!normalized || !shouldMap(config)) {
-    return normalized;
-  }
+    if (!normalized || !shouldMap(config)) {
+        return normalized;
+    }
 
-  const upper = normalized.toUpperCase();
-  const match = upper.match(/^([A-Z0-9]+?)(USD|USDT|USDC)$/);
+    const upper = normalized.toUpperCase();
+    const match = upper.match(/^([A-Z0-9]+?)(USD|USDT|USDC)$/);
 
-  if (!match) {
-    return upper.toLowerCase();
-  }
+    if (!match) {
+        return upper.toLowerCase();
+    }
 
-  const [, baseNative, quoteNative] = match;
-  const baseUni = (BASE_NATIVE_TO_UNI[baseNative] ?? baseNative).toLowerCase();
-  const quoteUni = QUOTE_NATIVE_TO_UNI[quoteNative] ?? quoteNative.toLowerCase();
-  const isPerpetual = quoteNative === 'USD' || quoteNative === 'USDT';
-  const suffix = isPerpetual ? PERP_SUFFIX : '';
+    const [, baseNative, quoteNative] = match;
+    const baseUni = (BASE_NATIVE_TO_UNI[baseNative] ?? baseNative).toLowerCase();
+    const quoteUni = QUOTE_NATIVE_TO_UNI[quoteNative] ?? quoteNative.toLowerCase();
+    const isPerpetual = quoteNative === 'USD' || quoteNative === 'USDT';
+    const suffix = isPerpetual ? PERP_SUFFIX : '';
 
-  return `${baseUni}${quoteUni}${suffix}`;
+    return `${baseUni}${quoteUni}${suffix}`;
 }
 
 export function mapSymbolUniToNative(symbol: string, config: SymbolMappingConfig = {}): string {
-  const normalized = normalizeUnified(symbol);
+    const normalized = normalizeUnified(symbol);
 
-  if (!normalized || !shouldMap(config)) {
-    return normalized;
-  }
-
-  const lower = normalized.toLowerCase();
-  const hasPerpSuffix = lower.endsWith(PERP_SUFFIX);
-  const withoutSuffix = hasPerpSuffix ? lower.slice(0, -PERP_SUFFIX.length) : lower;
-
-  let detectedQuote: string | undefined;
-
-  for (const candidate of QUOTE_SUFFIXES) {
-    if (withoutSuffix.endsWith(candidate)) {
-      detectedQuote = candidate;
-      break;
+    if (!normalized || !shouldMap(config)) {
+        return normalized;
     }
-  }
 
-  if (!detectedQuote) {
-    return withoutSuffix.toUpperCase();
-  }
+    const lower = normalized.toLowerCase();
+    const hasPerpSuffix = lower.endsWith(PERP_SUFFIX);
+    const withoutSuffix = hasPerpSuffix ? lower.slice(0, -PERP_SUFFIX.length) : lower;
 
-  const basePart = withoutSuffix.slice(0, -detectedQuote.length);
+    let detectedQuote: string | undefined;
 
-  if (!basePart) {
-    return withoutSuffix.toUpperCase();
-  }
-
-  const baseNative = BASE_UNI_TO_NATIVE[basePart] ?? basePart.toUpperCase();
-  let quoteNative = QUOTE_UNI_TO_NATIVE[detectedQuote] ?? detectedQuote.toUpperCase();
-
-  if (hasPerpSuffix || detectedQuote === 'usdt') {
-    if (quoteNative === 'USDT') {
-      quoteNative = 'USD';
+    for (const candidate of QUOTE_SUFFIXES) {
+        if (withoutSuffix.endsWith(candidate)) {
+            detectedQuote = candidate;
+            break;
+        }
     }
-  }
 
-  return `${baseNative}${quoteNative}`;
+    if (!detectedQuote) {
+        return withoutSuffix.toUpperCase();
+    }
+
+    const basePart = withoutSuffix.slice(0, -detectedQuote.length);
+
+    if (!basePart) {
+        return withoutSuffix.toUpperCase();
+    }
+
+    const baseNative = BASE_UNI_TO_NATIVE[basePart] ?? basePart.toUpperCase();
+    let quoteNative = QUOTE_UNI_TO_NATIVE[detectedQuote] ?? detectedQuote.toUpperCase();
+
+    if (hasPerpSuffix || detectedQuote === 'usdt') {
+        if (quoteNative === 'USDT') {
+            quoteNative = 'USD';
+        }
+    }
+
+    return `${baseNative}${quoteNative}`;
 }
 
 export function getUnifiedSymbolAliases(symbol: string): string[] {
-  const normalized = normalizeUnified(symbol);
+    const normalized = normalizeUnified(symbol);
 
-  if (!normalized) {
-    return [];
-  }
-
-  const variants = new Set<string>();
-
-  const addVariant = (value: string) => {
-    if (!value) {
-      return;
+    if (!normalized) {
+        return [];
     }
 
-    variants.add(value);
-    variants.add(value.toLowerCase());
-    variants.add(value.toUpperCase());
-  };
+    const variants = new Set<string>();
 
-  addVariant(normalized);
+    const addVariant = (value: string) => {
+        if (!value) {
+            return;
+        }
 
-  const lower = normalized.toLowerCase();
+        variants.add(value);
+        variants.add(value.toLowerCase());
+        variants.add(value.toUpperCase());
+    };
 
-  if (lower.endsWith(PERP_SUFFIX)) {
-    const withoutSuffix = normalized.slice(0, -PERP_SUFFIX.length);
-    addVariant(withoutSuffix);
-  }
+    addVariant(normalized);
 
-  return Array.from(variants);
+    const lower = normalized.toLowerCase();
+
+    if (lower.endsWith(PERP_SUFFIX)) {
+        const withoutSuffix = normalized.slice(0, -PERP_SUFFIX.length);
+
+        addVariant(withoutSuffix);
+    }
+
+    return Array.from(variants);
 }

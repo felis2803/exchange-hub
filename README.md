@@ -15,17 +15,17 @@ The logger writes formatted messages to stdout/stderr using ISO timestamps, for 
 The log level can be configured globally. By default it is set to `info`.
 
 - Environment variable (takes effect on startup):
-  ```bash
-  EXH_LOG_LEVEL=debug node app.js
-  ```
+    ```bash
+    EXH_LOG_LEVEL=debug node app.js
+    ```
 - Programmatically at runtime:
 
-  ```ts
-  import { createLogger } from 'exchange-hub';
+    ```ts
+    import { createLogger } from 'exchange-hub';
 
-  const log = createLogger('my-bot');
-  log.setLevel('trace');
-  ```
+    const log = createLogger('my-bot');
+    log.setLevel('trace');
+    ```
 
 Supported levels in ascending order are `trace`, `debug`, `info`, `warn`, and `error`.
 Calls below the active level are no-ops and do not perform formatting work.
@@ -54,26 +54,26 @@ only when the log level allows the message to be emitted.
 import { fromHttpResponse, NetworkError, RateLimitError, wrap } from 'exchange-hub';
 
 async function fetchOrders() {
-  try {
-    // ... выполняем HTTP-запрос
-  } catch (unknownError) {
-    const err = wrap(unknownError, 'NETWORK_ERROR');
-    if (err.isRetryable()) {
-      // повторяем запрос
+    try {
+        // ... выполняем HTTP-запрос
+    } catch (unknownError) {
+        const err = wrap(unknownError, 'NETWORK_ERROR');
+        if (err.isRetryable()) {
+            // повторяем запрос
+        }
+        console.error(JSON.stringify(err.toJSON()));
+        throw err;
     }
-    console.error(JSON.stringify(err.toJSON()));
-    throw err;
-  }
 }
 
 const error = fromHttpResponse({ status: 429, exchange: 'BitMEX' });
 if (error instanceof RateLimitError && error.retryAfterMs) {
-  console.log(`Подождите ${error.retryAfterMs} мс перед повтором`);
+    console.log(`Подождите ${error.retryAfterMs} мс перед повтором`);
 }
 
 const networkIssue = new NetworkError('WebSocket disconnected', {
-  exchange: 'Deribit',
-  details: { reconnecting: true },
+    exchange: 'Deribit',
+    details: { reconnecting: true },
 });
 console.log(networkIssue.code); // "NETWORK_ERROR"
 ```
@@ -109,7 +109,7 @@ BitMEX и большинство бирж требуют, чтобы `clOrdID` �
 import { ExchangeHub, genClOrdID } from 'exchange-hub';
 
 export const eh = new ExchangeHub('BitMex', {
-  /*...*/
+    /*...*/
 });
 // Рекомендуется задавать уникальный префикс для clOrdID через переменную окружения:
 // EH_PREFIX=my-desk-01
@@ -154,21 +154,21 @@ const hub = new ExchangeHub('BitMex', { apiKey: '...', apiSec: '...' });
 const clOrdId = genClOrdID('desk-a');
 
 const normalized = validatePlaceInput({
-  symbol: 'XBTUSD',
-  side: 'buy',
-  size: 10,
-  type: 'Limit',
-  price: 50_000,
-  opts: { postOnly: true, timeInForce: 'GoodTillCancel', clOrdID: clOrdId },
+    symbol: 'XBTUSD',
+    side: 'buy',
+    size: 10,
+    type: 'Limit',
+    price: 50_000,
+    opts: { postOnly: true, timeInForce: 'GoodTillCancel', clOrdID: clOrdId },
 });
 
 const order = await hub.Core.buy({
-  ...normalized,
-  options: { ...normalized.options, clOrdId },
+    ...normalized,
+    options: { ...normalized.options, clOrdId },
 });
 
-order.on('update', (snapshot) => {
-  console.log('Order status', snapshot.status, 'leaves', snapshot.leavesQty);
+order.on('update', snapshot => {
+    console.log('Order status', snapshot.status, 'leaves', snapshot.leavesQty);
 });
 ```
 
@@ -211,7 +211,7 @@ ExchangeHub фиксирует единый контракт обновлени�
 
 ```ts
 entity.on('update', (snapshot, { prev, next, changed }, reason) => {
-  console.log('Wallet changed fields', changed, 'due to', reason);
+    console.log('Wallet changed fields', changed, 'due to', reason);
 });
 ```
 
