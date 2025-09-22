@@ -13,5 +13,6 @@
         "noEmitOnError": true,
         "resolveJsonModule": true
     },
-    "exclude": ["dist", "node_modules"]
+    "exclude": ["dist", "node_modules", "examples", "tests"],
+    "include": ["src/**/*.ts"]
 }
