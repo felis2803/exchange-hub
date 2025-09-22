@@ -245,17 +245,21 @@ const WRITABLE_FIELDS: (keyof InstrumentShape)[] = [
 ];
 
 export class Instrument extends EventEmitter {
-    static readonly DEFAULT_TRADE_BUFFER_SIZE = 1_000;
+    static #DEFAULT_TRADE_BUFFER_SIZE = 1_000;
+
+    static get DEFAULT_TRADE_BUFFER_SIZE(): number {
+        return Instrument.#DEFAULT_TRADE_BUFFER_SIZE;
+    }
 
     static normalizeTradeBufferSize(size?: number): number {
         if (!Number.isFinite(size)) {
-            return Instrument.DEFAULT_TRADE_BUFFER_SIZE;
+            return Instrument.#DEFAULT_TRADE_BUFFER_SIZE;
         }
 
         const normalized = Math.floor(size as number);
 
         if (!Number.isFinite(normalized) || normalized <= 0) {
-            return Instrument.DEFAULT_TRADE_BUFFER_SIZE;
+            return Instrument.#DEFAULT_TRADE_BUFFER_SIZE;
         }
 
         return Math.max(1, normalized);
@@ -263,6 +267,7 @@ export class Instrument extends EventEmitter {
 
     #tradeEventEnabled: boolean;
     #orderBook?: OrderBookL2;
+    #trades: InstrumentTradesBuffer;
 
     symbolNative: string;
     symbolUni: string;
@@ -287,7 +292,6 @@ export class Instrument extends EventEmitter {
     expiry?: Nullable<string>;
     timestamp?: Nullable<string>;
     priceFilters: InstrumentPriceFilters;
-    readonly trades: InstrumentTradesBuffer;
 
     get orderBook(): OrderBookL2 {
         if (!this.#orderBook) {
@@ -387,12 +391,16 @@ export class Instrument extends EventEmitter {
         this.symbolNative = data.symbolNative;
         this.symbolUni = data.symbolUni;
         this.priceFilters = {};
-        this.trades = new InstrumentTradesBuffer(bufferSize, (trades, meta) =>
+        this.#trades = new InstrumentTradesBuffer(bufferSize, (trades, meta) =>
             this.#handleTradesInserted(trades, meta),
         );
         this.#tradeEventEnabled = tradeEventEnabled ?? false;
 
         this.applyUpdate(data, { emit: false });
+    }
+
+    get trades(): InstrumentTradesBuffer {
+        return this.#trades;
     }
 
     #handleTradesInserted(trades: InstrumentTrade[], _meta: InstrumentTradePushMeta): void {
@@ -410,7 +418,7 @@ export class Instrument extends EventEmitter {
     }
 
     get tradeBufferSize(): number {
-        return this.trades.capacity;
+        return this.#trades.capacity;
     }
 
     get tradeEventEnabled(): boolean {

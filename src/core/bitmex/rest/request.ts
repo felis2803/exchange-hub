@@ -27,22 +27,42 @@ export interface BitmexRestClientOptions {
 }
 
 export class BitmexRestClient {
-    readonly baseUrl: string;
-    readonly apiKey?: string;
-    readonly apiSecret?: string;
-    readonly defaultTimeoutMs: number;
-    readonly apiExpiresSkewSec: number;
+    #baseUrl: string;
+    #apiKey: string | undefined;
+    #apiSecret: string | undefined;
+    #defaultTimeoutMs: number;
+    #apiExpiresSkewSec: number;
 
     constructor(opts: BitmexRestClientOptions = {}) {
-        this.baseUrl = opts.isTest ? BITMEX_REST_HOSTS.testnet : BITMEX_REST_HOSTS.mainnet;
-        this.apiKey = opts.apiKey;
-        this.apiSecret = opts.apiSecret;
-        this.defaultTimeoutMs = opts.defaultTimeoutMs ?? BITMEX_REST_DEFAULT_TIMEOUT_MS;
-        this.apiExpiresSkewSec = resolveExpiresSkewSec(opts.apiExpiresSkewSec);
+        this.#baseUrl = opts.isTest ? BITMEX_REST_HOSTS.testnet : BITMEX_REST_HOSTS.mainnet;
+        this.#apiKey = opts.apiKey;
+        this.#apiSecret = opts.apiSecret;
+        this.#defaultTimeoutMs = opts.defaultTimeoutMs ?? BITMEX_REST_DEFAULT_TIMEOUT_MS;
+        this.#apiExpiresSkewSec = resolveExpiresSkewSec(opts.apiExpiresSkewSec);
+    }
+
+    get baseUrl(): string {
+        return this.#baseUrl;
+    }
+
+    get apiKey(): string | undefined {
+        return this.#apiKey;
+    }
+
+    get apiSecret(): string | undefined {
+        return this.#apiSecret;
+    }
+
+    get defaultTimeoutMs(): number {
+        return this.#defaultTimeoutMs;
+    }
+
+    get apiExpiresSkewSec(): number {
+        return this.#apiExpiresSkewSec;
     }
 
     async request<T>(method: HttpMethod, path: string, init: RequestInitEx = {}): Promise<T> {
-        const url = new URL(path, this.baseUrl);
+        const url = new URL(path, this.#baseUrl);
 
         if (init.qs) {
             for (const [key, value] of Object.entries(init.qs)) {
@@ -68,7 +88,7 @@ export class BitmexRestClient {
             headers['content-type'] = 'application/json';
         }
 
-        const hasCredentials = Boolean(this.apiKey && this.apiSecret);
+        const hasCredentials = Boolean(this.#apiKey && this.#apiSecret);
         const shouldSign = init.auth ?? (hasCredentials && path.startsWith('/api/'));
 
         if (shouldSign) {
@@ -76,16 +96,16 @@ export class BitmexRestClient {
                 throw AuthError.badCredentials('BitMEX API credentials required', { exchange: 'BitMEX' });
             }
 
-            const expires = Math.floor(Date.now() / 1000) + this.apiExpiresSkewSec;
-            const signature = sign(method, pathWithQuery, expires, payloadBody, this.apiSecret!);
+            const expires = Math.floor(Date.now() / 1000) + this.#apiExpiresSkewSec;
+            const signature = sign(method, pathWithQuery, expires, payloadBody, this.#apiSecret!);
 
-            headers['api-key'] = this.apiKey!;
+            headers['api-key'] = this.#apiKey!;
             headers['api-expires'] = String(expires);
             headers['api-signature'] = signature;
         }
 
         const controller = new AbortController();
-        const timeoutMs = init.timeoutMs ?? this.defaultTimeoutMs;
+        const timeoutMs = init.timeoutMs ?? this.#defaultTimeoutMs;
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
         try {

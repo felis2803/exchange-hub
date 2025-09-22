@@ -121,7 +121,7 @@ function createNoopWebSocket(): {
     const OriginalWebSocket = (globalThis as any).WebSocket;
 
     class NoopSocket {
-        readonly url: string;
+        #url: string;
         onopen: (() => void) | null = null;
         onmessage: ((event: { data: unknown }) => void) | null = null;
         onclose: ((event?: { code?: number; reason?: string }) => void) | null = null;
@@ -130,7 +130,11 @@ function createNoopWebSocket(): {
         #listeners = new Map<string, Set<(...args: unknown[]) => void>>();
 
         constructor(url: string) {
-            this.url = url;
+            this.#url = url;
+        }
+
+        get url(): string {
+            return this.#url;
         }
 
         addEventListener(event: string, listener: (...args: unknown[]) => void): void {

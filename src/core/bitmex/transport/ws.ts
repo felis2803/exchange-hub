@@ -113,20 +113,20 @@ interface PendingMessage {
 }
 
 export class BitmexWsClient extends EventEmitter {
-    readonly #url: string;
-    readonly #pingIntervalMs: number;
-    readonly #pongTimeoutMs: number;
-    readonly #sendBufferLimit: number;
-    readonly #reconnectOptions: NormalizedReconnectOptions;
-    readonly #authTimeoutMs: number;
-    readonly #authExpiresSkewSec: number;
-    readonly #envLabel: 'testnet' | 'mainnet';
+    #url: string;
+    #pingIntervalMs: number;
+    #pongTimeoutMs: number;
+    #sendBufferLimit: number;
+    #reconnectOptions: NormalizedReconnectOptions;
+    #authTimeoutMs: number;
+    #authExpiresSkewSec: number;
+    #envLabel: 'testnet' | 'mainnet';
 
     #ws: WebSocket | null = null;
     #state: WsState = 'idle';
     #sendBuffer: PendingMessage[] = [];
-    readonly #pendingPrivateMessages = new Set<string>();
-    readonly #privateSubscriptions = new Set<string>();
+    #pendingPrivateMessages = new Set<string>();
+    #privateSubscriptions = new Set<string>();
     #reconnectAttempts = 0;
     #manualClose = false;
     #credentials: BitmexCredentials | null = null;
@@ -144,9 +144,9 @@ export class BitmexWsClient extends EventEmitter {
     #resolveConnect: (() => void) | undefined;
     #rejectConnect: ((err: Error) => void) | undefined;
 
-    readonly #log = createLogger('bitmex:ws');
-    readonly #authLog = this.#log.withTags(['auth', 'ws']);
-    readonly #authReconnectLog = this.#authLog.withTags(['reconnect']);
+    #log = createLogger('bitmex:ws');
+    #authLog = this.#log.withTags(['auth', 'ws']);
+    #authReconnectLog = this.#authLog.withTags(['reconnect']);
 
     override on<Event extends keyof BitmexWsEvents>(event: Event, listener: BitmexWsEvents[Event]): this;
 
@@ -876,7 +876,7 @@ export class BitmexWsClient extends EventEmitter {
         ws.on('close', this.#handleClose);
     }
 
-    readonly #handleOpen = (): void => {
+    #handleOpen = (): void => {
         if (!this.#ws || this.#ws.readyState !== WebSocket.OPEN) {
             return;
         }
@@ -894,18 +894,18 @@ export class BitmexWsClient extends EventEmitter {
         this.emit('open');
     };
 
-    readonly #handleMessage = (data: RawData): void => {
+    #handleMessage = (data: RawData): void => {
         const text = this.#normalizeMessage(data);
 
         this.#tryHandleAuthResponse(text);
         this.emit('message', text);
     };
 
-    readonly #handlePong = (): void => {
+    #handlePong = (): void => {
         this.#bumpPongDeadline();
     };
 
-    readonly #handleError = (err: Error): void => {
+    #handleError = (err: Error): void => {
         if (this.#pendingAuth) {
             const error = AuthError.network('BitMEX WS auth failed: socket error', {
                 exchange: 'BitMEX',
@@ -919,7 +919,7 @@ export class BitmexWsClient extends EventEmitter {
         this.emit('error', err);
     };
 
-    readonly #handleClose = (code: number, reasonBuf: Buffer): void => {
+    #handleClose = (code: number, reasonBuf: Buffer): void => {
         const reason = reasonBuf?.toString('utf8') || undefined;
 
         const context = { code, reason, manual: this.#manualClose } as const;

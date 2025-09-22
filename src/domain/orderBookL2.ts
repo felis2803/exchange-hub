@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 
 import { createLogger } from '../infra/logger';
+import type { Logger } from '../infra/logger';
 import type { L2BatchDelta, L2Best, L2Row } from '../types/orderbook';
 
 type L2UpdateRow = Pick<L2Row, 'id'> & Partial<Omit<L2Row, 'id'>>;
@@ -11,9 +12,17 @@ type PriceLevel = {
 };
 
 export class OrderBookL2 extends EventEmitter {
-    readonly log = createLogger('orderbook:l2');
+    #log: Logger = createLogger('orderbook:l2');
 
-    readonly rows = new Map<number, L2Row>();
+    #rows: Map<number, L2Row> = new Map<number, L2Row>();
+
+    get log(): Logger {
+        return this.#log;
+    }
+
+    get rows(): Map<number, L2Row> {
+        return this.#rows;
+    }
 
     bestBid: L2Best | null = null;
     bestAsk: L2Best | null = null;
@@ -58,7 +67,7 @@ export class OrderBookL2 extends EventEmitter {
     }
 
     reset(snapshot: L2Row[]): void {
-        this.rows.clear();
+        this.#rows.clear();
         this.#levels.buy.clear();
         this.#levels.sell.clear();
         this.bestBid = null;
@@ -107,7 +116,7 @@ export class OrderBookL2 extends EventEmitter {
         const touched = new Set<'buy' | 'sell'>();
 
         for (const update of rows) {
-            const current = this.rows.get(update.id);
+            const current = this.#rows.get(update.id);
 
             if (!current) {
                 this.outOfSync = true;
@@ -160,7 +169,7 @@ export class OrderBookL2 extends EventEmitter {
         const touched = new Set<'buy' | 'sell'>();
 
         for (const id of ids) {
-            const current = this.rows.get(id);
+            const current = this.#rows.get(id);
 
             if (!current) {
                 this.outOfSync = true;
@@ -175,7 +184,7 @@ export class OrderBookL2 extends EventEmitter {
                 asks += 1;
             }
 
-            this.rows.delete(id);
+            this.#rows.delete(id);
             this.#removeFromLevel(current.side, current.price, current.id, current.size);
         }
 
@@ -191,9 +200,9 @@ export class OrderBookL2 extends EventEmitter {
             return false;
         }
 
-        if (this.rows.has(row.id)) {
+        if (this.#rows.has(row.id)) {
             this.outOfSync = true;
-            this.log.warn('duplicate L2 id', { id: row.id });
+            this.#log.warn('duplicate L2 id', { id: row.id });
 
             return false;
         }
@@ -205,7 +214,7 @@ export class OrderBookL2 extends EventEmitter {
             size: row.size,
         };
 
-        this.rows.set(normalized.id, normalized);
+        this.#rows.set(normalized.id, normalized);
         this.#addToLevel(normalized);
 
         return true;
@@ -221,7 +230,7 @@ export class OrderBookL2 extends EventEmitter {
             return;
         }
 
-        const previous = this.rows.get(row.id);
+        const previous = this.#rows.get(row.id);
 
         if (previous) {
             const delta = row.size - previous.size;
