@@ -5,6 +5,7 @@ import { OrderStatus } from '../../../src/domain/order';
 import { RateLimitError } from '../../../src/infra/errors';
 import type { BitMex } from '../../../src/core/bitmex/index';
 import type { PreparedPlaceInput } from '../../../src/infra/validation';
+import type { FetchRequestInit, FetchRequestInfo } from '../../fetch-types';
 
 const ORIGINAL_FETCH = global.fetch;
 
@@ -70,7 +71,7 @@ describe('BitMEX REST createOrder – market', () => {
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        const [url, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+        const [url, init] = mockFetch.mock.calls[0] as [FetchRequestInfo | URL, FetchRequestInit];
 
         expect(String(url)).toBe('https://testnet.bitmex.com/api/v1/order');
         expect(init.method).toBe('POST');
@@ -290,7 +291,7 @@ describe('BitMEX REST createOrder – market', () => {
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        const [url, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+        const [url, init] = mockFetch.mock.calls[0] as [FetchRequestInfo | URL, FetchRequestInit];
 
         expect(String(url)).toBe('https://testnet.bitmex.com/api/v1/order');
         expect(init.method).toBe('POST');

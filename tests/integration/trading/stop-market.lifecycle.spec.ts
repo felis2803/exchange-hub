@@ -4,6 +4,7 @@ import { OrderStatus } from '../../../src/domain/order';
 import type { PreparedPlaceInput } from '../../../src/infra/validation';
 import { createScenario } from '../../helpers/ws-mock/scenario';
 import { setupPrivateHarness } from '../../helpers/privateHarness';
+import type { FetchRequestInit, FetchRequestInfo } from '../../fetch-types';
 
 const ORIGINAL_FETCH = global.fetch;
 
@@ -162,7 +163,7 @@ describe('BitMEX trading – stop-market lifecycle', () => {
 
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        const [, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+        const [, init] = mockFetch.mock.calls[0] as [FetchRequestInfo | URL, FetchRequestInit];
         const body = JSON.parse(String(init.body));
 
         expect(body).toMatchObject({

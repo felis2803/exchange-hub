@@ -3,6 +3,7 @@ import { jest } from '@jest/globals';
 import { BitmexRestClient } from '../../src/core/bitmex/rest/request';
 import { sign } from '../../src/core/bitmex/rest/sign';
 import { AuthError, ExchangeDownError, RateLimitError } from '../../src/infra/errors';
+import type { FetchRequestInit, FetchRequestInfo } from '../fetch-types';
 
 describe('BitmexRestClient.request()', () => {
     const originalFetch = global.fetch;
@@ -14,7 +15,7 @@ describe('BitmexRestClient.request()', () => {
 
     test('GET builds url with query string and returns JSON payload', async () => {
         const payload = [{ symbol: 'XBTUSD' }];
-        const mockFetch = jest.fn(async (input: RequestInfo | URL) => {
+        const mockFetch = jest.fn(async (input: FetchRequestInfo | URL) => {
             expect(String(input)).toBe('https://testnet.bitmex.com/api/v1/instrument/active?count=1');
 
             return new Response(JSON.stringify(payload), { status: 200 });
@@ -28,7 +29,7 @@ describe('BitmexRestClient.request()', () => {
         expect(data).toEqual(payload);
         expect(mockFetch).toHaveBeenCalledTimes(1);
 
-        const init = mockFetch.mock.calls[0][1] as RequestInit;
+        const init = mockFetch.mock.calls[0][1] as FetchRequestInit;
 
         expect(init.headers).toEqual({ accept: 'application/json' });
     });
@@ -66,7 +67,7 @@ describe('BitmexRestClient.request()', () => {
             body: { symbol: 'XBTUSD', orderQty: 1 },
         });
 
-        const [, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+        const [, init] = mockFetch.mock.calls[0] as [FetchRequestInfo | URL, FetchRequestInit];
         const headers = init.headers as Record<string, string>;
 
         expect(headers['content-type']).toBe('application/json');
@@ -104,7 +105,7 @@ describe('BitmexRestClient.request()', () => {
 
             await client.request('POST', '/api/v1/order', { auth: true, body: { symbol: 'XBTUSD' } });
 
-            const [, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+            const [, init] = mockFetch.mock.calls[0] as [FetchRequestInfo | URL, FetchRequestInit];
             const headers = init.headers as Record<string, string>;
             const expectedExpires = Math.floor(1_700_000_000_000 / 1000) + 30;
 
@@ -140,7 +141,7 @@ describe('BitmexRestClient.request()', () => {
 
             await client.request('POST', '/api/v1/order', { auth: true, body: { symbol: 'XBTUSD' } });
 
-            const [, init] = mockFetch.mock.calls[0] as [RequestInfo | URL, RequestInit];
+            const [, init] = mockFetch.mock.calls[0] as [FetchRequestInfo | URL, FetchRequestInit];
             const headers = init.headers as Record<string, string>;
             const expectedExpires = Math.floor(1_750_000_000_000 / 1000) + 45;
 

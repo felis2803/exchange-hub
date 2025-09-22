@@ -5,6 +5,7 @@ import { OrderStatus } from '../../../src/domain/order';
 import { getCounterValue, resetMetrics } from '../../../src/infra/metrics';
 import type { BitMex } from '../../../src/core/bitmex/index';
 import type { PreparedPlaceInput } from '../../../src/infra/validation';
+import type { FetchRequestInit, FetchRequestInfo } from '../../fetch-types';
 
 const ORIGINAL_FETCH = global.fetch;
 
@@ -51,7 +52,7 @@ describe('BitMEX trading – timeout reconcile', () => {
 
         abortError.name = 'AbortError';
 
-        const mockFetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const mockFetch = jest.fn((input: FetchRequestInfo | URL, init?: FetchRequestInit) => {
             const method = init?.method ?? 'GET';
 
             if (method === 'POST') {
@@ -109,8 +110,8 @@ describe('BitMEX trading – timeout reconcile', () => {
         expect(mockFetch).toHaveBeenCalledTimes(2);
 
         const [[postUrl, postInit], [getUrl, getInit]] = mockFetch.mock.calls as [
-            [RequestInfo | URL, RequestInit | undefined],
-            [RequestInfo | URL, RequestInit | undefined],
+            [FetchRequestInfo | URL, FetchRequestInit | undefined],
+            [FetchRequestInfo | URL, FetchRequestInit | undefined],
         ];
 
         expect(postInit?.method ?? 'GET').toBe('POST');

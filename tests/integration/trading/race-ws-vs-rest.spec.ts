@@ -4,6 +4,7 @@ import { ExchangeHub } from '../../../src/ExchangeHub';
 import { OrderStatus } from '../../../src/domain/order';
 import type { BitMex } from '../../../src/core/bitmex/index';
 import type { PreparedPlaceInput } from '../../../src/infra/validation';
+import type { FetchRequestInit, FetchRequestInfo } from '../../fetch-types';
 
 const ORIGINAL_FETCH = global.fetch;
 
@@ -47,7 +48,7 @@ describe('BitMEX trading – race between WS and REST', () => {
         const { hub, core } = createHub();
         const prepared = createPreparedLimit();
 
-        const mockFetch = jest.fn((input: RequestInfo | URL, init?: RequestInit) => {
+        const mockFetch = jest.fn((input: FetchRequestInfo | URL, init?: FetchRequestInit) => {
             const method = init?.method ?? 'GET';
 
             if (method !== 'POST') {
