@@ -1,12 +1,9 @@
-import type { ExchangeHub } from '../ExchangeHub';
 import type { ExchangeName, Side } from '../types';
 import type { EntityClass } from './createEntity';
-import type { Instrument } from './createInstrument';
+import type { Instrument } from './createInstruments';
 
-export function createTrade<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
+export function createTrade<ExName extends ExchangeName>(Entity: EntityClass<ExName>) {
     class Trade extends Entity {
-        static eh = eh;
-
         id: string;
         instrument: Instrument<ExName>;
         price: number;

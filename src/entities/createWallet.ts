@@ -1,12 +1,9 @@
-import type { ExchangeHub } from '../ExchangeHub';
 import type { EntityClass } from './createEntity';
-import type { Asset } from './createAsset';
+import type { Asset } from './createAssets';
 import type { ExchangeName } from '../types';
 
-export function createWallet<ExName extends ExchangeName>(eh: ExchangeHub<ExName>, Entity: EntityClass<ExName>) {
+export function createWallet<ExName extends ExchangeName>(Entity: EntityClass<ExName>) {
     class Wallet extends Entity {
-        static eh = eh;
-
         asset: Asset<ExName>;
         balance: number;
 
